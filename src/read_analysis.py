@@ -28,7 +28,7 @@ def usage():
     usage_message = "./read_analysis.py <options>\n" \
                     "<options>: \n" \
                     "-h : print usage message\n" \
-                    "-i : training ONT real reads, must be fasta files with extention '.fasta'\n" \
+                    "-i : training ONT real reads, must be fasta files\n" \
                     "-r : reference genome of the training reads\n" \
                     "-o : The prefix of output file, default = 'training'\n"
 
@@ -70,7 +70,7 @@ def main(argv):
     # call("lastdb ref_genome " + ref, shell=True)
     out_maf = outfile + ".maf"
     # call("lastal -a 1 ref_genome " + infile + " | grep '^s ' > " + out_maf, shell=True)
-    '''
+    
     # LENGTH DISTRIBUTION
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": length distribution analysis\n")
     # Get besthit of alignment
@@ -95,13 +95,15 @@ def main(argv):
     # MATCH AND ERROR MODELS
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": match and error models\n")
     error_model.hist(outfile)
-    '''
+    
     path = sys.argv[0].split("/")
     R_path = '/'.join(path[:-1]) + '/' + "model_fitting.R"
     if os.path.isfile(R_path):
         call("Rscript " + R_path + " " + outfile, shell=True)
     else:
         print("Could not find 'model_fitting.R' in ../src/\nMake sure you copied the whole source files from Github.")
+        
+        
 if __name__ == "__main__":
     main(sys.argv[1:])
 
