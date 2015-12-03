@@ -2,7 +2,6 @@ library(stats4)
 
 ##### Read in data
 prefix <- commandArgs(trailingOnly = TRUE)
-prefix <- "training"
 mis_file <- paste(prefix, "_mis.hist", sep="")
 ins_file <- paste(prefix, "_ins.hist", sep="")
 del_file <- paste(prefix, "_del.hist", sep="")
