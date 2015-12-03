@@ -67,9 +67,9 @@ def main(argv):
 
     # ALIGNMENT
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with LAST\n")
-    # call("lastdb ref_genome " + ref, shell=True)
+    call("lastdb ref_genome " + ref, shell=True)
     out_maf = outfile + ".maf"
-    # call("lastal -a 1 ref_genome " + infile + " | grep '^s ' > " + out_maf, shell=True)
+    call("lastal -a 1 ref_genome " + infile + " | grep '^s ' > " + out_maf, shell=True)
     
     # LENGTH DISTRIBUTION
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": length distribution analysis\n")
