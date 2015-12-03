@@ -1,3 +1,13 @@
+1. Characterization stage
+Usage:
+./read_analysis.py <options>  
+    [options]:  
+    -h : print usage message  
+    -i : training ONT real reads, must be fasta files  
+    -r : reference genome of the training reads  
+    -o : The prefix of output file, default = 'training'
+
+2. Simulation stage
 Usage:
 ./simulator.py [command] <options> 
     [command]:
