@@ -50,10 +50,9 @@ def usage():
                     "<options>: \n" \
                     "-h : print usage message\n" \
                     "-r : reference genome in fasta file, specify path and file name\n" \
-                    "-c : Flowcell chemistry, R7 or R7.3\n" \
+                    "-c : Flowcell model_prefix, same as the output prefix in read_analysis.py, default = training\n" \
                     "-o : The prefix of output file, default = 'simulated'\n" \
                     "-n : Number of generated reads, default = 24,221 reads\n" \
-                    "-p : Error model profile, can be omitted if there is no customized profile\n" \
                     "--perfect: Output perfect reads, no mutations, default = False\n" \
                     "--KmerBias: prohibits homopolymers with length >= 6 bases in output reads\n"
 
@@ -100,16 +99,15 @@ def read_ecdf(profile):
     return ecdf_dict
 
 
-def read_profile(number, chemistry, model_profile, per):
-    global unaligned_length, sub_matrix, ref_length
+def read_profile(number, model_prefix, per):
+    global unaligned_length, ref_length
     global match_ht_list, align_ratio, ht_dict, error_par
     global trans_error_pr, match_markov_model
 
     # Read model profile for match, mismatch, insertion and deletions
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read error profile\n")
     error_par = {}
-    if model_profile == "":
-        model_profile = chemistry + "_model_profile"
+    model_profile = model_prefix + "_model_profile"
     with open(model_profile, 'r') as mod_profile:
         mod_profile.readline()
         for line in mod_profile:
@@ -122,7 +120,7 @@ def read_profile(number, chemistry, model_profile, per):
                 error_par["del"] = [float(x) for x in new_line[1:]]
 
     trans_error_pr = {}
-    with open(chemistry + "_error_markov_model", "r") as error_markov:
+    with open(model_prefix + "_error_markov_model", "r") as error_markov:
         error_markov.readline()
         for line in error_markov:
             info = line.strip().split()
@@ -132,16 +130,16 @@ def read_profile(number, chemistry, model_profile, per):
             trans_error_pr[k][(float(info[1]), float(info[1]) + float(info[2]))] = "ins"
             trans_error_pr[k][(1 - float(info[3]), 1)] = "del"
 
-    with open(chemistry + "_first_match.hist", 'r') as fm_profile:
+    with open(model_prefix + "_first_match.hist", 'r') as fm_profile:
         match_ht_list = read_ecdf(fm_profile)
 
-    with open(chemistry + "_match_markov_model", 'r') as mm_profile:
+    with open(model_prefix + "_match_markov_model", 'r') as mm_profile:
         match_markov_model = read_ecdf(mm_profile)
 
     # Read length of unaligned reads
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read ECDF of unaligned reads\n")
     unaligned_length = []
-    with open(chemistry + "_unaligned_length_ecdf", 'r') as u_profile:
+    with open(model_prefix + "_unaligned_length_ecdf", 'r') as u_profile:
         new = u_profile.readline()
         rate = float(new.split('\t')[1])
         # if parameter perfect is used, all reads should be aligned, number_aligned equals total number of reads.
@@ -168,19 +166,19 @@ def read_profile(number, chemistry, model_profile, per):
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read ECDF of aligned reads\n")
 
     # Read align ratio profile
-    with open(chemistry + "_align_ratio", 'r') as a_profile:
+    with open(model_prefix + "_align_ratio", 'r') as a_profile:
         align_ratio = read_ecdf(a_profile)
 
     # Read head/unaligned region ratio
-    with open(chemistry + "_ht_ratio", 'r') as ht_profile:
+    with open(model_prefix + "_ht_ratio", 'r') as ht_profile:
         ht_dict = read_ecdf(ht_profile)
 
     # Read length of aligned reads
     # If "perfect" is chosen, just use the total length ecdf profile, else use the length of aligned region on reference
     if per:
-        length_profile = chemistry + "_aligned_reads_ecdf"
+        length_profile = model_prefix + "_aligned_reads_ecdf"
     else:
-        length_profile = chemistry + "_aligned_length_ecdf"
+        length_profile = model_prefix + "_aligned_length_ecdf"
 
     with open(length_profile, 'r') as align_profile:
         aligned_dict = read_ecdf(align_profile)
@@ -201,7 +199,7 @@ def read_profile(number, chemistry, model_profile, per):
 
 
 def simulation(ref, out, dna_type, per, mis_w, ins_w, del_w, kmer_bias):
-    global unaligned_length, ref_length, sub_matrix
+    global unaligned_length, ref_length
     global genome_len, seq_dict, seq_len
     global match_ht_list, align_ratio, ht_dict, match_markov_model
     global trans_error_pr, error_par
@@ -333,30 +331,6 @@ def simulation(ref, out, dna_type, per, mis_w, ins_w, del_w, kmer_bias):
 
     align_ratio.clear()
     ht_dict.clear()
-
-    o1 = open("head", 'w')
-    o2 = open("middle", 'w')
-    o3 = open("tail", 'w')
-    o4 = open("aligned", 'w')
-    o5 = open("ht", 'w')
-    o6 = open("ratio", 'w')
-    o7 = open("middle_ref", 'w')
-
-    o1.write("\n".join(str(x) for x in head_length))
-    o2.write("\n".join(str(x) for x in middle_length))
-    o3.write("\n".join(str(x) for x in tail_length))
-    o4.write("\n".join(str(x) for x in aligned_length))
-    o5.write("\n".join(str(x) for x in remainder_length))
-    o6.write("\n".join(str(x) for x in middle_all_ratio))
-    o7.write("\n".join(str(x) for x in ref_length))
-
-    o1.close()
-    o2.close()
-    o3.close()
-    o4.close()
-    o5.close()
-    o6.close()
-    o7.close()
 
 
 def reverse_complement(seq):
@@ -573,10 +547,9 @@ def main():
     check_version()
 
     ref = ""
-    chemistry = ""
+    model_prefix = ""
     out = "simulated"
     number = 24221
-    model_profile = ""
     perfect = False
     # ins, del, mis rate represent the weight tuning in mix model
     ins_rate = 1
@@ -593,7 +566,7 @@ def main():
         if dna_type not in ["circular", "linear"]:
             usage()
         try:
-            opts, args = getopt.getopt(sys.argv[2:], "hr:c:o:n:i:d:m:p:", ["perfect", "KmerBias"])
+            opts, args = getopt.getopt(sys.argv[2:], "hr:c:o:n:i:d:m:", ["perfect", "KmerBias"])
         except getopt.GetoptError:
             usage()
             sys.exit(2)
@@ -601,16 +574,11 @@ def main():
             if opt == "-r":
                 ref = arg
             elif opt == "-c":
-                chemistry = arg
-                if chemistry not in ("R7", "R7.3"):
-                    usage()
-                    sys.exit(2)
+                model_prefix = arg
             elif opt == "-o":
                 out = arg
             elif opt == "-n":
                 number = int(arg)
-            elif opt == "-p":
-                model_profile = arg
             elif opt == "-i":
                 ins_rate = float(arg)
             elif opt == "-d":
@@ -622,7 +590,7 @@ def main():
             elif opt == "--KmerBias":
                 kmer_bias = True
             elif opt == "-h":
-                print("./simulator.py circular|linear -r <reference genome> -c <flowcell chemistry> "
+                print("./simulator.py circular|linear -r <reference genome> -c <model_prefix> "
                       "-o <output prefix> -n <number of simulated reads>")
 
     # Generate log file
@@ -630,12 +598,12 @@ def main():
     # Record the command typed to log file
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ': ' + ' '.join(sys.argv) + '\n')
 
-    if ref == "" or chemistry == "":
+    if ref == "" or model_prefix == "":
         usage()
         sys.exit(2)
 
     # Read in reference genome and generate simulated reads
-    read_profile(number, chemistry, model_profile, perfect)
+    read_profile(number, model_prefix, perfect)
 
     simulation(ref, out, dna_type, perfect, mis_rate, ins_rate, del_rate, kmer_bias)
 

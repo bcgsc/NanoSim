@@ -19,6 +19,11 @@ def head_align_tail(outfile):
     out2 = open(outfile + '_aligned_reads_ecdf', 'w')
     out3 = open(outfile + '_ht_ratio', 'w')
     out4 = open(outfile + "_align_ratio", 'w')
+    
+    out5 = open(outfile + "aligned_reads.txt", 'w')
+    out6 = open(outfile + "align_ratio.txt", 'w')
+    out7 = open(outfile + "ht_ratio.txt", 'w')
+
     aligned = []
     total = []
     ht_ratio = {
@@ -39,8 +44,10 @@ def head_align_tail(outfile):
             head = int(new[2])
             # tail = int(new[5])-int(new[2])-int(new[3])
             total.append(int(new[5]))
+            out5.write(new[5] + '\n')
             ht = int(new[5])-int(new[3])
             ratio = float(new[3])/float(new[5])
+            out6.write(str(ratio) + '\n')
             for key in align_ratio.keys():
                 if key[0] <= int(new[3]) < key[1]:
                     align_ratio[key].append(ratio)
@@ -49,7 +56,14 @@ def head_align_tail(outfile):
                     if ht != 0:
                         r = float(head) / ht
                         ht_ratio[k].append(r)
+                        out7.write(str(r) + '\n')
+                    else:
+                        out7.write("0\n")
                     break
+    
+    out5.close()
+    out6.close()
+    out7.close()
 
     # ecdf of align ratio
     align_cum = {(0, 1000): [], (1000, 2000): [], (2000, 3000): [], (3000, 4000): [], (4000, 5000): [],

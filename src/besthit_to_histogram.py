@@ -10,12 +10,19 @@ def add_dict(error, dic):
 
 
 def add_match(prev, succ, match_list):
-    if prev in match_list and succ in match_list[prev]:
-        match_list[prev][succ] += 1
-    elif prev not in match_list:
-        match_list[prev] = {succ: 1}
-    else:
-        match_list[prev][succ] = 1
+    # expand the match_list matrix to the biggest possible size
+    expand = max(prev, succ) + 1
+    if expand > len(match_list):
+        last_element = len(match_list)
+        for i in xrange(0, last_element):
+            for j in xrange(last_element, expand):
+                match_list[i][j] = 0
+        for i in xrange(last_element, expand):
+            match_list[i] = {}
+            for j in xrange(0, expand):
+                match_list[i][j] = 0
+
+    match_list[prev][succ] += 1
 
 
 def hist(outfile):
@@ -239,7 +246,7 @@ def hist(outfile):
         for i in xrange(0, len(match_list)):
             match_bin[k_of_bin][i] = 0
         tmp_count = 0
-        while tmp_count < bin_size and k_of_match_list < 150:
+        while tmp_count < bin_size and k_of_match_list < len(match_list):
             new_added = sum(match_list[k_of_match_list].values())
             if abs(tmp_count + new_added - bin_size) > abs(tmp_count - bin_size) and tmp_count != 0:
                 break
@@ -247,8 +254,9 @@ def hist(outfile):
                 tmp_count += new_added
                 k_of_match_list += 1
         for k1 in xrange(last_k, k_of_match_list):
-            for k2 in xrange(0, 150):
+            for k2 in xrange(0, len(match_list[k1])):
                 match_bin[k_of_bin][k2] += match_list[k1][k2]
+
         count_each_bin[k_of_bin] = [(last_k, k_of_match_list), tmp_count]
         last_k = k_of_match_list
         k_of_bin += 1
