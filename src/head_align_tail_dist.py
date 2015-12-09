@@ -20,9 +20,9 @@ def head_align_tail(outfile):
     out3 = open(outfile + '_ht_ratio', 'w')
     out4 = open(outfile + "_align_ratio", 'w')
     
-    out5 = open(outfile + "aligned_reads.txt", 'w')
-    out6 = open(outfile + "align_ratio.txt", 'w')
-    out7 = open(outfile + "ht_ratio.txt", 'w')
+    out5 = open(outfile + "_aligned_reads.txt", 'w')
+    out6 = open(outfile + "_align_ratio.txt", 'w')
+    out7 = open(outfile + "_ht_ratio.txt", 'w')
 
     aligned = []
     total = []

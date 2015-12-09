@@ -65,13 +65,13 @@ def main(argv):
         usage()
         sys.exit(1)
 
+    '''
     # ALIGNMENT
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with LAST\n")
-    # call("lastdb ref_genome " + ref, shell=True)
+    call("lastdb ref_genome " + ref, shell=True)
     out_maf = outfile + ".maf"
-    # call("lastal -a 1 ref_genome " + infile + " | grep '^s ' > " + out_maf, shell=True)
+    call("lastal -a 1 ref_genome " + infile + " | grep '^s ' > " + out_maf, shell=True)
     
-    '''
     # LENGTH DISTRIBUTION
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": length distribution analysis\n")
     # Get besthit of alignment
@@ -83,7 +83,7 @@ def main(argv):
     # Length distribution of unaligned reads
     out1 = open(outfile + "_unaligned_length_ecdf", 'w')
     
-    out2 = open(outfile + "unaligned_length.txt", 'w')
+    out2 = open(outfile + "_unaligned_length.txt", 'w')
     out2.write('\n'.join(str(x) for x in unaligned_length))
     out2.close()
 
@@ -96,7 +96,6 @@ def main(argv):
     for i in xrange(len(cdf)):
         out1.write(str(edges_unaligned[i]) + '-' + str(edges_unaligned[i+1]) + "\t" + str(cdf[i]) + '\n')
     out1.close()
-    '''
 
     # MATCH AND ERROR MODELS
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": match and error models\n")
@@ -105,11 +104,12 @@ def main(argv):
     path = sys.argv[0].split("/")
     R_path = '/'.join(path[:-1]) + '/' + "model_fitting.R"
     if os.path.isfile(R_path):
-        call("Rscript " + R_path + " " + outfile, shell=True)
+        call("R CMD BATCH '--args prefix=\"" + outfile + "\"' " + R_path, shell=True)
+        call("rm model_fitting.Rout", shell=True)
     else:
         print("Could not find 'model_fitting.R' in ../src/\nMake sure you copied the whole source files from Github.")
-    '''
     
+    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
         
 if __name__ == "__main__":
     main(sys.argv[1:])
