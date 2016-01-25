@@ -5,8 +5,11 @@ import numpy
 
 
 def add_dict(error, dic):
-    if error in dic:
-        dic[error] += 1
+    if error not in dic:
+        last_elememt = len(dic)
+        for i in xrange(last_elememt, error + 1):
+            dic[i] = 0
+    dic[error] += 1
 
 
 def add_match(prev, succ, match_list):
@@ -35,7 +38,7 @@ def hist(outfile):
     out3 = open(outfile + "_first_match.hist", 'w')
 
     dic_match = {}
-    dic_match2 = {}
+    dic_first_match = {}
     dic_mis = {}
     dic_ins = {}
     dic_del = {}
@@ -54,7 +57,7 @@ def hist(outfile):
         for key in match_bin.keys():
             match_bin[key][x] = 0
     for x in xrange(0, 150):
-        dic_match2[x] = 0
+        dic_first_match[x] = 0
 
     for x in xrange(0, 30):
         dic_mis[x] = 0
@@ -63,8 +66,8 @@ def hist(outfile):
 
     with open(outfile + "_besthit.maf", 'r') as f:
         for line in f:
-            last_match = 0
-            last_error = ""
+            prev_match = 0
+            prev_error = ""
             flag = True
             new = line.strip().split()
             ref = new[6]
@@ -84,8 +87,8 @@ def hist(outfile):
                             flag = False
                             first_error["mis"] += 1
                         else:
-                            error_list[last_error + "/" + "mis"] += 1
-                        last_error = "mis"
+                            error_list[prev_error + "/" + "mis"] += 1
+                        prev_error = "mis"
                     elif ins != 0:
                         add_dict(ins, dic_ins)
                         ins = 0
@@ -93,8 +96,8 @@ def hist(outfile):
                             flag = False
                             first_error["ins"] += 1
                         else:
-                            error_list[last_error + "/" + "ins"] += 1
-                        last_error = "ins"
+                            error_list[prev_error + "/" + "ins"] += 1
+                        prev_error = "ins"
                     elif dele != 0:
                         add_dict(dele, dic_del)
                         dele = 0
@@ -102,91 +105,91 @@ def hist(outfile):
                             flag = False
                             first_error["del"] += 1
                         else:
-                            error_list[last_error + "/" + "del"] += 1
-                        last_error = "del"
+                            error_list[prev_error + "/" + "del"] += 1
+                        prev_error = "del"
                     match += 1
                     if i == len(ref) - 1 and match != 0:
-                        add_match(last_match, match, match_list)
+                        add_match(prev_match, match, match_list)
                 elif ref[i] == '-':
                     if match != 0:
                         if flag:
-                            add_dict(match, dic_match2)
-                            last_match = match
+                            add_dict(match, dic_first_match)
+                            prev_match = match
                         else:
                             add_dict(match, dic_match)
-                            add_match(last_match, match, match_list)
-                            last_match = match
+                            add_match(prev_match, match, match_list)
+                            prev_match = match
                         match = 0
                     elif mismatch != 0:
                         add_dict(mismatch, dic_mis)
                         dic_match[0] += 1
-                        add_match(last_match, 0, match_list)
-                        last_match = 0
+                        add_match(prev_match, 0, match_list)
+                        prev_match = 0
                         mismatch = 0
                         if flag:
                             flag = False
                             first_error["mis"] += 1
                         else:
-                            error_list[last_error + "/" + "mis"] += 1
-                        last_error = "mis0"
+                            error_list[prev_error + "/" + "mis"] += 1
+                        prev_error = "mis0"
                     ins += 1
                 elif query[i] == '-':
                     if match != 0:
                         if flag:
-                            add_dict(match, dic_match2)
-                            last_match = match
+                            add_dict(match, dic_first_match)
+                            prev_match = match
                         else:
                             add_dict(match, dic_match)
-                            add_match(last_match, match, match_list)
-                            last_match = match
+                            add_match(prev_match, match, match_list)
+                            prev_match = match
                         match = 0
                     elif mismatch != 0:
                         add_dict(mismatch, dic_mis)
                         dic_match[0] += 1
-                        add_match(last_match, 0, match_list)
-                        last_match = 0
+                        add_match(prev_match, 0, match_list)
+                        prev_match = 0
                         mismatch = 0
                         if flag:
                             flag = False
                             first_error["mis"] += 1
                         else:
-                            error_list[last_error + "/" + "mis"] += 1
-                        last_error = "mis0"
+                            error_list[prev_error + "/" + "mis"] += 1
+                        prev_error = "mis0"
                     dele += 1
                 else:
                     if match != 0:
                         if flag:
-                            add_dict(match, dic_match2)
-                            last_match = match
+                            add_dict(match, dic_first_match)
+                            prev_match = match
                         else:
                             add_dict(match, dic_match)
-                            add_match(last_match, match, match_list)
-                            last_match = match
+                            add_match(prev_match, match, match_list)
+                            prev_match = match
                         match = 0
                     elif ins != 0:
                         add_dict(ins, dic_ins)
                         add_dict(match, dic_match)
-                        add_match(last_match, 0, match_list)
-                        last_match = 0
+                        add_match(prev_match, 0, match_list)
+                        prev_match = 0
                         ins = 0
                         if flag:
                             flag = False
                             first_error["ins"] += 1
                         else:
-                            error_list[last_error + "/" + "ins"] += 1
-                        last_error = "ins0"
+                            error_list[prev_error + "/" + "ins"] += 1
+                        prev_error = "ins0"
                     elif dele != 0:
                         add_dict(dele, dic_del)
                         add_dict(match, dic_match)
-                        add_match(last_match, 0, match_list)
-                        last_match = 0
+                        add_match(prev_match, 0, match_list)
+                        prev_match = 0
                         dele = 0
                         if flag:
                             flag = False
                             first_error["del"] += 1
                         else:
-                            error_list[last_error + "/" + "del"] += 1
-                        last_error = "del0"
+                            error_list[prev_error + "/" + "del"] += 1
+                        prev_error = "del0"
                     mismatch += 1
 
     # write the histogram for other matches and errors:
@@ -286,9 +289,9 @@ def hist(outfile):
     # First match profile:
     out3.write("bin\t0-50000\n")
     count_prob = 0
-    total_first_match = sum(dic_match2.values())
-    for i in xrange(0, 100):
-        count_prob += dic_match2[i] * 1.0 / total_first_match
+    total_first_match = sum(dic_first_match.values())
+    for i in xrange(0, len(dic_first_match)):
+        count_prob += dic_first_match[i] * 1.0 / total_first_match
         out3.write(str(i) + "-" + str(i + 1) + "\t" + str(count_prob) + '\n')
 
     out3.close()

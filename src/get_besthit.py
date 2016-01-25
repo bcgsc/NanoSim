@@ -3,12 +3,12 @@
 from __future__ import with_statement
 
 
-def besthit_and_unaligned(infile, outfile):
+def besthit_and_unaligned(infile, outmaf, outfile):
     align_dict = {}
     out1 = open(outfile + "_besthit.maf", 'w')
     unaligned_dict = {}
 
-    with open(outfile + ".maf", 'r') as f:
+    with open(outmaf, 'r') as f:
         for line in f:
             new_line = next(f)
             new_info = new_line.strip().split()
@@ -18,7 +18,7 @@ def besthit_and_unaligned(infile, outfile):
                 if align_dict[new_info[1]][0] < int(new_info[3]):
                     align_dict[new_info[1]] = [int(new_info[3]), new_line, False]
 
-    with open(outfile + ".maf", 'r') as f1:
+    with open(outmaf, 'r') as f1:
         for line in f1:
             ref = line
             new_line = next(f1)
@@ -36,11 +36,10 @@ def besthit_and_unaligned(infile, outfile):
                 flag = False
                 if name not in align_dict:
                     last_name = name
-                    unaligned_dict[last_name] = 0
                     flag = True
             else:
                 if flag:
-                    unaligned_dict[last_name] += len(line.strip())
+                    unaligned_dict[last_name] = len(line.strip())
 
     out1.close()
     return unaligned_dict.values()

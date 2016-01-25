@@ -141,25 +141,26 @@ def read_profile(number, model_prefix, per):
     unaligned_length = []
     with open(model_prefix + "_unaligned_length_ecdf", 'r') as u_profile:
         new = u_profile.readline()
-        rate = float(new.split('\t')[1])
+        rate = new.split('\t')[1]
         # if parameter perfect is used, all reads should be aligned, number_aligned equals total number of reads.
-        if per:
+        if per or rate == "100%":
             number_aligned = number
         else:
-            number_aligned = int(round(number * rate / (rate + 1)))
-        number_unaligned = number - number_aligned
-        unaligned_dict = read_ecdf(u_profile)
+            number_aligned = int(round(number * float(rate) / (float(rate) + 1)))
+            number_unaligned = number - number_aligned
+            unaligned_dict = read_ecdf(u_profile)
 
     for i in xrange(number_unaligned):
-        p = random.random()
-        key = unaligned_dict.keys()[0]
-        for k_p, v_p in unaligned_dict[key].items():
-            if k_p[0] <= p < k_p[1]:
-                # consider this small range is linearly distributed:
-                unaligned = (p - k_p[0])/(k_p[1] - k_p[0]) * (v_p[1] - v_p[0]) + v_p[0]
-                unaligned_length.append(int(round(unaligned)))
-                break
-
+        unaligned = 0
+        while unaligned <= 0:
+            p = random.random()
+            key = unaligned_dict.keys()[0]
+            for k_p, v_p in unaligned_dict[key].items():
+                if k_p[0] <= p < k_p[1]:
+                    # consider this small range is linearly distributed:
+                    unaligned = (p - k_p[0])/(k_p[1] - k_p[0]) * (v_p[1] - v_p[0]) + v_p[0]
+                    break
+        unaligned_length.append(int(round(unaligned)))
     unaligned_dict.clear()
 
     # Read profile of aligned reads
@@ -186,19 +187,18 @@ def read_profile(number, model_prefix, per):
 
     for i in xrange(number_aligned):
         middle_ref = 0
-        while middle_ref < 80:
+        key = aligned_dict.keys()[0]
+        while middle_ref <= 50:
             p = random.random()
-            key = aligned_dict.keys()[0]
             for k_p, v_p in aligned_dict[key].items():
                 if k_p[0] <= p < k_p[1]:
                     middle_ref = int(round((p - k_p[0])/(k_p[1] - k_p[0]) * (v_p[1] - v_p[0]) + v_p[0]))
                     break
         ref_length.append(middle_ref)
-
     aligned_dict.clear()
 
 
-def simulation(ref, out, dna_type, per, mis_w, ins_w, del_w, kmer_bias):
+def simulation(ref, out, dna_type, per, kmer_bias):
     global unaligned_length, ref_length
     global genome_len, seq_dict, seq_len
     global match_ht_list, align_ratio, ht_dict, match_markov_model
@@ -264,7 +264,7 @@ def simulation(ref, out, dna_type, per, mis_w, ins_w, del_w, kmer_bias):
 
     for i in xrange(len(ref_length)):
         middle, middle_ref, error_dict = error_list(ref_length[i], match_markov_model, match_ht_list, error_par,
-                                                    trans_error_pr, mis_w, ins_w, del_w)
+                                                    trans_error_pr)
 
         ref_length[i] = middle_ref
         middle_length.append(middle)
@@ -273,15 +273,13 @@ def simulation(ref, out, dna_type, per, mis_w, ins_w, del_w, kmer_bias):
             if k_align[0] <= middle < k_align[1]:
                 break
 
-        total = 0
-        while total < 400:
-            p = random.random()
-            for k_r, v_r in align_ratio[k_align].items():
-                if k_r[0] <= p < k_r[1]:
-                    ratio = (p - k_r[0])/(k_r[1] - k_r[0]) * (v_r[1] - v_r[0]) + v_r[0]
-                    total = int(round(middle / ratio))
-                    remainder = total - int(round(middle))
-                    break
+        p = random.random()
+        for k_r, v_r in align_ratio[k_align].items():
+            if k_r[0] <= p < k_r[1]:
+                ratio = (p - k_r[0])/(k_r[1] - k_r[0]) * (v_r[1] - v_r[0]) + v_r[0]
+                total = int(round(middle / ratio))
+                remainder = total - int(round(middle))
+                break
         aligned_length.append(total)
         middle_all_ratio.append(ratio)
         remainder_length.append(remainder)
@@ -419,40 +417,40 @@ def unaligned_error_list(length, error_p):
     return length, e_dict
 
 
-def error_list(m_ref, m_model, m_ht_list, error_p, trans_p, m_w, i_w, d_w):
+def error_list(m_ref, m_model, m_ht_list, error_p, trans_p):
     # l_old is the original length, and l_new is used to control the new length after introducing errors
     l_new = m_ref
     pos = 0
     e_dict = {}
     middle_ref = m_ref
-    last_error = "start"
+    prev_error = "start"
 
     # The first match come from m_ht_list
     p = random.random()
     k1 = m_ht_list.keys()[0]
     for k2, v2 in m_ht_list[k1].items():
         if k2[0] < p <= k2[1]:
-            last_match = int(np.floor((p - k2[0])/(k2[1] - k2[0]) * (v2[1] - v2[0]) + v2[0]))
-            if last_match < 2:
-                last_match = 2
-    pos += last_match
+            prev_match = int(np.floor((p - k2[0])/(k2[1] - k2[0]) * (v2[1] - v2[0]) + v2[0]))
+            if prev_match < 2:
+                prev_match = 2
+    pos += prev_match
 
     # Select an error, then the step size, and then a match and so on so forth.
     while pos < middle_ref:
         # pick the error based on Markov chain
         p = random.random()
-        for k in trans_p[last_error].keys():
+        for k in trans_p[prev_error].keys():
             if k[0] <= p < k[1]:
-                error = trans_p[last_error][k]
+                error = trans_p[prev_error][k]
                 break
 
         if error == "mis":
-            step = mm.pois_geom(error_p["mis"][0], error_p["mis"][2], error_p["mis"][3] * m_w)
+            step = mm.pois_geom(error_p["mis"][0], error_p["mis"][2], error_p["mis"][3])
         elif error == "ins":
-            step = mm.wei_geom(error_p[error][0], error_p[error][1], error_p[error][2], error_p[error][3] * i_w)
+            step = mm.wei_geom(error_p[error][0], error_p[error][1], error_p[error][2], error_p[error][3])
             l_new += step
         else:
-            step = mm.wei_geom(error_p[error][0], error_p[error][1], error_p[error][2], error_p[error][3] * d_w)
+            step = mm.wei_geom(error_p[error][0], error_p[error][1], error_p[error][2], error_p[error][3])
             l_new -= step
 
         if error != "ins":
@@ -464,11 +462,11 @@ def error_list(m_ref, m_model, m_ht_list, error_p, trans_p, m_w, i_w, d_w):
         else:
             e_dict[pos - 0.5] = [error, step]
 
-        last_error = error
+        prev_error = error
 
         # Randomly select a match length
         for k1 in m_model.keys():
-            if k1[0] <= last_match < k1[1]:
+            if k1[0] <= prev_match < k1[1]:
                 break
         p = random.random()
         for k2, v2 in m_model[k1].items():
@@ -476,18 +474,17 @@ def error_list(m_ref, m_model, m_ht_list, error_p, trans_p, m_w, i_w, d_w):
                 step = int(np.floor((p - k2[0])/(k2[1] - k2[0]) * (v2[1] - v2[0]) + v2[0]))
                 break
         # there are no two 0 base matches together
-        if last_match == 0 and step == 0:
+        if prev_match == 0 and step == 0:
             step = 1
 
-        last_match = step
-        if pos + last_match > middle_ref:
-            l_new += pos + last_match - middle_ref
-            middle_ref = pos + last_match
+        prev_match = step
+        if pos + prev_match > middle_ref:
+            l_new += pos + prev_match - middle_ref
+            middle_ref = pos + prev_match
 
-        pos += last_match
-        if last_match == 0:
-            last_error += "0"
-
+        pos += prev_match
+        if prev_match == 0:
+            prev_error += "0"
     return l_new, middle_ref, e_dict
 
 
@@ -549,7 +546,7 @@ def main():
     ref = ""
     model_prefix = ""
     out = "simulated"
-    number = 24221
+    number = 20000
     perfect = False
     # ins, del, mis rate represent the weight tuning in mix model
     ins_rate = 1
@@ -560,16 +557,17 @@ def main():
     # Parse options and parameters
     if len(sys.argv) < 6:
         usage()
-        sys.exit(2)
+        sys.exit(1)
     else:
         dna_type = sys.argv[1]
         if dna_type not in ["circular", "linear"]:
             usage()
+            sys.exit(1)
         try:
             opts, args = getopt.getopt(sys.argv[2:], "hr:c:o:n:i:d:m:", ["perfect", "KmerBias"])
         except getopt.GetoptError:
             usage()
-            sys.exit(2)
+            sys.exit(1)
         for opt, arg in opts:
             if opt == "-r":
                 ref = arg
@@ -590,8 +588,8 @@ def main():
             elif opt == "--KmerBias":
                 kmer_bias = True
             elif opt == "-h":
-                print("./simulator.py circular|linear -r <reference genome> -c <model_prefix> "
-                      "-o <output prefix> -n <number of simulated reads>")
+                usage()
+                sys.exit(0)
 
     # Generate log file
     sys.stdout = open(out + ".log", 'w')
@@ -600,12 +598,12 @@ def main():
 
     if ref == "" or model_prefix == "":
         usage()
-        sys.exit(2)
+        sys.exit(1)
 
     # Read in reference genome and generate simulated reads
     read_profile(number, model_prefix, perfect)
 
-    simulation(ref, out, dna_type, perfect, mis_rate, ins_rate, del_rate, kmer_bias)
+    simulation(ref, out, dna_type, perfect, kmer_bias)
 
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!")
     sys.stdout.close()

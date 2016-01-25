@@ -3,6 +3,7 @@ library(stats4)
 ##### Read in data
 args <- commandArgs(TRUE)
 eval(parse(text=args[[1]]))
+# prefix <- "UCSC_phase1b/ecoli"
 mis_file <- paste(prefix, "_mis.hist", sep="")
 ins_file <- paste(prefix, "_ins.hist", sep="")
 del_file <- paste(prefix, "_del.hist", sep="")
@@ -129,12 +130,11 @@ ins.fit <- indel_search(ins.cum)
 del.fit <- indel_search(del.cum)
 
 ##### Write to file
-Type <- c("Type", "mismatch", "insertion", "deletion")
-model_fit.table <- data.frame(row.names = Type,
+model_fit.table <- data.frame(Type = c("mismatch", "insertion", "deletion"),
                               lambda = c(coef(mis.fit)["lambda"], ins.fit[2], del.fit[2]),
                               k = c(0, ins.fit[1], del.fit[1]),
                               prob = c(coef(mis.fit)["prob"], ins.fit[3], del.fit[3]),
                               weight = c(coef(mis.fit)["weight"], ins.fit[4], del.fit[4]))
 
 out_file <- paste(prefix, "_model_profile", sep="")
-write.table(model_fit.table, out_file, quote = FALSE, sep = "\t")
+write.table(model_fit.table, out_file, row.names = FALSE, quote = FALSE, sep = "\t")

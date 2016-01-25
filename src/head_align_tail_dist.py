@@ -19,20 +19,16 @@ def head_align_tail(outfile):
     out2 = open(outfile + '_aligned_reads_ecdf', 'w')
     out3 = open(outfile + '_ht_ratio', 'w')
     out4 = open(outfile + "_align_ratio", 'w')
-    
-    out5 = open(outfile + "_aligned_reads.txt", 'w')
-    out6 = open(outfile + "_align_ratio.txt", 'w')
-    out7 = open(outfile + "_ht_ratio.txt", 'w')
 
     aligned = []
     total = []
     ht_ratio = {
         (0, 10): [], (10, 20): [], (20, 30): [], (30, 40): [], (40, 50): [], (50, 100): [], (100, 300): [], (300, 1000): [],
-        (1000, 2000): [], (2000, 3000): [], (3000, 5000): [], (5000, 7500): [], (7500, 10000): [], (10000, 50000): []}
+        (1000, 2000): [], (2000, 3000): [], (3000, 5000): [], (5000, 7500): [], (7500, 10000): [], (10000, "Inf"): []}
     align_ratio = {
         (0, 1000): [], (1000, 2000): [], (2000, 3000): [], (3000, 4000): [], (4000, 5000): [], (5000, 6000): [],
         (6000, 7000): [], (7000, 8000): [], (8000, 9000): [], (9000, 10000): [], (10000, 11000): [], (11000, 12000): [],
-        (12000, 13000): [], (13000, 15000): [], (15000, 20000): [], (20000, 25000): [], (25000, 50000): []}
+        (12000, 13000): [], (13000, 15000): [], (15000, 20000): [], (20000, 25000): [], (25000, "Inf"): []}
 
     besthit_out = outfile + "_besthit.maf"
     with open(besthit_out, 'r') as f:
@@ -44,32 +40,32 @@ def head_align_tail(outfile):
             head = int(new[2])
             # tail = int(new[5])-int(new[2])-int(new[3])
             total.append(int(new[5]))
-            out5.write(new[5] + '\n')
             ht = int(new[5])-int(new[3])
             ratio = float(new[3])/float(new[5])
-            out6.write(str(ratio) + '\n')
             for key in align_ratio.keys():
                 if key[0] <= int(new[3]) < key[1]:
                     align_ratio[key].append(ratio)
+                    break
             for k in ht_ratio.keys():
                 if k[0] <= ht < k[1]:
                     if ht != 0:
                         r = float(head) / ht
                         ht_ratio[k].append(r)
-                        out7.write(str(r) + '\n')
-                    else:
-                        out7.write("0\n")
                     break
-    
-    out5.close()
-    out6.close()
-    out7.close()
+
+    max_length = max(total)
+
+    # The last key in align_ratio and ht_ratio are to Inf, needs to be replaced with the maximum length
+    last_key = sorted(align_ratio.keys())[-1]
+    align_ratio[(last_key[0], max_length)] = align_ratio[last_key]
+    del align_ratio[last_key]
+
+    last_key = sorted(ht_ratio.keys())[-1]
+    ht_ratio[(last_key[0], max_length)] = ht_ratio[last_key]
+    del ht_ratio[last_key]
 
     # ecdf of align ratio
-    align_cum = {(0, 1000): [], (1000, 2000): [], (2000, 3000): [], (3000, 4000): [], (4000, 5000): [],
-                 (5000, 6000): [], (6000, 7000): [], (7000, 8000): [], (8000, 9000): [], (9000, 10000): [],
-                 (10000, 11000): [], (11000, 12000): [], (12000, 13000): [], (13000, 15000): [], (15000, 20000): [],
-                 (20000, 25000): [], (25000, 50000): []}
+    align_cum = dict.fromkeys(align_ratio.keys(), [])
     for key, value in align_ratio.items():
         if value:
             hist_ratio, bin_edges = numpy.histogram(value, bins=numpy.arange(0, 1.001, 0.001), density=True)
@@ -86,9 +82,7 @@ def head_align_tail(outfile):
         out4.write("\n")
 
     # ecdf of head/total ratio
-    ht_cum = {(0, 10): [], (10, 20): [], (20, 30): [], (30, 40): [], (40, 50): [], (50, 100): [], (100, 300): [],
-              (300, 1000): [], (1000, 2000): [], (2000, 3000): [], (3000, 5000): [], (5000, 7500): [], (7500, 10000): [],
-              (10000, 50000): []}
+    ht_cum = dict.fromkeys(ht_ratio.keys(), [])
     for key, value in ht_ratio.items():
         if value:
             hist_ratio, bin_edges = numpy.histogram(value, bins=numpy.arange(0, 1.001, 0.001), density=True)
@@ -105,17 +99,17 @@ def head_align_tail(outfile):
         out3.write("\n")
 
     # ecdf of length of aligned regions
-    hist_aligned, bin_edges = numpy.histogram(aligned, bins=numpy.arange(0, 50001, 50), density=True)
+    hist_aligned, bin_edges = numpy.histogram(aligned, bins=numpy.arange(0, max_length + 51, 50), density=True)
     cdf = numpy.cumsum(hist_aligned * 50)
-    out1.write("bin\t0-50000\n")
+    out1.write("bin\t0-" + str(max_length) + '\n')
     for i in xrange(len(cdf)):
         out1.write(str(bin_edges[i]) + '-' + str(bin_edges[i+1]) + "\t" + str(cdf[i]) + '\n')
     num_aligned = len(aligned)
 
     # ecdf of length of aligned reads
-    hist_reads, bin_edges = numpy.histogram(total, bins=numpy.arange(0, 50001, 50), density=True)
+    hist_reads, bin_edges = numpy.histogram(total, bins=numpy.arange(0, max_length + 51, 50), density=True)
     cdf = numpy.cumsum(hist_reads * 50)
-    out2.write("bin\t0-50000\n")
+    out2.write("bin\t0-" + str(max_length) + '\n')
     for i in xrange(len(cdf)):
         out2.write(str(bin_edges[i]) + '-' + str(bin_edges[i+1]) + "\t" + str(cdf[i]) + '\n')
 
