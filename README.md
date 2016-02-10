@@ -1,5 +1,9 @@
 # NanoSim  
 
+## Dependencies
+LAST (Tested with version 581)
+R (Tested with version 3.2.3)
+
 ## Characterization stage  
 __Usage:__  
 ```
