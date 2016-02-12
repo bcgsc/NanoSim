@@ -3,6 +3,8 @@
 ## Dependencies
 LAST (Tested with version 581)
 R (Tested with version 3.2.3)
+Python (2.6 or above)
+Numpy (Tested with version 1.10.1 or above)
 
 ## Characterization stage  
 __Usage:__  
