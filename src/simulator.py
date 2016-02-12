@@ -590,6 +590,9 @@ def main():
             elif opt == "-h":
                 usage()
                 sys.exit(0)
+            else:
+                usage()
+                sys.exit(1)
 
     # Generate log file
     sys.stdout = open(out + ".log", 'w')
