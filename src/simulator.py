@@ -49,10 +49,10 @@ def usage():
                     "Do not choose 'circular' when there is more than one sequence in the reference\n" \
                     "<options>: \n" \
                     "-h : print usage message\n" \
-                    "-r : reference genome in fasta file, specify path and file name\n" \
+                    "-r : reference genome in fasta file, specify path and file name, REQUIRED\n" \
                     "-c : The prefix of training set profiles, same as the output prefix in read_analysis.py, default = training\n" \
                     "-o : The prefix of output file, default = 'simulated'\n" \
-                    "-n : Number of generated reads, default = 24,221 reads\n" \
+                    "-n : Number of generated reads, default = 20,000 reads\n" \
                     "--perfect: Output perfect reads, no mutations, default = False\n" \
                     "--KmerBias: prohibits homopolymers with length >= 6 bases in output reads\n"
 
@@ -548,7 +548,7 @@ def main():
     check_version()
 
     ref = ""
-    model_prefix = ""
+    model_prefix = "training"
     out = "simulated"
     number = 20000
     perfect = False
@@ -603,7 +603,8 @@ def main():
     # Record the command typed to log file
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ': ' + ' '.join(sys.argv) + '\n')
 
-    if ref == "" or model_prefix == "":
+    if ref == "":
+        print("must provide a reference genome!")
         usage()
         sys.exit(1)
 
