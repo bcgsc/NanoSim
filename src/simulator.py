@@ -240,7 +240,8 @@ def simulation(ref, out, dna_type, per, kmer_bias):
         unaligned = unaligned_length[i]
         unaligned, error_dict = unaligned_error_list(unaligned, error_par)
         new_read, new_read_name = extract_read(dna_type, unaligned)
-        out_reads.write(">" + new_read_name + "_0_" + str(unaligned) + "_0_" + str(i) + "_unaligned\n")
+        new_read_name = new_read_name + "_unaligned_" + str(i)
+        out_reads.write(">" + new_read_name + "_0_" + str(unaligned) + "_0" + '\n')
         read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias, False)
         out_reads.write(read_mutated + "\n")
     del unaligned_length
@@ -257,7 +258,8 @@ def simulation(ref, out, dna_type, per, kmer_bias):
     if per:
         for i in xrange(len(ref_length)):
             new_read, new_read_name = extract_read(dna_type, ref_length[i])
-            out_reads.write(">" + new_read_name + "_0_" + str(ref_length[i]) + "_0_" + str(i) + "_perfect\n")
+            new_read_name = new_read_name + "_perfect_" + str(i)
+            out_reads.write(">" + new_read_name + "_0_" + str(ref_length[i]) + "_0" + '\n')
             out_reads.write(new_read + "\n")
         out_reads.close()
         out_error.close()
@@ -304,6 +306,7 @@ def simulation(ref, out, dna_type, per, kmer_bias):
 
         # Extract middle region from reference genome
         new_read, new_read_name = extract_read(dna_type, middle_ref)
+        new_read_name = new_read_name + "_aligned_" + str(i)
 
         # Mutate read
         read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
@@ -322,8 +325,8 @@ def simulation(ref, out, dna_type, per, kmer_bias):
             read_mutated = reverse_complement(read_mutated)
 
         out_reads.write(">" + new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" +
-                        str(tail) + "_" + str(i) + "_aligned\n")
-        out_reads.write(read_mutated + "\n")
+                        str(tail) + '\n')
+        out_reads.write(read_mutated + '\n')
 
     out_reads.close()
     out_error.close()
