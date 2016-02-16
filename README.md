@@ -53,3 +53,45 @@ __For example:__
 `./simulator.py linear -r yeast_ref.fasta -c yeast --KmerBias`  
 
 _See more detailed example in example.sh_  
+
+## Explaination of output files  
+### 1. Characterization stage
+1. training_aligned_length_ecdf  
+  Length distribution of aligned regions on aligned reads  
+2. training_aligned_reads_ecdf  
+  Length distribution of aligned reads  
+3. training_align_ratio  
+  Empirical distribution of align ratio of each read  
+4. training_besthit.maf  
+  The best alignment of each read based on length  
+5. training_match.hist/training_mis.hist/training_del.hist/training_ins.hist  
+  Histogram of match, mismatch, and indels  
+6. training_first_match.hist  
+  Histogram of the first match length of each alignment  
+7. training_error_markov_model  
+  Markov model of error types  
+8. training_ht_ratio  
+  Empirical distribution of the head region vs total unaligned region  
+9. training.maf  
+  The output of LAST, alignment file in MAF format  
+10. training_match_markov_model  
+  Markov model of the length of matches (stretches of correct base calls)  
+11. training_model_profile  
+  Fitted model for errors  
+12. training_processed.maf  
+  A re-formatted MAF file for user-provided alignment file  
+13. training_unaligned_length_ecdf  
+  Length distribution of unaligned reads  
+
+### 2. Simulation stage  
+1. simulated.log  
+  Log file for simulation process  
+2. simulated_reads.fasta  
+  FASTA file of simulated reads. Each reads has "unaligned", "aligned", or "perfect" in the header determining their error rate. "unaligned" means that the reads have an error rate over 90% and cannot be aligned. "aligned" reads have the same error rate as training reads. "perfect" reads have no errors.  
+  To explain the information in the header, we have three examples:  
+  * `>`  
+    This is a read that belongs to the unaligned group.  
+  * `>`  
+    This is an aligned read.  
+3. simulated_error_profile  
+  Contains all the information of errors introduced into each reads, including error type, position, original bases and current bases.  
