@@ -212,8 +212,9 @@ def simulation(ref, out, dna_type, per, kmer_bias):
     with open(ref, 'r') as infile:
         for line in infile:
             if line[0] == ">":
-                new_line = line.strip()[1:].split()
-                chr_name = "-".join(new_line)
+                new_line = line.strip()[1:]
+                info = re.split(r'[_\s]\s*', new_line)
+                chr_name = "-".join(info)
             else:
                 if chr_name in seq_dict:
                     seq_dict[chr_name] += line.strip()
@@ -234,12 +235,12 @@ def simulation(ref, out, dna_type, per, kmer_bias):
     out_error = open(out + "_error_profile", 'w')
     out_error.write("Seq_name\tSeq_pos\terror_type\terror_length\tref_base\tseq_base\n")
 
-    # Simulate random reads
+    # Simulate unaligned reads
     for i in xrange(len(unaligned_length)):
         unaligned = unaligned_length[i]
         unaligned, error_dict = unaligned_error_list(unaligned, error_par)
         new_read, new_read_name = extract_read(dna_type, unaligned)
-        out_reads.write(">" + new_read_name + "_" + str(unaligned) + "-" + str(i) + "\n")
+        out_reads.write(">" + new_read_name + "_0_" + str(unaligned) + "_0_" + str(i) + "_unaligned\n")
         read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias, False)
         out_reads.write(read_mutated + "\n")
     del unaligned_length
@@ -256,7 +257,7 @@ def simulation(ref, out, dna_type, per, kmer_bias):
     if per:
         for i in xrange(len(ref_length)):
             new_read, new_read_name = extract_read(dna_type, ref_length[i])
-            out_reads.write(">" + new_read_name + "_" + str(ref_length[i]) + "_" + str(i) + "\n")
+            out_reads.write(">" + new_read_name + "_0_" + str(ref_length[i]) + "_0_" + str(i) + "_perfect\n")
             out_reads.write(new_read + "\n")
         out_reads.close()
         out_error.close()
@@ -320,8 +321,8 @@ def simulation(ref, out, dna_type, per, kmer_bias):
         if p < 0.5:
             read_mutated = reverse_complement(read_mutated)
 
-        out_reads.write(">" + new_read_name + "_" + str(head) + "_" + str(middle) + "_" +
-                        str(tail) + "-" + str(i) + "\n")
+        out_reads.write(">" + new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" +
+                        str(tail) + "_" + str(i) + "_aligned\n")
         out_reads.write(read_mutated + "\n")
 
     out_reads.close()
