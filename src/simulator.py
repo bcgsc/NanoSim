@@ -50,7 +50,7 @@ def usage():
                     "<options>: \n" \
                     "-h : print usage message\n" \
                     "-r : reference genome in fasta file, specify path and file name\n" \
-                    "-c : Flowcell model_prefix, same as the output prefix in read_analysis.py, default = training\n" \
+                    "-c : The prefix of training set profiles, same as the output prefix in read_analysis.py, default = training\n" \
                     "-o : The prefix of output file, default = 'simulated'\n" \
                     "-n : Number of generated reads, default = 24,221 reads\n" \
                     "--perfect: Output perfect reads, no mutations, default = False\n" \
