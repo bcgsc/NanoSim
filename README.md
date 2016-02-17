@@ -23,7 +23,7 @@ __Usage:__
     -m : User can provide their own alignment file, with maf extension, can be omitted  
     -o : The prefix of output file, default = 'training'  
 ```
-_Some ONT read profiles are ready to use for users. With the profiles, users can run simulation tool directly. Please go to [BC Cancer Agency ftp site](ftp://ftp.bcgsc.ca/supplementary/NanoSim/) to download E. coli or S. cerevisiae datasets and profiles._
+Some ONT read profiles are ready to use for users. With the profiles, users can run simulation tool directly. Please go to [BC Cancer Agency ftp site](ftp://ftp.bcgsc.ca/supplementary/NanoSim/) to download E. coli or S. cerevisiae datasets and profiles.
 
 ### 2. Simulation stage  
 Simulation stage takes reference genome and read profiles as input and outputs simulated reads in FASTA fomat.  
