@@ -7,6 +7,10 @@
 #####
 
 # Download the source file
+mkdir NanoSim
+cd NanoSim
+wget https://github.com/bcgsc/NanoSim/archive/master.zip
+
 
 # Create a working directory
 mkdir ecoli_simulation
