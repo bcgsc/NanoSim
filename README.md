@@ -56,42 +56,34 @@ _See more detailed example in example.sh_
 
 ## Explaination of output files  
 ### 1. Characterization stage
-1. training_aligned_length_ecdf `Length distribution of aligned regions on aligned reads`  
-2. training_aligned_reads_ecdf  
-  Length distribution of aligned reads  
-3. training_align_ratio  
-  Empirical distribution of align ratio of each read  
-4. training_besthit.maf  
-  The best alignment of each read based on length  
-5. training_match.hist/training_mis.hist/training_del.hist/training_ins.hist  
-  Histogram of match, mismatch, and indels  
-6. training_first_match.hist  
-  Histogram of the first match length of each alignment  
-7. training_error_markov_model  
-  Markov model of error types  
-8. training_ht_ratio  
-  Empirical distribution of the head region vs total unaligned region  
-9. training.maf  
-  The output of LAST, alignment file in MAF format  
-10. training_match_markov_model  
-  Markov model of the length of matches (stretches of correct base calls)  
-11. training_model_profile  
-  Fitted model for errors  
-12. training_processed.maf  
-  A re-formatted MAF file for user-provided alignment file  
-13. training_unaligned_length_ecdf  
-  Length distribution of unaligned reads  
+1. `training_aligned_length_ecdf` Length distribution of aligned regions on aligned reads  
+2. `training_aligned_reads_ecdf` Length distribution of aligned reads  
+3. `training_align_ratio` Empirical distribution of align ratio of each read  
+4. `training_besthit.maf` The best alignment of each read based on length  
+5. `training_match.hist/training_mis.hist/training_del.hist/training_ins.hist` Histogram of match, mismatch, and indels  
+6. `training_first_match.hist` Histogram of the first match length of each alignment  
+7. `training_error_markov_model` Markov model of error types  
+8. `training_ht_ratio` Empirical distribution of the head region vs total unaligned region  
+9. `training.maf` The output of LAST, alignment file in MAF format  
+10. `training_match_markov_model` Markov model of the length of matches (stretches of correct base calls)  
+11. `training_model_profile` Fitted model for errors  
+12. `training_processed.maf` A re-formatted MAF file for user-provided alignment file  
+13. `training_unaligned_length_ecdf` Length distribution of unaligned reads  
 
 ### 2. Simulation stage  
-1. simulated.log  
+1. `simulated.log`  
   Log file for simulation process  
-2. simulated_reads.fasta  
+  
+2. `simulated_reads.fasta`  
   FASTA file of simulated reads. Each reads has "unaligned", "aligned", or "perfect" in the header determining their error rate. "unaligned" means that the reads have an error rate over 90% and cannot be aligned. "aligned" reads have the same error rate as training reads. "perfect" reads have no errors.  
+  
   To explain the information in the header, we have two examples:  
   * `>ref|NC-001137|-[chromosome=V]_468529_unaligned_0_F_0_3236_0`  
     All information before the first `_` are chromosome information. `468529` is the start position and `unaligned` suggesting it should be unaligned to the reference. The first `0` is the sequence index. `F` represents a forward strand. `0_3236_0` means that sequence length extracted from the reference is 3236 bases.  
   * `>ref|NC-001143|-[chromosome=XI]_115406_aligned_16565_R_92_12710_2`  
     This is an aligned read coming from chromosome XI at position 115406. `16565` is the index of simulation. `R` represents a reverse complement strand. `92_12710_2` means that this read has 92-base head region (cannot be aligned), followed by 12710 bases of middle region, and then 2-base tail region.  
+  
   The information in the header can help users to locate the read easily.  
-3. simulated_error_profile  
+  
+3. `simulated_error_profile`  
   Contains all the information of errors introduced into each reads, including error type, position, original bases and current bases.  
