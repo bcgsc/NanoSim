@@ -6,13 +6,14 @@
 # Only 2D pass reads are extracted and stored on bcgsc ftp server.
 #####
 
-# Download the source file
+##### Download the source file
 mkdir NanoSim
 cd NanoSim
 wget https://github.com/bcgsc/NanoSim/archive/master.zip
+unzip master.zip
+# After this step, you should have a folder called NanoSim, and inside you have master.zip and NanoSim-master two sub-folders
 
-
-# Create a working directory
+##### Inside NanoSim, create a working directory
 mkdir ecoli_simulation
 cd ecoli_simulation
 
@@ -24,9 +25,45 @@ wget ftp://ftp.bcgsc.ca/supplementary/NanoSim/*
 # Get the reference genome
 wget ftp://ftp.bcgsc.ca/supplementary/NanoSim/*
 
-# Profiling stage
+# Profiling stage, make sure to set the mode of read_analysis.py to -r-x or above
+../NanoSim-master/src/read_analysis.py -i 2D.fasta -r ref.fa -o ecoli
 
+# Simulation stage, suppose the genome to be simulated is called test.fasta and make sure to provide the correct path to it
+../NanoSim-master/src/simulator.py circular -r test.fa -c ecoli 
 
 # To get the profile directly:
 wget ftp://ftp.bcgsc.ca/supplementary/NanoSim/ecoli_R7_profile.zip
+
+# 2. E. coli R7.3 dataset
+# Origin: http://www.ebi.ac.uk/ena/data/view/ERX708228, ERX708229, ERX708230, ERX708231
+
+# Get the 2D reads
+wget ftp://ftp.bcgsc.ca/supplementary/NanoSim/*
+# Get the reference genome
+wget ftp://ftp.bcgsc.ca/supplementary/NanoSim/*
+
+# To get the profile directly:
+wget ftp://ftp.bcgsc.ca/supplementary/NanoSim/ecoli_R73_profile.zip
+
+# 3. E. coli UCSC phase1b dataset
+# Origin:  http://www.ebi.ac.uk/ena/data/view/ERP010368
+
+# Get the 2D reads
+wget ftp://ftp.bcgsc.ca/supplementary/NanoSim/*
+# Get the reference genome
+wget ftp://ftp.bcgsc.ca/supplementary/NanoSim/*
+
+# To get the profile directly:
+wget ftp://ftp.bcgsc.ca/supplementary/NanoSim/ecoli_UCSC1b_profile.zip
+
+# 4. S. cerevisiae dataset
+# Origin: http://labshare.cshl.edu/shares/schatzlab/www-data/nanocorr/2015.07.07/W303_ONT_Raw_reads.fa.gz
+
+# Get the 2D reads
+wget ftp://ftp.bcgsc.ca/supplementary/NanoSim/*
+# Get the reference genome
+wget ftp://ftp.bcgsc.ca/supplementary/NanoSim/*
+
+# To get the profile directly:
+wget ftp://ftp.bcgsc.ca/supplementary/NanoSim/yeast_profile.zip
 
