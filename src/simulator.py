@@ -240,7 +240,7 @@ def simulation(ref, out, dna_type, per, kmer_bias):
         unaligned = unaligned_length[i]
         unaligned, error_dict = unaligned_error_list(unaligned, error_par)
         new_read, new_read_name = extract_read(dna_type, unaligned)
-        new_read_name = new_read_name + "_unaligned_" + str(i)
+        new_read_name = new_read_name + "_unaligned_" + str(i) + "_F"
         out_reads.write(">" + new_read_name + "_0_" + str(unaligned) + "_0" + '\n')
         read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias, False)
         out_reads.write(read_mutated + "\n")
@@ -258,7 +258,7 @@ def simulation(ref, out, dna_type, per, kmer_bias):
     if per:
         for i in xrange(len(ref_length)):
             new_read, new_read_name = extract_read(dna_type, ref_length[i])
-            new_read_name = new_read_name + "_perfect_" + str(i)
+            new_read_name = new_read_name + "_perfect_" + str(i) + "_F"
             out_reads.write(">" + new_read_name + "_0_" + str(ref_length[i]) + "_0" + '\n')
             out_reads.write(new_read + "\n")
         out_reads.close()
@@ -310,7 +310,15 @@ def simulation(ref, out, dna_type, per, kmer_bias):
 
         # Mutate read
         read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
-
+        
+        # Reverse complement half of the reads
+        p = random.random()
+        if p < 0.5:
+            read_mutated = reverse_complement(read_mutated)
+            new_read_name += "_R"
+        else:
+            new_read_name += "_F"
+            
         # Add head and tail region
         for x in xrange(head):
             new_base = random.choice(BASES)
@@ -319,10 +327,6 @@ def simulation(ref, out, dna_type, per, kmer_bias):
         for x in xrange(tail):
             new_base = random.choice(BASES)
             read_mutated = read_mutated + new_base
-
-        p = random.random()
-        if p < 0.5:
-            read_mutated = reverse_complement(read_mutated)
 
         out_reads.write(">" + new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" +
                         str(tail) + '\n')
