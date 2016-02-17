@@ -56,8 +56,7 @@ _See more detailed example in example.sh_
 
 ## Explaination of output files  
 ### 1. Characterization stage
-1. training_aligned_length_ecdf  
-  Length distribution of aligned regions on aligned reads  
+1. training_aligned_length_ecdf `Length distribution of aligned regions on aligned reads`  
 2. training_aligned_reads_ecdf  
   Length distribution of aligned reads  
 3. training_align_ratio  
