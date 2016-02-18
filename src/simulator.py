@@ -240,9 +240,18 @@ def simulation(ref, out, dna_type, per, kmer_bias):
         unaligned = unaligned_length[i]
         unaligned, error_dict = unaligned_error_list(unaligned, error_par)
         new_read, new_read_name = extract_read(dna_type, unaligned)
-        new_read_name = new_read_name + "_unaligned_" + str(i) + "_F"
+        new_read_name = new_read_name + "_unaligned_" + str(i)
         out_reads.write(">" + new_read_name + "_0_" + str(unaligned) + "_0" + '\n')
         read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias, False)
+        
+        # Reverse complement half of the reads
+        p = random.random()
+        if p < 0.5:
+            read_mutated = reverse_complement(read_mutated)
+            new_read_name += "_R"
+        else:
+            new_read_name += "_F"
+            
         out_reads.write(read_mutated + "\n")
     del unaligned_length
 
@@ -258,8 +267,17 @@ def simulation(ref, out, dna_type, per, kmer_bias):
     if per:
         for i in xrange(len(ref_length)):
             new_read, new_read_name = extract_read(dna_type, ref_length[i])
-            new_read_name = new_read_name + "_perfect_" + str(i) + "_F"
+            new_read_name = new_read_name + "_perfect_" + str(i)
             out_reads.write(">" + new_read_name + "_0_" + str(ref_length[i]) + "_0" + '\n')
+            
+            # Reverse complement half of the reads
+            p = random.random()
+            if p < 0.5:
+                read_mutated = reverse_complement(read_mutated)
+                new_read_name += "_R"
+            else:
+                new_read_name += "_F"
+                
             out_reads.write(new_read + "\n")
         out_reads.close()
         out_error.close()
