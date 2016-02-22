@@ -324,7 +324,7 @@ def simulation(ref, out, dna_type, per, kmer_bias):
 
         # Extract middle region from reference genome
         new_read, new_read_name = extract_read(dna_type, middle_ref)
-        new_read_name = new_read_name + "_aligned_" + str(i)
+        new_read_name = new_read_name + "_aligned_" + str(i + len(unaligned_length))
 
         # Mutate read
         read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
