@@ -116,7 +116,7 @@ Explaination of output files
         
     b. >ref|NC-001143|-[chromosome=XI]_115406_aligned_16565_R_92_12710_2
     This is an aligned read coming from chromosome XI at position 115406. 16565 is 
-    the index of simulation. R represents a reverse complement strand. 92_12710_2 
+    the sequence index. R represents a reverse complement strand. 92_12710_2 
     means that this read has 92-base head region (cannot be aligned), followed by 
     12710 bases of middle region, and then 2-base tail region.
 
