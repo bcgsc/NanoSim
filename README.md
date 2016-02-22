@@ -82,7 +82,7 @@ _See more detailed example in example.sh_
   * `>ref|NC-001137|-[chromosome=V]_468529_unaligned_0_F_0_3236_0`  
     All information before the first `_` are chromosome information. `468529` is the start position and `unaligned` suggesting it should be unaligned to the reference. The first `0` is the sequence index. `F` represents a forward strand. `0_3236_0` means that sequence length extracted from the reference is 3236 bases.  
   * `>ref|NC-001143|-[chromosome=XI]_115406_aligned_16565_R_92_12710_2`  
-    This is an aligned read coming from chromosome XI at position 115406. `16565` is the index of simulation. `R` represents a reverse complement strand. `92_12710_2` means that this read has 92-base head region (cannot be aligned), followed by 12710 bases of middle region, and then 2-base tail region.  
+    This is an aligned read coming from chromosome XI at position 115406. `16565` is the sequence index. `R` represents a reverse complement strand. `92_12710_2` means that this read has 92-base head region (cannot be aligned), followed by 12710 bases of middle region, and then 2-base tail region.  
   
   The information in the header can help users to locate the read easily.  
   
