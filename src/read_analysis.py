@@ -42,8 +42,9 @@ def main(argv):
     outfile = 'training'
     ref = ''
     maf_file = ''
+    model_fit = True
     try:
-        opts, args = getopt.getopt(argv, "hi:r:o:m:", ["infile=", "ref=", "outfile="])
+        opts, args = getopt.getopt(argv, "hi:r:o:m:", ["infile=", "ref=", "outfile=", "model_fit="])
     except getopt.GetoptError:
         usage()
         sys.exit(1)
@@ -60,6 +61,8 @@ def main(argv):
             maf_file = arg
         elif opt in ("-o", "--outfile"):
             outfile = arg
+        elif opt == "-model_fit":
+            model_fit = arg
         else:
             usage()
             sys.exit(1)
@@ -129,15 +132,14 @@ def main(argv):
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": match and error models\n")
     error_model.hist(outfile)
 
-    '''
-    path = sys.argv[0].split("/")
-    R_path = '/'.join(path[:-1]) + '/' + "model_fitting.R"
-    if os.path.isfile(R_path):
-        call("R CMD BATCH '--args prefix=\"" + outfile + "\"' " + R_path, shell=True)
-    else:
-        print("Could not find 'model_fitting.R' in ../src/\nMake sure you copied the whole source files from Github.")
+    if model_fit:
+        path = sys.argv[0].split("/")
+        R_path = '/'.join(path[:-1]) + '/' + "model_fitting.R"
+    	if os.path.isfile(R_path):
+            call("R CMD BATCH '--args prefix=\"" + outfile + "\"' " + R_path, shell=True)
+        else:
+            print("Could not find 'model_fitting.R' in ../src/\nMake sure you copied the whole source files from Github.")
 
-    '''
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
 
 
