@@ -129,6 +129,7 @@ def main(argv):
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": match and error models\n")
     error_model.hist(outfile)
 
+    '''
     path = sys.argv[0].split("/")
     R_path = '/'.join(path[:-1]) + '/' + "model_fitting.R"
     if os.path.isfile(R_path):
@@ -136,6 +137,7 @@ def main(argv):
     else:
         print("Could not find 'model_fitting.R' in ../src/\nMake sure you copied the whole source files from Github.")
 
+    '''
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
 
 

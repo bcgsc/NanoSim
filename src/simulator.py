@@ -236,12 +236,12 @@ def simulation(ref, out, dna_type, per, kmer_bias):
     out_error.write("Seq_name\tSeq_pos\terror_type\terror_length\tref_base\tseq_base\n")
 
     # Simulate unaligned reads
-    for i in xrange(len(unaligned_length)):
+    num_unaligned_length = len(unaligned_length)
+    for i in xrange(num_unaligned_length):
         unaligned = unaligned_length[i]
         unaligned, error_dict = unaligned_error_list(unaligned, error_par)
         new_read, new_read_name = extract_read(dna_type, unaligned)
         new_read_name = new_read_name + "_unaligned_" + str(i)
-        out_reads.write(">" + new_read_name + "_0_" + str(unaligned) + "_0" + '\n')
         read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias, False)
         
         # Reverse complement half of the reads
@@ -251,8 +251,9 @@ def simulation(ref, out, dna_type, per, kmer_bias):
             new_read_name += "_R"
         else:
             new_read_name += "_F"
-            
+        out_reads.write(">" + new_read_name + "_0_" + str(unaligned) + "_0" + '\n')
         out_reads.write(read_mutated + "\n")
+
     del unaligned_length
 
     middle_length = []
@@ -324,7 +325,7 @@ def simulation(ref, out, dna_type, per, kmer_bias):
 
         # Extract middle region from reference genome
         new_read, new_read_name = extract_read(dna_type, middle_ref)
-        new_read_name = new_read_name + "_aligned_" + str(i + len(unaligned_length))
+        new_read_name = new_read_name + "_aligned_" + str(i + num_unaligned_length)
 
         # Mutate read
         read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
