@@ -147,8 +147,8 @@ def read_profile(number, model_prefix, per):
             number_aligned = number
         else:
             number_aligned = int(round(number * float(rate) / (float(rate) + 1)))
-            number_unaligned = number - number_aligned
-            unaligned_dict = read_ecdf(u_profile)
+        number_unaligned = number - number_aligned
+        unaligned_dict = read_ecdf(u_profile)
 
     for i in xrange(number_unaligned):
         unaligned = 0
