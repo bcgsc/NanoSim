@@ -140,8 +140,8 @@ def read_profile(number, model_prefix, per):
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read ECDF of unaligned reads\n")
     unaligned_length = []
     with open(model_prefix + "_unaligned_length_ecdf", 'r') as u_profile:
-        new = u_profile.readline()
-        rate = new.split('\t')[1].strip()
+        new = u_profile.readline().strip()
+        rate = new.split('\t')[1]
         # if parameter perfect is used, all reads should be aligned, number_aligned equals total number of reads.
         if per or rate == "100%":
             number_aligned = number

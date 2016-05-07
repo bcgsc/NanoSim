@@ -31,6 +31,7 @@ def usage():
                     "-i : training ONT real reads, must be fasta files\n" \
                     "-r : reference genome of the training reads\n" \
                     "-m : User can provide their own alignment file, with maf extension\n" \
+                    "-b : number of bins (for development), default = 20\n" \
                     "-o : The prefix of output file, default = 'training'\n"
 
     sys.stderr.write(usage_message)
@@ -43,8 +44,9 @@ def main(argv):
     ref = ''
     maf_file = ''
     model_fit = "True"
+    num_bins = 20
     try:
-        opts, args = getopt.getopt(argv, "hi:r:o:m:", ["infile=", "ref=", "outfile=", "model_fit="])
+        opts, args = getopt.getopt(argv, "hi:r:o:m:b:", ["infile=", "ref=", "outfile=", "model_fit="])
     except getopt.GetoptError:
         usage()
         sys.exit(1)
@@ -63,6 +65,8 @@ def main(argv):
             outfile = arg
         elif opt == "--model_fit":
             model_fit = arg
+        elif opt == "-b":
+            num_bins = max(int(arg), 1)
         else:
             usage()
             sys.exit(1)
@@ -106,7 +110,7 @@ def main(argv):
     unaligned_length = get_besthit.besthit_and_unaligned(in_fasta, out_maf, outfile)
 
     # Generate the histogram of aligned reads
-    num_aligned = align.head_align_tail(outfile)
+    num_aligned = align.head_align_tail(outfile, num_bins)
 
     # Length distribution of unaligned reads
     out1 = open(outfile + "_unaligned_length_ecdf", 'w')
