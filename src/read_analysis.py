@@ -43,10 +43,10 @@ def main(argv):
     outfile = 'training'
     ref = ''
     maf_file = ''
-    model_fit = "True"
+    model_fit = True
     num_bins = 20
     try:
-        opts, args = getopt.getopt(argv, "hi:r:o:m:b:", ["infile=", "ref=", "outfile=", "model_fit="])
+        opts, args = getopt.getopt(argv, "hi:r:o:m:b:", ["infile=", "ref=", "outfile=", "no_model_fit"])
     except getopt.GetoptError:
         usage()
         sys.exit(1)
@@ -63,8 +63,8 @@ def main(argv):
             maf_file = arg
         elif opt in ("-o", "--outfile"):
             outfile = arg
-        elif opt == "--model_fit":
-            model_fit = arg
+        elif opt == "--no_model_fit":
+            model_fit = False
         elif opt == "-b":
             num_bins = max(int(arg), 1)
         else:
@@ -76,40 +76,49 @@ def main(argv):
         usage()
         sys.exit(1)
 
-    # Read pre-process
-    in_fasta = outfile + ".fasta"
-    if in_fasta == infile:
-        in_fasta = outfile + "_processed.fasta"
-    out_fasta = open(in_fasta, 'w')
-    dic_reads = {}
-    with open(infile, 'r') as f:
-        for line in f:
-            if line[0] == '>':
-                name = '-'.join(line.strip()[1:].split())
-                dic_reads[name] = ""
-            else:
-                dic_reads[name] += line.strip()
-    for k, v in dic_reads.items():
-        out_fasta.write('>' + k + '\n' + v + '\n')
-    out_fasta.close()
-
-    # ALIGNMENT if maf file is not provided
+    # READ PRE-PROCESS AND UNALIGNED READS ANALYSIS
+    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process and unaligned reads analysis\n")
     out_maf = outfile + ".maf"
-    if out_maf == maf_file:
-        out_maf = outfile + "_processed.maf"
+
+    # if maf file provided
     if maf_file != '':
+        if out_maf == maf_file:
+            out_maf = outfile + "_processed.maf"
+
         call("grep '^s ' " + maf_file + " > " + out_maf, shell=True)
+
+        # get best hit and unaligned reads
+        unaligned_length = get_besthit.besthit_and_unaligned(infile, out_maf, outfile)
+
+    # if maf file not provided
     else:
+        # Read pre-process
+        in_fasta = outfile + ".fasta"
+        if in_fasta == infile:
+            in_fasta = outfile + "_processed.fasta"
+        out_fasta = open(in_fasta, 'w')
+        dic_reads = {}
+        with open(infile, 'r') as f:
+            for line in f:
+                if line[0] == '>':
+                    name = '-'.join(line.strip()[1:].split())
+                    dic_reads[name] = ""
+                else:
+                    dic_reads[name] += line.strip()
+        for k, v in dic_reads.items():
+            out_fasta.write('>' + k + '\n' + v + '\n')
+        out_fasta.close()
+
+        # Alignment
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with LAST\n")
         call("lastdb ref_genome " + ref, shell=True)
         call("lastal -a 1 ref_genome " + in_fasta + " | grep '^s ' > " + out_maf, shell=True)
 
-    # LENGTH DISTRIBUTION
-    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": length distribution analysis\n")
-    # Get besthit of alignment
-    unaligned_length = get_besthit.besthit_and_unaligned(in_fasta, out_maf, outfile)
+        # get best hit and unaligned reads
+        unaligned_length = get_besthit.besthit_and_unaligned(in_fasta, out_maf, outfile)
 
-    # Generate the histogram of aligned reads
+    # ALIGNED READS ANALYSIS
+    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
     num_aligned = align.head_align_tail(outfile, num_bins)
 
     # Length distribution of unaligned reads
@@ -136,14 +145,14 @@ def main(argv):
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": match and error models\n")
     error_model.hist(outfile)
 
-    if model_fit == "True":
-        print(model_fit)
+    if model_fit:
+        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Model fitting\n")
         path = sys.argv[0].split("/")
         r_path = '/'.join(path[:-1]) + '/' + "model_fitting.R"
         if os.path.isfile(r_path):
             call("R CMD BATCH '--args prefix=\"" + outfile + "\"' " + r_path, shell=True)
         else:
-            print("Could not find 'model_fitting.R' in ../src/\n"
+            sys.stderr.write("Could not find 'model_fitting.R' in ../src/\n" +
                   "Make sure you copied the whole source files from Github.")
 
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
