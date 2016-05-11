@@ -23,6 +23,8 @@ __Usage:__
     -m : User can provide their own alignment file, with maf extension, can be omitted  
     -o : The prefix of output file, default = 'training'  
 ```
+\* NOTICE: -m option allows users to provide their own alignment file. Make sure that the name of query sequences are the same as appears in the fasta files. For fasta files, some headers have spaces in them and most aligners only take part of the header (before the first white space/tab) as the query name. However, the truncated headers may not be unique if using the output of poretools. We suggest users to pre-process the fasta files by concatenating all elements in the header via '\_' before alignment and feed the processed fasta file as input of NanoSim.  
+
 Some ONT read profiles are ready to use for users. With the profiles, users can run simulation tool directly. Please go to [ftp://ftp.bcgsc.ca/supplementary/NanoSim/] to download _E. coli_ or _S. cerevisiae_ datasets and profiles.
 
 ### 2. Simulation stage  
