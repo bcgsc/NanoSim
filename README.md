@@ -42,9 +42,13 @@ __Usage:__
     -c : the prefix of training set profiles, same as the output prefix in read_analysis.py, default = training  
     -o : The prefix of output file, default = 'simulated'  
     -n : Number of generated reads, default = 20,000 reads  
+    --max_len : Maximum read length, default = Inf
+    --min_len : Minimum read length, default = 50
     --perfect: Output perfect reads, no mutations, default = False  
     --KmerBias: prohibits homopolymers with length >= 6 bases in output reads, can be omitted  
 ```
+\* Notice: the use of `max_len` and `min_len` will affect the read length distributions. If the range between `max_len` and `min_len` is too small, the program will run slowlier accordingly.  
+
 __For example:__  
 1 If you want to simulate _E. coli_ genome, then circular command must be chosen because it's a circular genome  
 `./simulator.py circular -r Ecoli_ref.fasta -c ecoli`  
