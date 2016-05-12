@@ -53,6 +53,8 @@ def usage():
                     "-c : The prefix of training set profiles, same as the output prefix in read_analysis.py, default = training\n" \
                     "-o : The prefix of output file, default = 'simulated'\n" \
                     "-n : Number of generated reads, default = 20,000 reads\n" \
+                    "--max_len : Maximum read length, default = Inf\n" \
+                    "--min_len : Minimum read length, default = 50\n" \
                     "--perfect: Output perfect reads, no mutations, default = False\n" \
                     "--KmerBias: prohibits homopolymers with length >= 6 bases in output reads\n"
 
@@ -99,8 +101,24 @@ def read_ecdf(profile):
     return ecdf_dict
 
 
-def read_profile(number, model_prefix, per):
-    global unaligned_length, ref_length
+def get_length(len_dict, num, max_l, min_l):
+    length_list = []
+    for i in xrange(num):
+        middle_ref = 0
+        key = len_dict.keys()[0]
+        while middle_ref <= min_l or middle_ref > max_l:
+            p = random.random()
+            for k_p, v_p in len_dict[key].items():
+                if k_p[0] <= p < k_p[1]:
+                    middle_ref = int(round((p - k_p[0])/(k_p[1] - k_p[0]) * (v_p[1] - v_p[0]) + v_p[0]))
+                    break
+        length_list.append(middle_ref)
+
+    return length_list
+
+
+def read_profile(number, model_prefix, per, max_l, min_l):
+    global unaligned_length, number_aligned, aligned_dict
     global match_ht_list, align_ratio, ht_dict, error_par
     global trans_error_pr, match_markov_model
 
@@ -152,7 +170,7 @@ def read_profile(number, model_prefix, per):
 
     for i in xrange(number_unaligned):
         unaligned = 0
-        while unaligned <= 0:
+        while unaligned <= min_l or unaligned > max_l:
             p = random.random()
             key = unaligned_dict.keys()[0]
             for k_p, v_p in unaligned_dict[key].items():
@@ -183,23 +201,10 @@ def read_profile(number, model_prefix, per):
 
     with open(length_profile, 'r') as align_profile:
         aligned_dict = read_ecdf(align_profile)
-    ref_length = []
-
-    for i in xrange(number_aligned):
-        middle_ref = 0
-        key = aligned_dict.keys()[0]
-        while middle_ref <= 50:
-            p = random.random()
-            for k_p, v_p in aligned_dict[key].items():
-                if k_p[0] <= p < k_p[1]:
-                    middle_ref = int(round((p - k_p[0])/(k_p[1] - k_p[0]) * (v_p[1] - v_p[0]) + v_p[0]))
-                    break
-        ref_length.append(middle_ref)
-    aligned_dict.clear()
 
 
-def simulation(ref, out, dna_type, per, kmer_bias):
-    global unaligned_length, ref_length
+def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
+    global unaligned_length, number_aligned, aligned_dict
     global genome_len, seq_dict, seq_len
     global match_ht_list, align_ratio, ht_dict, match_markov_model
     global trans_error_pr, error_par
@@ -265,8 +270,13 @@ def simulation(ref, out, dna_type, per, kmer_bias):
 
     # Simulate aligned reads
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of aligned reads\n")
+
     if per:
-        for i in xrange(len(ref_length)):
+        ref_length = get_length(aligned_dict, number_aligned, max_l, min_l)
+        del aligned_dict
+
+        for i in xrange(number_aligned):
+            print(ref_length[i])
             new_read, new_read_name = extract_read(dna_type, ref_length[i])
             new_read_name = new_read_name + "_perfect_" + str(i)
             out_reads.write(">" + new_read_name + "_0_" + str(ref_length[i]) + "_0" + '\n')
@@ -274,7 +284,7 @@ def simulation(ref, out, dna_type, per, kmer_bias):
             # Reverse complement half of the reads
             p = random.random()
             if p < 0.5:
-                read_mutated = reverse_complement(read_mutated)
+                new_read = reverse_complement(new_read)
                 new_read_name += "_R"
             else:
                 new_read_name += "_F"
@@ -284,12 +294,11 @@ def simulation(ref, out, dna_type, per, kmer_bias):
         out_error.close()
         return
 
-    for i in xrange(len(ref_length)):
-        middle, middle_ref, error_dict = error_list(ref_length[i], match_markov_model, match_ht_list, error_par,
+    ref_length = []
+    while number_aligned > 0:
+        ref = get_length(aligned_dict, 1, max_l, min_l)[0]
+        middle, middle_ref, error_dict = error_list(ref, match_markov_model, match_ht_list, error_par,
                                                     trans_error_pr)
-
-        ref_length[i] = middle_ref
-        middle_length.append(middle)
 
         for k_align in sorted(align_ratio.keys()):
             if k_align[0] <= middle < k_align[1]:
@@ -298,13 +307,14 @@ def simulation(ref, out, dna_type, per, kmer_bias):
         p = random.random()
         for k_r, v_r in align_ratio[k_align].items():
             if k_r[0] <= p < k_r[1]:
-                ratio = (p - k_r[0])/(k_r[1] - k_r[0]) * (v_r[1] - v_r[0]) + v_r[0]
-                total = int(round(middle / ratio))
+                a_ratio = (p - k_r[0])/(k_r[1] - k_r[0]) * (v_r[1] - v_r[0]) + v_r[0]
+                total = int(round(middle / a_ratio))
                 remainder = total - int(round(middle))
                 break
-        aligned_length.append(total)
-        middle_all_ratio.append(ratio)
-        remainder_length.append(remainder)
+
+        if total > max_l:
+            print(ref, total)
+            continue
 
         if remainder == 0:
             head = 0
@@ -320,8 +330,15 @@ def simulation(ref, out, dna_type, per, kmer_bias):
                             tail = remainder - head
                             break
                     break
+
         head_length.append(head)
         tail_length.append(tail)
+        middle_length.append(middle)
+        aligned_length.append(total)
+        middle_all_ratio.append(a_ratio)
+        remainder_length.append(remainder)
+        ref_length.append(middle_ref)
+        number_aligned -= 1
 
         # Extract middle region from reference genome
         new_read, new_read_name = extract_read(dna_type, middle_ref)
@@ -579,6 +596,8 @@ def main():
     ins_rate = 1
     del_rate = 1
     mis_rate = 1
+    max_readlength = float("inf")
+    min_readlength = 50
     kmer_bias = False
 
     # Parse options and parameters
@@ -591,7 +610,8 @@ def main():
             usage()
             sys.exit(1)
         try:
-            opts, args = getopt.getopt(sys.argv[2:], "hr:c:o:n:i:d:m:", ["perfect", "KmerBias"])
+            opts, args = getopt.getopt(sys.argv[2:], "hr:c:o:n:i:d:m:",
+                                       ["max_len=", "min_len=", "perfect", "KmerBias"])
         except getopt.GetoptError:
             usage()
             sys.exit(1)
@@ -610,6 +630,10 @@ def main():
                 del_rate = float(arg)
             elif opt == "-m":
                 mis_rate = float(arg)
+            elif opt == "--max_len":
+                max_readlength = int(arg)
+            elif opt == "-m":
+                min_readlength = int(arg)
             elif opt == "--perfect":
                 perfect = True
             elif opt == "--KmerBias":
@@ -631,10 +655,14 @@ def main():
         usage()
         sys.exit(1)
 
-    # Read in reference genome and generate simulated reads
-    read_profile(number, model_prefix, perfect)
+    if max_readlength < min_readlength:
+        print("maximum read length must be longer than minimum read length!")
+        sys.exit(1)
 
-    simulation(ref, out, dna_type, perfect, kmer_bias)
+    # Read in reference genome and generate simulated reads
+    read_profile(number, model_prefix, perfect, max_readlength, min_readlength)
+
+    simulation(ref, out, dna_type, perfect, kmer_bias, max_readlength, min_readlength)
 
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!")
     sys.stdout.close()
