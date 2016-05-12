@@ -35,7 +35,6 @@ def besthit_and_unaligned(infile, outmaf, outfile):
                 name = line.strip().split()[0][1:]
                 flag = False
                 if name not in align_dict:
-                    print name
                     last_name = name
                     flag = True
             else:

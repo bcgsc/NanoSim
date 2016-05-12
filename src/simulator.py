@@ -276,7 +276,6 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
         del aligned_dict
 
         for i in xrange(number_aligned):
-            print(ref_length[i])
             new_read, new_read_name = extract_read(dna_type, ref_length[i])
             new_read_name = new_read_name + "_perfect_" + str(i)
             out_reads.write(">" + new_read_name + "_0_" + str(ref_length[i]) + "_0" + '\n')
@@ -313,7 +312,6 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
                 break
 
         if total > max_l:
-            print(ref, total)
             continue
 
         if remainder == 0:
