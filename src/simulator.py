@@ -599,7 +599,7 @@ def main():
     kmer_bias = False
 
     # Parse options and parameters
-    if len(sys.argv) < 6:
+    if len(sys.argv) < 4:
         usage()
         sys.exit(1)
     else:
