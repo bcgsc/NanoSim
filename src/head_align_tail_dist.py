@@ -23,22 +23,28 @@ def flex_bins(num_of_bins, ratio_dict, num_of_reads):
 
     ratio_bins = {}
     while k_of_bin < num_of_bins:
-        count = 0
+        if k_of_ratio >= num_of_keys:
+            break
+
         start = k_of_ratio
+        count = len(ratio_dict[ratio_keys[k_of_ratio]])
+        k_of_ratio += 1
+
         while k_of_ratio < num_of_keys:
             tmp_count = count + len(ratio_dict[ratio_keys[k_of_ratio]])
-            k_of_ratio += 1
-            if abs(tmp_count - count_reads) > abs(count - count_reads):
+            if abs(tmp_count - count_reads) >= abs(count - count_reads):
                 break
             else:
                 count = tmp_count
+                k_of_ratio += 1
 
-        k = (ratio_keys[start] if start else 0, ratio_keys[k_of_ratio - 1])
+        k = (ratio_keys[start] if start else 0,
+             ratio_keys[k_of_ratio] if k_of_ratio < num_of_keys else ratio_keys[k_of_ratio - 1] + 1)
         ratio_bins[k] = []
-        for i in xrange(start, k_of_ratio - 1):
+        for i in xrange(start, k_of_ratio):
             ratio_bins[k].extend(ratio_dict[ratio_keys[i]])
+
         k_of_bin += 1
-        k_of_ratio -= 1
 
     if k_of_ratio < num_of_keys - 1:
         k = (ratio_keys[k_of_ratio], ratio_keys[num_of_keys - 1] + 1)
