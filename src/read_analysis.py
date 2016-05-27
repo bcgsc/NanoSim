@@ -80,6 +80,25 @@ def main(argv):
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process and unaligned reads analysis\n")
     out_maf = outfile + ".maf"
 
+    # Read pre-process
+    in_fasta = outfile + ".fasta"
+    if in_fasta == infile:
+        in_fasta = outfile + "_processed.fasta"
+    out_fasta = open(in_fasta, 'w')
+    dic_reads = {}
+    with open(infile, 'r') as f:
+        for line in f:
+            if line[0] == '>':
+                name = '-'.join(line.strip()[1:].split())
+                dic_reads[name] = ""
+            else:
+                dic_reads[name] += line.strip()
+    for k, v in dic_reads.items():
+        out_fasta.write('>' + k + '\n' + v + '\n')
+    out_fasta.close()
+
+    del dic_reads
+
     # if maf file provided
     if maf_file != '':
         if out_maf == maf_file:
@@ -88,27 +107,10 @@ def main(argv):
         call("grep '^s ' " + maf_file + " > " + out_maf, shell=True)
 
         # get best hit and unaligned reads
-        unaligned_length = get_besthit.besthit_and_unaligned(infile, out_maf, outfile)
+        unaligned_length = get_besthit.besthit_and_unaligned(in_fasta, out_maf, outfile)
 
     # if maf file not provided
     else:
-        # Read pre-process
-        in_fasta = outfile + ".fasta"
-        if in_fasta == infile:
-            in_fasta = outfile + "_processed.fasta"
-        out_fasta = open(in_fasta, 'w')
-        dic_reads = {}
-        with open(infile, 'r') as f:
-            for line in f:
-                if line[0] == '>':
-                    name = '-'.join(line.strip()[1:].split())
-                    dic_reads[name] = ""
-                else:
-                    dic_reads[name] += line.strip()
-        for k, v in dic_reads.items():
-            out_fasta.write('>' + k + '\n' + v + '\n')
-        out_fasta.close()
-
         # Alignment
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with LAST\n")
         call("lastdb ref_genome " + ref, shell=True)
@@ -140,6 +142,7 @@ def main(argv):
         out1.write("Aligned / Unaligned ratio:\t100%\n")
 
     out1.close()
+    del unaligned_length
 
     # MATCH AND ERROR MODELS
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": match and error models\n")

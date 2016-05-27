@@ -294,7 +294,8 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
         return
 
     ref_length = []
-    while number_aligned > 0:
+    i = 0
+    while i < number_aligned:
         ref = get_length(aligned_dict, 1, max_l, min_l)[0]
         middle, middle_ref, error_dict = error_list(ref, match_markov_model, match_ht_list, error_par,
                                                     trans_error_pr)
@@ -336,7 +337,6 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
         middle_all_ratio.append(a_ratio)
         remainder_length.append(remainder)
         ref_length.append(middle_ref)
-        number_aligned -= 1
 
         # Extract middle region from reference genome
         new_read, new_read_name = extract_read(dna_type, middle_ref)
@@ -344,7 +344,7 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
 
         # Mutate read
         read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
-        
+
         # Reverse complement half of the reads
         p = random.random()
         if p < 0.5:
@@ -352,7 +352,7 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
             new_read_name += "_R"
         else:
             new_read_name += "_F"
-            
+
         # Add head and tail region
         for x in xrange(head):
             new_base = random.choice(BASES)
@@ -365,6 +365,8 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
         out_reads.write(">" + new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" +
                         str(tail) + '\n')
         out_reads.write(read_mutated + '\n')
+
+        i += 1
 
     out_reads.close()
     out_error.close()
@@ -574,12 +576,12 @@ def mutate_read(read, read_name, error_log, e_dict, bias, aligned=True):
 
     # If choose to have kmer bias, then need to compress homopolymers to 5-mer
     if bias:
-        new_read = re.sub("AAAAAA+", "AAAAA", new_read)
-        new_read = re.sub("CCCCCC+", "CCCCC", new_read)
-        new_read = re.sub("TTTTTT+", "TTTTT", new_read)
-        new_read = re.sub("GGGGGG+", "GGGGG", new_read)
+        read = re.sub("AAAAAA+", "AAAAA", read)
+        read = re.sub("CCCCCC+", "CCCCC", read)
+        read = re.sub("TTTTTT+", "TTTTT", read)
+        read = re.sub("GGGGGG+", "GGGGG", read)
 
-    return new_read
+    return read
 
 
 def main():
