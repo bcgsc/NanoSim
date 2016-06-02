@@ -168,17 +168,7 @@ def read_profile(number, model_prefix, per, max_l, min_l):
         number_unaligned = number - number_aligned
         unaligned_dict = read_ecdf(u_profile)
 
-    for i in xrange(number_unaligned):
-        unaligned = 0
-        while unaligned <= min_l or unaligned > max_l:
-            p = random.random()
-            key = unaligned_dict.keys()[0]
-            for k_p, v_p in unaligned_dict[key].items():
-                if k_p[0] <= p < k_p[1]:
-                    # consider this small range is linearly distributed:
-                    unaligned = (p - k_p[0])/(k_p[1] - k_p[0]) * (v_p[1] - v_p[0]) + v_p[0]
-                    break
-        unaligned_length.append(int(round(unaligned)))
+    unaligned_length = get_length(unaligned_dict, number_unaligned, max_l, min_l)
     unaligned_dict.clear()
 
     # Read profile of aligned reads
@@ -201,7 +191,7 @@ def read_profile(number, model_prefix, per, max_l, min_l):
 
     with open(length_profile, 'r') as align_profile:
         aligned_dict = read_ecdf(align_profile)
-
+        
 
 def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
     global unaligned_length, number_aligned, aligned_dict
@@ -261,13 +251,6 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
 
     del unaligned_length
 
-    middle_length = []
-    aligned_length = []
-    middle_all_ratio = []
-    remainder_length = []
-    head_length = []
-    tail_length = []
-
     # Simulate aligned reads
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of aligned reads\n")
 
@@ -293,7 +276,6 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
         out_error.close()
         return
 
-    ref_length = []
     i = 0
     while i < number_aligned:
         ref = get_length(aligned_dict, 1, max_l, min_l)[0]
@@ -329,14 +311,6 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
                             tail = remainder - head
                             break
                     break
-
-        head_length.append(head)
-        tail_length.append(tail)
-        middle_length.append(middle)
-        aligned_length.append(total)
-        middle_all_ratio.append(a_ratio)
-        remainder_length.append(remainder)
-        ref_length.append(middle_ref)
 
         # Extract middle region from reference genome
         new_read, new_read_name = extract_read(dna_type, middle_ref)

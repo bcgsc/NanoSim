@@ -6,8 +6,8 @@ import numpy
 
 def add_dict(error, dic):
     if error not in dic:
-        last_elememt = len(dic)
-        for i in xrange(last_elememt, error + 1):
+        last_element = len(dic)
+        for i in xrange(last_element, error + 1):
             dic[i] = 0
     dic[error] += 1
 

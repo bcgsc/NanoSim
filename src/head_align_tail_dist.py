@@ -60,7 +60,8 @@ def head_align_tail(outfile, num_of_bins):
     out2 = open(outfile + '_aligned_reads_ecdf', 'w')
     out3 = open(outfile + '_ht_ratio', 'w')
     out4 = open(outfile + "_align_ratio", 'w')
-    
+
+    '''
     out5 = open(outfile + "_total.txt", 'w')
     out6 = open(outfile + "_middle.txt", 'w')
     out7 = open(outfile + "_head.txt", 'w')
@@ -68,6 +69,7 @@ def head_align_tail(outfile, num_of_bins):
     out9 = open(outfile + "_ht.txt", 'w')
     out10 = open(outfile + "_ratio.txt", 'w')
     out11 = open(outfile + "_tail.txt", 'w')
+    '''
 
     aligned = []
     total = []
@@ -97,6 +99,7 @@ def head_align_tail(outfile, num_of_bins):
                     ht_ratio[ht].append(r)
                 else:
                     ht_ratio[ht] = [r]
+    '''
             out5.write(query[5] + '\n')
             out6.write(query[3] + '\n')
             out7.write(query[2] + '\n')
@@ -112,20 +115,21 @@ def head_align_tail(outfile, num_of_bins):
     out9.close()
     out10.close()
     out11.close()
+    '''
 
     max_length = max(total)
 
     # ecdf of length of aligned regions
-    hist_aligned, bin_edges = numpy.histogram(aligned, bins=numpy.arange(0, max_length + 51, 50), density=True)
-    cdf = numpy.cumsum(hist_aligned * 50)
+    hist_aligned, bin_edges = numpy.histogram(aligned, bins=numpy.arange(0, max_length + 1, 1), density=True)
+    cdf = numpy.cumsum(hist_aligned * 1)
     out1.write("bin\t0-" + str(max_length) + '\n')
     for i in xrange(len(cdf)):
         out1.write(str(bin_edges[i]) + '-' + str(bin_edges[i+1]) + "\t" + str(cdf[i]) + '\n')
     num_aligned = len(aligned)
 
     # ecdf of length of aligned reads
-    hist_reads, bin_edges = numpy.histogram(total, bins=numpy.arange(0, max_length + 51, 50), density=True)
-    cdf = numpy.cumsum(hist_reads * 50)
+    hist_reads, bin_edges = numpy.histogram(total, bins=numpy.arange(0, max_length + 1, 1), density=True)
+    cdf = numpy.cumsum(hist_reads * 1)
     out2.write("bin\t0-" + str(max_length) + '\n')
     for i in xrange(len(cdf)):
         out2.write(str(bin_edges[i]) + '-' + str(bin_edges[i+1]) + "\t" + str(cdf[i]) + '\n')
