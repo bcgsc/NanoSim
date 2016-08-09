@@ -125,9 +125,6 @@ def main(argv):
 
     # Length distribution of unaligned reads
     out1 = open(outfile + "_unaligned_length_ecdf", 'w')
-    out2 = open(outfile + "_unaligned_length.txt", 'w')
-    out2.write('\n'.join(str(x) for x in unaligned_length))
-    out2.close()
 
     num_unaligned = len(unaligned_length)
     if num_unaligned != 0:

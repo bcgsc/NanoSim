@@ -224,6 +224,9 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
         seq_len[key] = len(seq_dict[key])
     genome_len = sum(seq_len.values())
 
+    # Change lowercase to uppercase and replace N with any base
+    seq_dict = case_convert(seq_dict)
+
     # Start simulation
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of random reads\n")
     out_reads = open(out + "_reads.fasta", 'w')
@@ -556,6 +559,22 @@ def mutate_read(read, read_name, error_log, e_dict, bias, aligned=True):
         read = re.sub("GGGGGG+", "GGGGG", read)
 
     return read
+
+
+def case_convert(s_dict):
+    out_dict = {}
+    base_code = {'Y': ['C', 'T'], 'R': ['A', 'G'], 'W': ['A', 'T'], 'S': ['G', 'C'], 'K': ['T', 'G'], 'M': ['C', 'A'],
+                 'D': ['A', 'G', 'T'], 'V': ['A', 'C', 'G'], 'H': ['A', 'C', 'T'], 'B': ['C', 'G', 'T'],
+                 'N': ['A', 'T', 'C', 'G'], 'X': ['A', 'T', 'C', 'G']}
+
+    for k, v in s_dict.items():
+        up_string = v.upper()
+        for i in xrange(len(up_string)):
+            if up_string[i] in base_code:
+                up_string = up_string[:i] + random.choice(base_code[up_string[i]]) + up_string[i+1:]
+        out_dict[k] = up_string
+
+    return out_dict
 
 
 def main():
