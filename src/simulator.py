@@ -264,7 +264,6 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
         for i in xrange(number_aligned):
             new_read, new_read_name = extract_read(dna_type, ref_length[i])
             new_read_name = new_read_name + "_perfect_" + str(i)
-            out_reads.write(">" + new_read_name + "_0_" + str(ref_length[i]) + "_0" + '\n')
             
             # Reverse complement half of the reads
             p = random.random()
@@ -273,6 +272,8 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
                 new_read_name += "_R"
             else:
                 new_read_name += "_F"
+            
+            out_reads.write(">" + new_read_name + "_0_" + str(ref_length[i]) + "_0" + '\n')
                 
             out_reads.write(new_read + "\n")
         out_reads.close()
