@@ -41,6 +41,25 @@ ppoisgeommix <- function(x, l, p, w, log=FALSE){
   if (log) log(r) else r
 }
 
+poisgeom.fit <- function(p, lambda1, lambda2, p1, p2, prob1, prob2, step){
+  d <- 1
+  for (i in seq(lambda1, lambda2, step)){
+    for (n in seq(p1, p2, step)){
+      for (m in seq(prob1, prob2, step)){
+        e <- ppoisgeommix(0:(length(p)-1), i, n, m)
+        d1 <- max(abs(e - p))
+        if (d1 < d){
+          d = d1
+          I <- i
+          N <- n
+          P <- m
+        }
+      }
+    }
+  }
+  estimate <- c(I, N, P, d)
+  estimate
+}
 
 # Wei-Geom distribution
 rweigeommix <- function(n, shape, p, w, scale = 1) {
@@ -91,15 +110,52 @@ LL.mis <- function(lambda, prob, weight) {
 
 mis_fit_func <- function(ll) {
   s <- 0.1
-  while (exists("error_model")==FALSE) {
-    tryCatch(error_model <- mle(LL.mis, start = list(lambda=s, prob = s, weight = s)),
+  while (exists("error_model")==FALSE || s > 1) {
+    tryCatch(error_model <- mle(LL.mis, start = list(lambda=s, prob = s, weight = s),
+                                method = "L-BFGS-B",
+                                lower = list(prob = 0.01, weight = 0.01),
+                                upper = list(prob = 1, weight = 1)),
              error = function(e){print("Try different initial value of MLE")})
     s <- s + 0.1
   }
   return(error_model)
 }
 
-mis.fit <- mis_fit_func(LL.mis)
+mis.fit.tmp1 <- mis_fit_func(LL.mis)
+
+mis_search <- function(model.cum){
+  tmp <- poisgeom.fit(model.cum, 0.1, 1, 0.1, 1, 0.1, 1, 0.01)
+  tmp <- poisgeom.fit(model.cum, max(tmp[1]-0.02, 0.001), tmp[1]+0.02, max(tmp[2]-0.02, 0.001), min(tmp[2]+0.02, 1), 
+                     max(tmp[3]-0.02, 0.001), min(tmp[3]+0.02, 1), 0.001)
+  start <- c(max(tmp[1]-0.001, 0.0001), tmp[1]+0.001, max(tmp[2]-0.001, 0.0001), min(tmp[2]+0.001, 1), 
+             max(tmp[3]-0.001, 0.0001), min(tmp[3]+0.001, 1))
+  end <- poisgeom.fit(model.cum, start[1], start[2], start[3], start[4], start[5], start[6], 0.0001)
+  i <- 0
+  p_value <- end[4]
+  while (Reduce("|", end %in% start) | i < 1000){
+    last_end <- end
+    start <- c(max(end[1]-0.001, 0.0001), end[1]+0.001, max(end[2]-0.001, 0.0001), end[2]+0.001,
+               max(end[3]-0.001, 0.0001), min(end[3]+0.001, 1), max(end[4]-0.001, 0.0001), min(end[4]+0.001, 1))
+    end <- poisgeom.fit(model.cum, start[1], start[2], start[3], start[4], start[5], start[6], 0.0001)
+    if(p_value <= end[4]) {
+      end <- last_end
+      break
+    }
+    i <- i + 1
+    p_value <- end[4]
+  }
+  return(end)
+}
+
+mis.fit.tmp2 <- mis_search(mis.cum)
+
+# Choose the best fit between two methods
+if (max(abs(ppoisgeommix(0:(length(p)-1), coef(mis.fit)["lambda"], coef(mis.fit)["prob"], coef(mis.fit)["weight"]) - mis.cum)) <
+      mis.fit.tmp2[4]) {
+  mis.fit <- c(coef(mis.fit)["lambda"], coef(mis.fit)["prob"], coef(mis.fit)["weight"])
+} else {
+  mis.fit <- mis.fit.tmp1
+}
 
 # Indel
 indel_search <- function(model.cum){
@@ -131,10 +187,10 @@ del.fit <- indel_search(del.cum)
 
 ##### Write to file
 model_fit.table <- data.frame(Type = c("mismatch", "insertion", "deletion"),
-                              lambda = c(coef(mis.fit)["lambda"], ins.fit[2], del.fit[2]),
+                              lambda = c(mis.fit[1], ins.fit[2], del.fit[2]),
                               k = c(0, ins.fit[1], del.fit[1]),
-                              prob = c(coef(mis.fit)["prob"], ins.fit[3], del.fit[3]),
-                              weight = c(coef(mis.fit)["weight"], ins.fit[4], del.fit[4]))
+                              prob = c(mis.fit[2], ins.fit[3], del.fit[3]),
+                              weight = c(mis.fit[3], ins.fit[4], del.fit[4]))
 
 out_file <- paste(prefix, "_model_profile", sep="")
 write.table(model_fit.table, out_file, row.names = FALSE, quote = FALSE, sep = "\t")

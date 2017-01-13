@@ -120,16 +120,16 @@ def head_align_tail(outfile, num_of_bins):
     max_length = max(total)
 
     # ecdf of length of aligned regions
-    hist_aligned, bin_edges = numpy.histogram(aligned, bins=numpy.arange(0, max_length + 1, 1), density=True)
-    cdf = numpy.cumsum(hist_aligned * 1)
+    hist_aligned, bin_edges = numpy.histogram(aligned, bins=numpy.arange(0, max_length + 50, 50), density=True)
+    cdf = numpy.cumsum(hist_aligned * 50)
     out1.write("bin\t0-" + str(max_length) + '\n')
     for i in xrange(len(cdf)):
         out1.write(str(bin_edges[i]) + '-' + str(bin_edges[i+1]) + "\t" + str(cdf[i]) + '\n')
     num_aligned = len(aligned)
 
     # ecdf of length of aligned reads
-    hist_reads, bin_edges = numpy.histogram(total, bins=numpy.arange(0, max_length + 1, 1), density=True)
-    cdf = numpy.cumsum(hist_reads * 1)
+    hist_reads, bin_edges = numpy.histogram(total, bins=numpy.arange(0, max_length + 50, 50), density=True)
+    cdf = numpy.cumsum(hist_reads * 50)
     out2.write("bin\t0-" + str(max_length) + '\n')
     for i in xrange(len(cdf)):
         out2.write(str(bin_edges[i]) + '-' + str(bin_edges[i+1]) + "\t" + str(cdf[i]) + '\n')

@@ -56,7 +56,7 @@ def usage():
                     "--max_len : Maximum read length, default = Inf\n" \
                     "--min_len : Minimum read length, default = 50\n" \
                     "--perfect: Output perfect reads, no mutations, default = False\n" \
-                    "--KmerBias: prohibits homopolymers with length >= 6 bases in output reads\n"
+                    "--KmerBias: prohibits homopolymers with length >= n bases in output reads, default = 6\n"
 
     sys.stderr.write(usage_message)
 
@@ -192,6 +192,15 @@ def read_profile(number, model_prefix, per, max_l, min_l):
     with open(length_profile, 'r') as align_profile:
         aligned_dict = read_ecdf(align_profile)
         
+
+def collapse_homo(seq, k):
+    read = re.sub("A" * k + "+", "A" * (k - 1), seq)
+    read = re.sub("C" * k + "+", "C" * (k - 1), read)
+    read = re.sub("T" * k + "+", "T" * (k - 1), read)
+    read = re.sub("G" * k + "+", "G" * (k - 1), read)
+
+    return read
+
 
 def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
     global unaligned_length, number_aligned, aligned_dict
@@ -331,13 +340,12 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
             new_read_name += "_F"
 
         # Add head and tail region
-        for x in xrange(head):
-            new_base = random.choice(BASES)
-            read_mutated = new_base + read_mutated
+        read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated
 
-        for x in xrange(tail):
-            new_base = random.choice(BASES)
-            read_mutated = read_mutated + new_base
+        read_mutated = read_mutated + ''.join(np.random.choice(BASES, tail))
+
+        if kmer_bias:
+            read_mutated = collapse_homo(read_mutated, kmer_bias)
 
         out_reads.write(">" + new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" +
                         str(tail) + '\n')
@@ -509,7 +517,8 @@ def error_list(m_ref, m_model, m_ht_list, error_p, trans_p):
     return l_new, middle_ref, e_dict
 
 
-def mutate_read(read, read_name, error_log, e_dict, bias, aligned=True):
+def mutate_read(read, read_name, error_log, e_dict, k, aligned=True):
+    search_pattern = "A" * k + "+|" + "T" * k + "+|" + "C" * k + "+|" + "G" * k
     for key in sorted(e_dict.keys(), reverse=True):
         val = e_dict[key]
         key = int(round(key))
@@ -523,8 +532,8 @@ def mutate_read(read, read_name, error_log, e_dict, bias, aligned=True):
                     tmp_bases.remove(read[key + i])
                     new_base = random.choice(tmp_bases)
                     new_bases += new_base
-                check_kmer = read[key - 5: key] + new_bases + read[key + val[1]: key + val[1] + 5]
-                if not bias or not re.search("AAAAAA+|TTTTTT+|CCCCCC+|GGGGGG+", check_kmer):
+                check_kmer = read[max(key - k + 1, 0): key] + new_bases + read[key + val[1]: key + val[1] + k - 1]
+                if not k or not re.search(search_pattern, check_kmer):
                     break
             new_read = read[:key] + new_bases + read[key + val[1]:]
 
@@ -540,8 +549,8 @@ def mutate_read(read, read_name, error_log, e_dict, bias, aligned=True):
                 for i in xrange(val[1]):
                     new_base = random.choice(BASES)
                     new_bases += new_base
-                check_kmer = read[key - 5: key] + new_bases + read[key: key + 5]
-                if not bias or not re.search("AAAAAA+|TTTTTT+|CCCCCC+|GGGGGG+", check_kmer):
+                check_kmer = read[max(key - k + 1, 0): key] + new_bases + read[key: key + k - 1]
+                if not k or not re.search(search_pattern, check_kmer):
                     break
             new_read = read[:key] + new_bases + read[key:]
 
@@ -552,11 +561,8 @@ def mutate_read(read, read_name, error_log, e_dict, bias, aligned=True):
                             "\t" + ref_base + "\t" + new_bases + "\n")
 
     # If choose to have kmer bias, then need to compress homopolymers to 5-mer
-    if bias:
-        read = re.sub("AAAAAA+", "AAAAA", read)
-        read = re.sub("CCCCCC+", "CCCCC", read)
-        read = re.sub("TTTTTT+", "TTTTT", read)
-        read = re.sub("GGGGGG+", "GGGGG", read)
+    if k:
+        read = collapse_homo(read, k)
 
     return read
 
@@ -591,7 +597,7 @@ def main():
     mis_rate = 1
     max_readlength = float("inf")
     min_readlength = 50
-    kmer_bias = False
+    kmer_bias = 0
 
     # Parse options and parameters
     if len(sys.argv) < 4:
@@ -604,7 +610,7 @@ def main():
             sys.exit(1)
         try:
             opts, args = getopt.getopt(sys.argv[2:], "hr:c:o:n:i:d:m:",
-                                       ["max_len=", "min_len=", "perfect", "KmerBias"])
+                                       ["max_len=", "min_len=", "perfect", "KmerBias="])
         except getopt.GetoptError:
             usage()
             sys.exit(1)
@@ -630,7 +636,7 @@ def main():
             elif opt == "--perfect":
                 perfect = True
             elif opt == "--KmerBias":
-                kmer_bias = True
+                kmer_bias = int(arg)
             elif opt == "-h":
                 usage()
                 sys.exit(0)

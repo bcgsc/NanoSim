@@ -129,7 +129,8 @@ def main(argv):
     num_unaligned = len(unaligned_length)
     if num_unaligned != 0:
         max_length = max(unaligned_length)
-        hist_unaligned, edges_unaligned = numpy.histogram(unaligned_length, bins=numpy.arange(0, max_length, 50), density=True)
+        hist_unaligned, edges_unaligned = numpy.histogram(unaligned_length, bins=numpy.arange(0, max_length + 50, 50),
+                                                          density=True)
         cdf = numpy.cumsum(hist_unaligned * 50)
         out1.write("Aligned / Unaligned ratio:" + "\t" + str(num_aligned * 1.0 / num_unaligned) + '\n')
         out1.write("bin\t0-" + str(max_length) + '\n')
