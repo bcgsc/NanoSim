@@ -3,7 +3,7 @@ library(stats4)
 ##### Read in data
 args <- commandArgs(TRUE)
 eval(parse(text=args[[1]]))
-# prefix <- "UCSC_phase1b/ecoli"
+# prefix <- "R9/1D/test"
 mis_file <- paste(prefix, "_mis.hist", sep="")
 ins_file <- paste(prefix, "_ins.hist", sep="")
 del_file <- paste(prefix, "_del.hist", sep="")
@@ -150,11 +150,11 @@ mis_search <- function(model.cum){
 mis.fit.tmp2 <- mis_search(mis.cum)
 
 # Choose the best fit between two methods
-if (max(abs(ppoisgeommix(0:(length(p)-1), coef(mis.fit.tmp1)["lambda"], coef(mis.fit.tmp1)["prob"], coef(mis.fit.tmp1)["weight"]) - mis.cum)) <
+if (max(abs(ppoisgeommix(0:(length(mis.cum)-1), coef(mis.fit.tmp1)["lambda"], coef(mis.fit.tmp1)["prob"], coef(mis.fit.tmp1)["weight"]) - mis.cum)) <
       mis.fit.tmp2[4]) {
   mis.fit <- c(coef(mis.fit.tmp1)["lambda"], coef(mis.fit.tmp1)["prob"], coef(mis.fit.tmp1)["weight"])
 } else {
-  mis.fit <- mis.fit.tmp1
+  mis.fit <- mis.fit.tmp2
 }
 
 # Indel

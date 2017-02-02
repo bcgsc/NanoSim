@@ -632,7 +632,7 @@ def main():
                 mis_rate = float(arg)
             elif opt == "--max_len":
                 max_readlength = int(arg)
-            elif opt == "-m":
+            elif opt == "--min_len":
                 min_readlength = int(arg)
             elif opt == "--perfect":
                 perfect = True
