@@ -150,9 +150,9 @@ mis_search <- function(model.cum){
 mis.fit.tmp2 <- mis_search(mis.cum)
 
 # Choose the best fit between two methods
-if (max(abs(ppoisgeommix(0:(length(p)-1), coef(mis.fit)["lambda"], coef(mis.fit)["prob"], coef(mis.fit)["weight"]) - mis.cum)) <
+if (max(abs(ppoisgeommix(0:(length(p)-1), coef(mis.fit.tmp1)["lambda"], coef(mis.fit.tmp1)["prob"], coef(mis.fit.tmp1)["weight"]) - mis.cum)) <
       mis.fit.tmp2[4]) {
-  mis.fit <- c(coef(mis.fit)["lambda"], coef(mis.fit)["prob"], coef(mis.fit)["weight"])
+  mis.fit <- c(coef(mis.fit.tmp1)["lambda"], coef(mis.fit.tmp1)["prob"], coef(mis.fit.tmp1)["weight"])
 } else {
   mis.fit <- mis.fit.tmp1
 }
