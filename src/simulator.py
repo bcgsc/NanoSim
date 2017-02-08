@@ -17,6 +17,10 @@ import random
 import re
 from time import strftime
 try:
+    from six.moves import xrange
+except ImportError:
+    pass
+try:
     import numpy as np
 except ImportError:
     sys.exit("""You need numpy!
@@ -30,17 +34,6 @@ AUTHOR = "Chen Yang (UBC & BCGSC)"
 CONTACT = "cheny@bcgsc.ca"
 
 BASES = ['A', 'T', 'C', 'G']
-
-
-# Check Python version, if it's Python 3, then define a xrange for range
-def check_version():
-    # There is no xrange built-in function in Python 3.
-    try:
-        xrange
-    except NameError:
-        xrange = range
-    return
-
 
 # Usage information
 def usage():
@@ -105,7 +98,7 @@ def get_length(len_dict, num, max_l, min_l):
     length_list = []
     for i in xrange(num):
         middle_ref = 0
-        key = len_dict.keys()[0]
+        key = tuple(len_dict.keys())[0]
         while middle_ref <= min_l or middle_ref > max_l:
             p = random.random()
             for k_p, v_p in len_dict[key].items():
@@ -585,8 +578,6 @@ def case_convert(s_dict):
 
 
 def main():
-    check_version()
-
     ref = ""
     model_prefix = "training"
     out = "simulated"
