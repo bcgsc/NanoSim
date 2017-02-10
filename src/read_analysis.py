@@ -14,6 +14,10 @@ from __future__ import print_function
 from __future__ import with_statement
 from subprocess import call
 from time import strftime
+try:
+    from six.moves import xrange
+except ImportError:
+    pass
 import sys
 import os
 import getopt
