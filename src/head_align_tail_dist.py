@@ -13,6 +13,11 @@ import sys
 import getopt
 import numpy
 
+try:
+    from six.moves import xrange
+except ImportError:
+    pass
+
 
 def flex_bins(num_of_bins, ratio_dict, num_of_reads):
     count_reads = num_of_reads / num_of_bins
