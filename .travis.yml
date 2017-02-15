@@ -30,6 +30,9 @@ before_install:
 install:
 - make -j -C last CXX=/usr/bin/g++-4.8
 before_script:
-- export PATH=$PATH:~/last/src
+- d=`pwd`
+- export PATH=$PATH:$d/last/src
+- echo $d
+- echo $PATH
 script:
 - make -C test
