@@ -28,7 +28,7 @@ before_install:
 - unzip last-*.zip
 - mv last*/ last
 install:
-- make -j -C last
+- make -j -C last CXX=/usr/bin/g++-4.8
 before_script:
 - export PATH=$PATH:~/last/src
 script:
