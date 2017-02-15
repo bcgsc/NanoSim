@@ -26,7 +26,7 @@ addons:
 before_install:
 - wget http://last.cbrc.jp/last-833.zip
 - unzip last-*.zip
-- mv last*/
+- mv last*/ last
 install:
 - make -j -C last
 before_script:
