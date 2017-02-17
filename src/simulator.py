@@ -450,7 +450,7 @@ def error_list(m_ref, m_model, m_ht_list, error_p, trans_p):
 
     # The first match come from m_ht_list
     p = random.random()
-    k1 = m_ht_list.keys()[0]
+    k1 = list(m_ht_list.keys())[0]
     for k2, v2 in m_ht_list[k1].items():
         if k2[0] < p <= k2[1]:
             prev_match = int(np.floor((p - k2[0])/(k2[1] - k2[0]) * (v2[1] - v2[0]) + v2[0]))
