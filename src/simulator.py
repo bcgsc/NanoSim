@@ -17,9 +17,9 @@ import random
 import re
 from time import strftime
 try:
+    test_xrange=xrange(42)
+except NameError:
     from six.moves import xrange
-except ImportError:
-    pass
 try:
     import numpy as np
 except ImportError:
