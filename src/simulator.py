@@ -371,7 +371,7 @@ def extract_read(dna_type, length):
     # Extract the aligned region from reference
     if dna_type == "circular":
         ref_pos = random.randint(0, genome_len)
-        chromosome = seq_dict.keys()[0]
+        chromosome = list(seq_dict.keys())[0]
         new_read_name = chromosome + "_" + str(ref_pos)
         if length + ref_pos <= genome_len:
             new_read = seq_dict[chromosome][ref_pos: ref_pos + length]
