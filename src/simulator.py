@@ -365,8 +365,8 @@ def reverse_complement(seq):
 def extract_read(dna_type, length):
     global seq_dict, seq_len, genome_len
 
-    if length > max(seq_dict.values()):
-        length = max(seq_dict.values())
+    if length > max(list(seq_dict.values())):
+        length = max(list(seq_dict.values()))
 
     # Extract the aligned region from reference
     if dna_type == "circular":
