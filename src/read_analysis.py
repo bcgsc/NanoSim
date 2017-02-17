@@ -111,7 +111,7 @@ def main(argv):
         call("grep '^s ' " + maf_file + " > " + out_maf, shell=True)
 
         # get best hit and unaligned reads
-        unaligned_length = get_besthit.besthit_and_unaligned(in_fasta, out_maf, outfile)
+        unaligned_length = list(get_besthit.besthit_and_unaligned(in_fasta, out_maf, outfile))
 
     # if maf file not provided
     else:
@@ -121,7 +121,7 @@ def main(argv):
         call("lastal -a 1 ref_genome " + in_fasta + " | grep '^s ' > " + out_maf, shell=True)
 
         # get best hit and unaligned reads
-        unaligned_length = get_besthit.besthit_and_unaligned(in_fasta, out_maf, outfile)
+        unaligned_length = list(get_besthit.besthit_and_unaligned(in_fasta, out_maf, outfile))
 
     # ALIGNED READS ANALYSIS
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
