@@ -3,6 +3,11 @@
 from __future__ import with_statement
 import numpy
 
+try:
+    from six.moves import xrange
+except ImportError:
+    pass
+
 
 def add_dict(error, dic):
     if error not in dic:
