@@ -15,9 +15,9 @@ from __future__ import with_statement
 from subprocess import call
 from time import strftime
 try:
+    test_xrange=xrange(42)
+except NameError:
     from six.moves import xrange
-except ImportError:
-    pass
 import sys
 import os
 import getopt
@@ -113,7 +113,7 @@ def main(argv):
         call("grep '^s ' \"{}\" > \"{}\"".format(maf_file, out_maf), shell=True)
 
         # get best hit and unaligned reads
-        unaligned_length = get_besthit.besthit_and_unaligned(in_fasta, out_maf, outfile)
+        unaligned_length = list(get_besthit.besthit_and_unaligned(in_fasta, out_maf, outfile))
 
     # if maf file not provided
     else:
@@ -123,7 +123,7 @@ def main(argv):
         call('lastal -a 1 -P {} ref_genome "{}" | grep \'^s \' > "{}"' .format(nb_cores, in_fasta, out_maf), shell=True)
 
         # get best hit and unaligned reads
-        unaligned_length = get_besthit.besthit_and_unaligned(in_fasta, out_maf, outfile)
+        unaligned_length = list(get_besthit.besthit_and_unaligned(in_fasta, out_maf, outfile))
 
     # ALIGNED READS ANALYSIS
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")

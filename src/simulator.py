@@ -17,9 +17,9 @@ import random
 import re
 from time import strftime
 try:
+    test_xrange=xrange(42)
+except NameError:
     from six.moves import xrange
-except ImportError:
-    pass
 try:
     import numpy as np
 except ImportError:
@@ -303,6 +303,25 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
         if total > max_l:
             continue
 
+        #####################################
+        # todo: fix default value of header #
+        #####################################
+        #
+        # Karel : I have added the line below to prevent the following error
+        #
+        #   ../src/simulator.py circular -r ecoli_K12_MG1655_ref.fa -c ecoli -n 1 # Note the -c option has to be the same as -o in read_analysis.py, or both use default parameter
+        #   Traceback (most recent call last):
+        #     File "../src/simulator.py", line 662, in <module>
+        #       main()
+        #     File "../src/simulator.py", line 656, in main
+        #       simulation(ref, out, dna_type, perfect, kmer_bias, max_readlength, min_readlength)
+        #     File "../src/simulator.py", line 337, in simulation
+        #       read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated
+        #   UnboundLocalError: local variable 'head' referenced before assignment
+        #   make: *** [all] Error 1
+        #
+        head=0
+
         if remainder == 0:
             head = 0
             tail = 0
@@ -365,13 +384,13 @@ def reverse_complement(seq):
 def extract_read(dna_type, length):
     global seq_dict, seq_len, genome_len
 
-    if length > max(seq_dict.values()):
-        length = max(seq_dict.values())
+    if length > max(seq_len.values()):
+        length = max(seq_len.values())
 
     # Extract the aligned region from reference
     if dna_type == "circular":
         ref_pos = random.randint(0, genome_len)
-        chromosome = seq_dict.keys()[0]
+        chromosome = list(seq_dict.keys())[0]
         new_read_name = chromosome + "_" + str(ref_pos)
         if length + ref_pos <= genome_len:
             new_read = seq_dict[chromosome][ref_pos: ref_pos + length]
@@ -450,7 +469,7 @@ def error_list(m_ref, m_model, m_ht_list, error_p, trans_p):
 
     # The first match come from m_ht_list
     p = random.random()
-    k1 = m_ht_list.keys()[0]
+    k1 = list(m_ht_list.keys())[0]
     for k2, v2 in m_ht_list[k1].items():
         if k2[0] < p <= k2[1]:
             prev_match = int(np.floor((p - k2[0])/(k2[1] - k2[0]) * (v2[1] - v2[0]) + v2[0]))
