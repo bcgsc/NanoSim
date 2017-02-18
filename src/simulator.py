@@ -303,6 +303,25 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
         if total > max_l:
             continue
 
+        #####################################
+        # todo: fix default value of header #
+        #####################################
+        #
+        # Karel : I have added the line below to prevent the following error
+        #
+        #   ../src/simulator.py circular -r ecoli_K12_MG1655_ref.fa -c ecoli -n 1 # Note the -c option has to be the same as -o in read_analysis.py, or both use default parameter
+        #   Traceback (most recent call last):
+        #     File "../src/simulator.py", line 662, in <module>
+        #       main()
+        #     File "../src/simulator.py", line 656, in main
+        #       simulation(ref, out, dna_type, perfect, kmer_bias, max_readlength, min_readlength)
+        #     File "../src/simulator.py", line 337, in simulation
+        #       read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated
+        #   UnboundLocalError: local variable 'head' referenced before assignment
+        #   make: *** [all] Error 1
+        #
+        head=0
+
         if remainder == 0:
             head = 0
             tail = 0
