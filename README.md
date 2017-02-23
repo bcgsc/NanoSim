@@ -15,7 +15,7 @@ Characterization stage takes a reference and a training read set in FASTA format
 
 __Usage:__  
 ```
-./read_analysis.py <options>  
+./nanosim-train.py <options>  
     [options]:  
     -h : print usage message  
     -i : training ONT real reads, must be fasta files  
@@ -32,14 +32,14 @@ Simulation stage takes reference genome and read profiles as input and outputs s
 
 __Usage:__  
 ```
-./simulator.py [command] <options>  
+./nanosim-simulate.py [command] <options>  
    [command]:  
     circular | linear  
     # Do not choose 'circular' when there is more than one sequence in the reference  
     <options>:  
     -h : print usage message
     -r : reference genome in fasta file, specify path and file name  
-    -c : the prefix of training set profiles, same as the output prefix in read_analysis.py, default = training  
+    -c : the prefix of training set profiles, same as the output prefix in nanosim-train.py, default = training
     -o : The prefix of output file, default = 'simulated'  
     -n : Number of generated reads, default = 20,000 reads  
     --max_len : Maximum read length, default = Inf
@@ -51,13 +51,13 @@ __Usage:__
 
 __For example:__  
 1 If you want to simulate _E. coli_ genome, then circular command must be chosen because it's a circular genome  
-`./simulator.py circular -r Ecoli_ref.fasta -c ecoli`  
+`./nanosim-simulate.py circular -r Ecoli_ref.fasta -c ecoli`  
 
 2 If you want to simulate only perfect reads, _i.e._ no snps, or indels, just simulate the read length distribution  
-`./simulator.py circular -r Ecoli_ref.fasta -c ecoli --perfect` 
+`./nanosim-simulate.py circular -r Ecoli_ref.fasta -c ecoli --perfect` 
 
 3 If you want to simulate _S. cerevisiae_ genome with kmer bias, then linear command must be chosen because it's a linear genome  
-`./simulator.py linear -r yeast_ref.fasta -c yeast --KmerBias`  
+`./nanosim-simulate.py linear -r yeast_ref.fasta -c yeast --KmerBias`  
 
 _See more detailed example in example.sh_  
 
