@@ -29,7 +29,7 @@ Characterization stage takes a reference and a training read set in FASTA format
 
 .. code-block::
 
-  ./nanosim-train.py <options>  
+  nanosimh_train <options>  
       [options]:  
       -h : print usage message  
       -i : training ONT real reads, must be fasta files  
@@ -50,14 +50,14 @@ Simulation stage takes reference genome and read profiles as input and outputs s
 
 .. code-block::
 
-  ./nanosim-simulate.py [command] <options>  
+  nanosimh_simulate [command] <options>  
      [command]:  
       circular | linear  
       # Do not choose 'circular' when there is more than one sequence in the reference  
       <options>:  
       -h : print usage message
       -r : reference genome in fasta file, specify path and file name  
-      -c : the prefix of training set profiles, same as the output prefix in nanosim-train.py, default = training
+      -c : the prefix of training set profiles, same as the output prefix in nanosimh_train, default = training
       -o : The prefix of output file, default = 'simulated'  
       -n : Number of generated reads, default = 20,000 reads  
       --max_len : Maximum read length, default = Inf
@@ -70,13 +70,13 @@ Simulation stage takes reference genome and read profiles as input and outputs s
 **For example:**
 
 1 If you want to simulate *E. coli* genome, then circular command must be chosen because it's a circular genome  
-``./nanosim-simulate.py circular -r Ecoli_ref.fasta -c ecoli``
+``nanosimh_simulate circular -r Ecoli_ref.fasta -c ecoli``
 
 2 If you want to simulate only perfect reads, i.e. no snps, or indels, just simulate the read length distribution  
-``./nanosim-simulate.py circular -r Ecoli_ref.fasta -c ecoli --perfect``
+``nanosimh_simulate circular -r Ecoli_ref.fasta -c ecoli --perfect``
 
 3 If you want to simulate *S. cerevisiae* genome with kmer bias, then linear command must be chosen because it's a linear genome  
-``./nanosim-simulate.py linear -r yeast_ref.fasta -c yeast --KmerBias``
+``nanosimh_simulate linear -r yeast_ref.fasta -c yeast --KmerBias``
 
 *See more detailed example in example.sh*
 
