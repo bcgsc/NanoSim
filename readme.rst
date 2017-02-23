@@ -4,7 +4,17 @@ NanoSimH
 .. image:: https://travis-ci.org/karel-brinda/NanoSimH.svg?branch=master
     :target: https://travis-ci.org/karel-brinda/NanoSimH
 
-NanoSimH is a modified version of [NanoSim](https://github.com/bcgsc/NanoSim), a fast and scalable read simulator that captures the technology-specific features of ONT data, and allows for adjustments upon improvement of nanopore sequencing technology.
+NanoSimH is a modified version of NanoSim (https://github.com/bcgsc/NanoSim), a fast and scalable read simulator that captures the technology-specific features of ONT data, and allows for adjustments upon improvement of nanopore sequencing technology. It has been created as a fork of NanoSim 1.0.1. The main improvements compared to the original version are support for Python 3, installation from PyPI, local tests, Travis testing, renamed executables, and others.
+
+Installation
+------------
+
+**Using pip**
+
+.. code-block::
+
+  pip install --upgrade nanosimh
+
 
 Dependencies
 ------------
