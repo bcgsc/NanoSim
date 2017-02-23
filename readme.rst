@@ -114,9 +114,11 @@ Explaination of output files
 ~~~~~~~~~~~~~~~~~~~
 
 1. ``simulated.log``
+
   Log file for simulation process  
   
 2. ``simulated_reads.fasta``
+
   FASTA file of simulated reads. Each reads has "unaligned", "aligned", or "perfect" in the header determining their error rate. "unaligned" means that the reads have an error rate over 90% and cannot be aligned. "aligned" reads have the same error rate as training reads. "perfect" reads have no errors.  
   
   To explain the information in the header, we have two examples:  
@@ -129,4 +131,5 @@ Explaination of output files
   The information in the header can help users to locate the read easily.  
   
 3. ``simulated_error_profile``
+
   Contains all the information of errors introduced into each reads, including error type, position, original bases and current bases.  
