@@ -14,6 +14,10 @@ from __future__ import print_function
 from __future__ import with_statement
 from subprocess import call
 from time import strftime
+try:
+    test_xrange=xrange(42)
+except NameError:
+    from six.moves import xrange
 import sys
 import os
 import getopt
@@ -21,7 +25,9 @@ import numpy
 import head_align_tail_dist as align
 import get_besthit
 import besthit_to_histogram as error_model
+import multiprocessing
 
+nb_cores=multiprocessing.cpu_count()
 
 # Usage information
 def usage():
@@ -104,20 +110,20 @@ def main(argv):
         if out_maf == maf_file:
             out_maf = outfile + "_processed.maf"
 
-        call("grep '^s ' " + maf_file + " > " + out_maf, shell=True)
+        call("grep '^s ' \"{}\" > \"{}\"".format(maf_file, out_maf), shell=True)
 
         # get best hit and unaligned reads
-        unaligned_length = get_besthit.besthit_and_unaligned(in_fasta, out_maf, outfile)
+        unaligned_length = list(get_besthit.besthit_and_unaligned(in_fasta, out_maf, outfile))
 
     # if maf file not provided
     else:
         # Alignment
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with LAST\n")
-        call("lastdb ref_genome " + ref, shell=True)
-        call("lastal -a 1 ref_genome " + in_fasta + " | grep '^s ' > " + out_maf, shell=True)
+        call('lastdb -P {} ref_genome "{}"'.format(nb_cores, ref), shell=True)
+        call('lastal -a 1 -P {} ref_genome "{}" | grep \'^s \' > "{}"' .format(nb_cores, in_fasta, out_maf), shell=True)
 
         # get best hit and unaligned reads
-        unaligned_length = get_besthit.besthit_and_unaligned(in_fasta, out_maf, outfile)
+        unaligned_length = list(get_besthit.besthit_and_unaligned(in_fasta, out_maf, outfile))
 
     # ALIGNED READS ANALYSIS
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
@@ -151,7 +157,7 @@ def main(argv):
         path = sys.argv[0].split("/")
         r_path = '/'.join(path[:-1]) + '/' + "model_fitting.R"
         if os.path.isfile(r_path):
-            call("R CMD BATCH '--args prefix=\"" + outfile + "\"' " + r_path, shell=True)
+            call("R CMD BATCH '--args prefix=\"{}\"' \"{}\"".format(outfile,r_path), shell=True)
         else:
             sys.stderr.write("Could not find 'model_fitting.R' in ../src/\n" +
                   "Make sure you copied the whole source files from Github.")

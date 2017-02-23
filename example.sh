@@ -6,12 +6,20 @@
 # Only 2D pass reads are extracted and stored on bcgsc ftp server.
 #####
 
-##### Download the source file
-mkdir NanoSim
-cd NanoSim
-wget https://github.com/bcgsc/NanoSim/archive/master.zip
-unzip master.zip
-# After this step, you should have a folder called NanoSim, and inside you have master.zip and NanoSim-master two sub-folders
+set -x
+
+if [ -d "src" ]; then
+	masterdir=.
+else
+	masterdir=NanoSim-master
+
+	##### Download the source file
+	mkdir NanoSim
+	cd NanoSim
+	wget https://github.com/bcgsc/NanoSim/archive/master.zip
+	unzip master.zip
+	# After this step, you should have a folder called NanoSim, and inside you have master.zip and NanoSim-master two sub-folders
+fi
 
 ##### Inside NanoSim, create a working directory
 mkdir ecoli_simulation
@@ -26,10 +34,10 @@ wget ftp://ftp.bcgsc.ca/supplementary/NanoSim/ecoli_R7_2D.fasta
 wget ftp://ftp.bcgsc.ca/supplementary/NanoSim/ecoli_K12_MG1655_ref.fa
 
 # Profiling stage, make sure to set the mode of read_analysis.py to -r-x or above
-../NanoSim-master/src/read_analysis.py -i ecoli_R7_2D.fasta -r ecoli_K12_MG1655_ref.fa -o ecoli
+../${masterdir}/src/nanosim-train.py -i ecoli_R7_2D.fasta -r ecoli_K12_MG1655_ref.fa -o ecoli
 
 # Simulation stage, suppose the genome to be simulated is called test.fasta and make sure to provide the correct path to it
-../NanoSim-master/src/simulator.py circular -r test.fasta -c ecoli # Note the -c option has to be the same as -o in read_analysis.py, or both use default parameter
+../${masterdir}/src/nanosim-simulate.py circular -r test.fasta -c ecoli # Note the -c option has to be the same as -o in read_analysis.py, or both use default parameter
 
 # To get the profile directly:
 wget ftp://ftp.bcgsc.ca/supplementary/NanoSim/ecoli_R7_profile.zip
