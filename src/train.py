@@ -22,9 +22,9 @@ import sys
 import os
 import getopt
 import numpy
-import head_align_tail_dist as align
-import get_besthit
-import besthit_to_histogram as error_model
+from .head_align_tail_dist import *
+from .get_besthit import *
+from .besthit_to_histogram import * 
 import multiprocessing
 
 nb_cores=multiprocessing.cpu_count()
@@ -127,7 +127,7 @@ def main(argv):
 
     # ALIGNED READS ANALYSIS
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
-    num_aligned = align.head_align_tail(outfile, num_bins)
+    num_aligned = head_align_tail(outfile, num_bins)
 
     # Length distribution of unaligned reads
     out1 = open(outfile + "_unaligned_length_ecdf", 'w')
@@ -150,7 +150,7 @@ def main(argv):
 
     # MATCH AND ERROR MODELS
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": match and error models\n")
-    error_model.hist(outfile)
+    hist(outfile)
 
     if model_fit:
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Model fitting\n")

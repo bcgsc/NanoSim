@@ -1,5 +1,6 @@
-import simulate
-import train
+from .simulate import *
+from .train import *
+from .mixed_models import *
 
 import sys
 

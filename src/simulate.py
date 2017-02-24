@@ -25,7 +25,7 @@ try:
 except ImportError:
     sys.exit("""You need numpy!
                 install it from http://www.numpy.org/""")
-import mixed_models as mm
+from .mixed_models import *
 
 PYTHON_VERSION = sys.version_info
 VERSION = "1.0.0"
@@ -434,11 +434,11 @@ def unaligned_error_list(length, error_p):
             step = 1
 
         elif error_type == "mis":
-            step = mm.pois_geom(error_p["mis"][0], error_p["mis"][2], error_p["mis"][3])
+            step = pois_geom(error_p["mis"][0], error_p["mis"][2], error_p["mis"][3])
             e_dict[pos] = ["mis", step]
 
         elif error_type == "ins":
-            step = mm.wei_geom(error_p["ins"][0], error_p["ins"][1], error_p["ins"][2], error_p["ins"][3])
+            step = wei_geom(error_p["ins"][0], error_p["ins"][1], error_p["ins"][2], error_p["ins"][3])
             if last_is_ins:
                 e_dict[pos + 0.1][1] += step
             else:
@@ -446,7 +446,7 @@ def unaligned_error_list(length, error_p):
                 last_is_ins = True
 
         else:
-            step = mm.wei_geom(error_p["del"][0], error_p["del"][1], error_p["del"][2], error_p["del"][3])
+            step = wei_geom(error_p["del"][0], error_p["del"][1], error_p["del"][2], error_p["del"][3])
             e_dict[pos] = ["del", step]
 
         if error_type != "ins":
@@ -487,12 +487,12 @@ def error_list(m_ref, m_model, m_ht_list, error_p, trans_p):
                 break
 
         if error == "mis":
-            step = mm.pois_geom(error_p["mis"][0], error_p["mis"][2], error_p["mis"][3])
+            step = pois_geom(error_p["mis"][0], error_p["mis"][2], error_p["mis"][3])
         elif error == "ins":
-            step = mm.wei_geom(error_p[error][0], error_p[error][1], error_p[error][2], error_p[error][3])
+            step = wei_geom(error_p[error][0], error_p[error][1], error_p[error][2], error_p[error][3])
             l_new += step
         else:
-            step = mm.wei_geom(error_p[error][0], error_p[error][1], error_p[error][2], error_p[error][3])
+            step = wei_geom(error_p[error][0], error_p[error][1], error_p[error][2], error_p[error][3])
             l_new -= step
 
         if error != "ins":
