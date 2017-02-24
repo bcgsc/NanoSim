@@ -11,11 +11,6 @@ python:
 - '3.5'
 - '3.6'
 sudo: false
-#cache:
-#  directories:
-#  - $HOME/last
-directories:
-  - $HOME/.cache/pip
 addons:
   apt:
     sources:
@@ -32,6 +27,7 @@ before_install:
 - wget http://last.cbrc.jp/last-833.zip
 - unzip last-*.zip
 - mv last*/ last
+- pip install .
 install:
 - make -j -C last CXX=/usr/bin/g++-4.8
 - pip install six

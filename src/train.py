@@ -113,7 +113,7 @@ def main(argv):
         call("grep '^s ' \"{}\" > \"{}\"".format(maf_file, out_maf), shell=True)
 
         # get best hit and unaligned reads
-        unaligned_length = list(get_besthit.besthit_and_unaligned(in_fasta, out_maf, outfile))
+        unaligned_length = list(besthit_and_unaligned(in_fasta, out_maf, outfile))
 
     # if maf file not provided
     else:
@@ -123,7 +123,7 @@ def main(argv):
         call('lastal -a 1 -P {} ref_genome "{}" | grep \'^s \' > "{}"' .format(nb_cores, in_fasta, out_maf), shell=True)
 
         # get best hit and unaligned reads
-        unaligned_length = list(get_besthit.besthit_and_unaligned(in_fasta, out_maf, outfile))
+        unaligned_length = list(besthit_and_unaligned(in_fasta, out_maf, outfile))
 
     # ALIGNED READS ANALYSIS
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
@@ -154,8 +154,7 @@ def main(argv):
 
     if model_fit:
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Model fitting\n")
-        path = sys.argv[0].split("/")
-        r_path = '/'.join(path[:-1]) + '/' + "model_fitting.R"
+        r_path = os.path.join(os.path.dirname(__file__), "model_fitting.R")
         if os.path.isfile(r_path):
             call("R CMD BATCH '--args prefix=\"{}\"' \"{}\"".format(outfile,r_path), shell=True)
         else:
