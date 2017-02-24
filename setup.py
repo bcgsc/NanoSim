@@ -70,7 +70,7 @@ setup(
 
 	# You can just specify the packages manually here if your project is
 	# simple. Or you can use find_packages().
-	packages=find_packages(exclude=[]),
+	packages=["nanosimh"],
 
 	# Alternatively, if you want to distribute just a my_module.py, uncomment
 	# this:
@@ -95,7 +95,7 @@ setup(
 	# installed, specify them here.  If using Python 2.6 or less, then these
 	# have to be included in MANIFEST.in as well.
 	package_data={
-		'src': ['src/model_fitting.R'],
+		'nanosimh': ['model_fitting.R'],
 	},
 
 	# Although 'package_data' is the preferred approach, in some case you may
@@ -109,8 +109,8 @@ setup(
 	# pip to create the appropriate form of executable for the target platform.
 	entry_points={
 		'console_scripts': [
-			'nanosimh_train=src:nanosim_train',
-			'nanosimh_simulate=src:nanosim_simulate',
+			'nanosimh_train=nanosimh:nanosim_train',
+			'nanosimh_simulate=nanosimh:nanosim_simulate',
 		],
 	},
 
