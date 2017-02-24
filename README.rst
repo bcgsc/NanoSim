@@ -11,13 +11,13 @@ Installation
 
 **From PyPI**
 
-.. code-block::
+.. code-block:: bash
 
   pip install --upgrade nanosimh
 
 **From git**
 
-.. code-block::
+.. code-block:: bash
 
     git clone https://github.com/karel-brinda/nanosimh
     cd nanosimh
@@ -25,7 +25,7 @@ Installation
 
 or
 
-.. code-block::
+.. code-block:: bash
 
     git clone https://github.com/karel-brinda/nanosimh
     cd nanosimh
