@@ -9,11 +9,27 @@ NanoSimH is a modified version of NanoSim (https://github.com/bcgsc/NanoSim), a 
 Installation
 ------------
 
-**Using pip**
+**From PyPI**
 
 .. code-block::
 
   pip install --upgrade nanosimh
+
+**From git**
+
+.. code-block::
+
+    git clone https://github.com/karel-brinda/nanosimh
+    cd nanosimh
+    pip install --upgrade .
+
+or
+
+.. code-block::
+
+    git clone https://github.com/karel-brinda/nanosimh
+    cd nanosimh
+    python setup.py install
 
 
 Dependencies
