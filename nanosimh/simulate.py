@@ -35,6 +35,15 @@ CONTACT = "cheny@bcgsc.ca"
 
 BASES = ['A', 'T', 'C', 'G']
 
+FASTA_LINE_WIDTH=60
+
+
+def fasta_write_sequence(fasta_file, seqname, seq):
+	fasta_file.write(">" + seqname + '\n')
+	
+	for fasta_line in [seq[i:i+FASTA_LINE_WIDTH] for i in range(0, len(seq), FASTA_LINE_WIDTH)]:
+		fasta_file.write(fasta_line + "\n")
+
 
 def read_ecdf(profile):
 	# We need to count the number of zeros. If it's over 10 zeros, l_len/l_ratio need to be changed to higher.
@@ -244,8 +253,10 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge):
 			new_read_name += "_R"
 		else:
 			new_read_name += "_F"
-		out_reads.write(">" + new_read_name + "_0_" + str(unaligned) + "_0" + '\n')
-		out_reads.write(read_mutated + "\n")
+
+		seqname=new_read_name + "_0_" + str(unaligned) + "_0"
+		fasta_write_sequence(out_reads, seqname, read_mutated)
+
 
 	del unaligned_length
 
@@ -267,10 +278,10 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge):
 				new_read_name += "_R"
 			else:
 				new_read_name += "_F"
-			
-			out_reads.write(">" + new_read_name + "_0_" + str(ref_length[i]) + "_0" + '\n')
-				
-			out_reads.write(new_read + "\n")
+
+			seqname=new_read_name + "_0_" + str(ref_length[i]) + "_0"
+			fasta_write_sequence(out_reads, seqname, new_read)
+
 		out_reads.close()
 		out_error.close()
 		return
@@ -353,9 +364,9 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge):
 		if kmer_bias:
 			read_mutated = collapse_homo(read_mutated, kmer_bias)
 
-		out_reads.write(">" + new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" +
-						str(tail) + '\n')
-		out_reads.write(read_mutated + '\n')
+
+		seqname=new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" + str(tail) 
+		fasta_write_sequence(out_reads, seqname, read_mutated)
 
 		i += 1
 
