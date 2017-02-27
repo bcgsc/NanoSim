@@ -33,8 +33,8 @@ setup(
 	url='https://github.com/pypa/sampleproject',
 
 	# Author details
-	author='The Python Packaging Authority',
-	author_email='pypa-dev@googlegroups.com',
+	#author='The Python Packaging Authority',
+	#author_email='pypa-dev@googlegroups.com',
 
 	# Choose your license
 	license='GPL',
