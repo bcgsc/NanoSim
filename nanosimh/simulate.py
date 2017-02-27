@@ -177,7 +177,7 @@ def collapse_homo(seq, k):
 	return read
 
 
-def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
+def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge):
 	global unaligned_length, number_aligned, aligned_dict
 	global genome_len, seq_dict, seq_len
 	global match_ht_list, align_ratio, ht_dict, match_markov_model
@@ -187,6 +187,10 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
 	seq_dict = {}
 	seq_len = {}
 
+	if merge:
+		seq_dict["merged"] = []
+
+
 	# Read in the reference genome
 	with open(ref, 'r') as infile:
 		for line in infile:
@@ -195,10 +199,17 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
 				info = re.split(r'[_\s]\s*', new_line)
 				chr_name = "-".join(info)
 			else:
-				if chr_name in seq_dict:
-					seq_dict[chr_name] += line.strip()
+				if merge:
+					seq_dict["merged"].append(line.strip())
 				else:
-					seq_dict[chr_name] = line.strip()
+					if chr_name in seq_dict:
+						seq_dict[chr_name].append(line.strip())
+					else:
+						seq_dict[chr_name] = [line.strip()]
+
+	for k in seq_dict.keys():
+		seq_dict[k]="".join(seq_dict[k])
+
 
 	if len(seq_dict) > 1 and dna_type == "circular":
 		print("Do not choose circular if there is more than one chromosome in the genome!",file=sys.stderr)
@@ -660,6 +671,11 @@ def main():
 			dest='perfect',
 			help='Output perfect reads, no mutations',
 		)
+	parser.add_argument('--merge-contigs',
+			action='store_true',
+			dest='merge',
+			help='Merge contigs from the reference',
+		)
 	parser.add_argument('--max-len',
 			type=int,
 			metavar='int',
@@ -696,6 +712,7 @@ def main():
 	min_readlength = args.min_readlength
 	kmer_bias = args.kmer_bias
 	perfect = args.perfect
+	merge = args.merge
 
 	if args.circular:
 		dna_type = 'circular'
@@ -719,7 +736,7 @@ def main():
 	# Read in reference genome and generate simulated reads
 	read_profile(number, model_prefix, perfect, max_readlength, min_readlength)
 
-	simulation(ref, out, dna_type, perfect, kmer_bias, max_readlength, min_readlength)
+	simulation(ref, out, dna_type, perfect, kmer_bias, max_readlength, min_readlength, merge)
 
 	sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!")
 	sys.stdout.close()
