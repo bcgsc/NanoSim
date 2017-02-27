@@ -44,6 +44,9 @@ def fasta_write_sequence(fasta_file, seqname, seq):
 	for fasta_line in [seq[i:i+FASTA_LINE_WIDTH] for i in range(0, len(seq), FASTA_LINE_WIDTH)]:
 		fasta_file.write(fasta_line + "\n")
 
+def rnf_name(read_id, chrom_id, left, right, direction, random):
+	return "__{}__({},{},{},{},{})__{}".format(read_id, 2 if random else 1, chrom_id, direction, left, right, "[unaligned]" if random else "")
+
 
 def read_ecdf(profile):
 	# We need to count the number of zeros. If it's over 10 zeros, l_len/l_ratio need to be changed to higher.
@@ -186,7 +189,7 @@ def collapse_homo(seq, k):
 	return read
 
 
-def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge):
+def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge, rnf):
 	global unaligned_length, number_aligned, aligned_dict
 	global genome_len, seq_dict, seq_len
 	global match_ht_list, align_ratio, ht_dict, match_markov_model
@@ -194,10 +197,14 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge):
 
 	sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read in reference genome\n")
 	seq_dict = {}
+	chrom_id = {}
 	seq_len = {}
+
+	i=1
 
 	if merge:
 		seq_dict["merged"] = []
+		chrom_id["merged"]=1
 
 
 	# Read in the reference genome
@@ -213,6 +220,8 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge):
 				else:
 					if chr_name in seq_dict:
 						seq_dict[chr_name].append(line.strip())
+						chrom_id[chr_name]=i
+						i+=1
 					else:
 						seq_dict[chr_name] = [line.strip()]
 
@@ -242,7 +251,9 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge):
 	for i in xrange(num_unaligned_length):
 		unaligned = unaligned_length[i]
 		unaligned, error_dict = unaligned_error_list(unaligned, error_par)
-		new_read, new_read_name = extract_read(dna_type, unaligned)
+		new_read, (chrom, pos) = extract_read(dna_type, unaligned)
+		new_read_name="{}_{}".format(chrom, pos)
+
 		new_read_name = new_read_name + "_unaligned_" + str(i)
 		read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias, False)
 		
@@ -250,11 +261,24 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge):
 		p = random.random()
 		if p < 0.5:
 			read_mutated = reverse_complement(read_mutated)
-			new_read_name += "_R"
+			direction="R"
 		else:
-			new_read_name += "_F"
+			direction="F"
 
-		seqname=new_read_name + "_0_" + str(unaligned) + "_0"
+		new_read_name+= "_{}_0_{}_0".format(direction,unaligned)
+
+		if rnf:
+			seqname=rnf_name(
+					read_id=i+1,
+					chrom_id=chrom_id[chrom],
+					left=pos+1,
+					right=pos+unaligned,
+					direction=direction,
+					random=True,
+				)
+		else:
+			seqname=new_read_name
+
 		fasta_write_sequence(out_reads, seqname, read_mutated)
 
 
@@ -268,19 +292,32 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge):
 		del aligned_dict
 
 		for i in xrange(number_aligned):
-			new_read, new_read_name = extract_read(dna_type, ref_length[i])
+			new_read, (chrom, pos) = extract_read(dna_type, ref_length[i])
+			new_read_name="{}_{}".format(chrom, pos)
+
 			new_read_name = new_read_name + "_perfect_" + str(i)
 			
 			# Reverse complement half of the reads
 			p = random.random()
 			if p < 0.5:
 				new_read = reverse_complement(new_read)
-				new_read_name += "_R"
+				direction="R"
 			else:
-				new_read_name += "_F"
+				direction="F"
 
-			seqname=new_read_name + "_0_" + str(ref_length[i]) + "_0"
-			fasta_write_sequence(out_reads, seqname, new_read)
+		if rnf:
+			seqname=rnf_name(
+					read_id=i+1,
+					chrom_id=chrom_id[chrom],
+					left=pos+1,
+					right=pos+ref_length[i],
+					direction=direction,
+					random=False,
+				)
+		else:
+			seqname="{}_{}_0_{}_0".format(direction, new_read_name, ref_length[i])
+
+		fasta_write_sequence(out_reads, seqname, new_read)
 
 		out_reads.close()
 		out_error.close()
@@ -342,7 +379,9 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge):
 					break
 
 		# Extract middle region from reference genome
-		new_read, new_read_name = extract_read(dna_type, middle_ref)
+		new_read, (chrom, pos) = extract_read(dna_type, middle_ref)
+		new_read_name="{}_{}".format(chrom, pos)
+
 		new_read_name = new_read_name + "_aligned_" + str(i + num_unaligned_length)
 
 		# Mutate read
@@ -353,8 +392,10 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge):
 		if p < 0.5:
 			read_mutated = reverse_complement(read_mutated)
 			new_read_name += "_R"
+			direction = "R"
 		else:
 			new_read_name += "_F"
+			direction = "F"
 
 		# Add head and tail region
 		read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated
@@ -364,8 +405,18 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge):
 		if kmer_bias:
 			read_mutated = collapse_homo(read_mutated, kmer_bias)
 
+		if rnf:
+			seqname=rnf_name(
+					read_id=i+1+ num_unaligned_length,
+					chrom_id=chrom_id[chrom],
+					left=pos+1,
+					right=pos+middle_ref,
+					direction=direction,
+					random=False,
+				)
+		else:
+			seqname=new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" + str(tail) 
 
-		seqname=new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" + str(tail) 
 		fasta_write_sequence(out_reads, seqname, read_mutated)
 
 		i += 1
@@ -395,7 +446,7 @@ def extract_read(dna_type, length):
 	if dna_type == "circular":
 		ref_pos = random.randint(0, genome_len)
 		chromosome = list(seq_dict.keys())[0]
-		new_read_name = chromosome + "_" + str(ref_pos)
+		read_info = (chromosome, ref_pos)
 		if length + ref_pos <= genome_len:
 			new_read = seq_dict[chromosome][ref_pos: ref_pos + length]
 		else:
@@ -409,13 +460,13 @@ def extract_read(dna_type, length):
 			new_read = ""
 			ref_pos = random.randint(0, genome_len)
 			#
-			# karel:
+			# Karel:
 			# todo: check if this code is correct, Python dict might not have a well defined order of keys
 			#
 			for key in seq_len.keys():
 				if ref_pos + length < seq_len[key]:
 					new_read = seq_dict[key][ref_pos: ref_pos + length]
-					new_read_name = key + "_" + str(ref_pos)
+					read_info = (key, ref_pos)
 					break
 				elif ref_pos < seq_len[key]:
 					break
@@ -423,7 +474,7 @@ def extract_read(dna_type, length):
 					ref_pos -= seq_len[key]
 			if new_read != "":
 				break
-	return new_read, new_read_name
+	return new_read, read_info
 
 
 def unaligned_error_list(length, error_p):
@@ -687,6 +738,11 @@ def main():
 			dest='merge',
 			help='merge contigs from the reference',
 		)
+	parser.add_argument('--rnf',
+			action='store_true',
+			dest='rnf',
+			help='use RNF format for read names',
+		)
 	parser.add_argument('--max-len',
 			type=int,
 			metavar='int',
@@ -724,6 +780,7 @@ def main():
 	kmer_bias = args.kmer_bias
 	perfect = args.perfect
 	merge = args.merge
+	rnf = args.rnf
 
 	if args.circular:
 		dna_type = 'circular'
@@ -747,7 +804,7 @@ def main():
 	# Read in reference genome and generate simulated reads
 	read_profile(number, model_prefix, perfect, max_readlength, min_readlength)
 
-	simulation(ref, out, dna_type, perfect, kmer_bias, max_readlength, min_readlength, merge)
+	simulation(ref, out, dna_type, perfect, kmer_bias, max_readlength, min_readlength, merge, rnf)
 
 	sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!")
 	sys.stdout.close()
