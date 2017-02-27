@@ -30,7 +30,7 @@ setup(
 	long_description=long_description,
 
 	# The project's main homepage.
-	url='https://github.com/pypa/sampleproject',
+	url='https://github.com/karel-brinda/nanosimh',
 
 	# Author details
 	#author='The Python Packaging Authority',
