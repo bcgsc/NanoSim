@@ -10,9 +10,8 @@ This script generates simulated Oxford Nanopore 2D reads.
 
 from __future__ import print_function
 from __future__ import with_statement
-import 
+import argparse
 import sys
-import getopt
 import random
 import re
 import argparse
@@ -35,24 +34,6 @@ AUTHOR = "Chen Yang (UBC & BCGSC)"
 CONTACT = "cheny@bcgsc.ca"
 
 BASES = ['A', 'T', 'C', 'G']
-
-# Usage information
-def usage():
-	usage_message = "./simulator.py [command] <options>\n" \
-					"[command] circular | linear\n" \
-					"Do not choose 'circular' when there is more than one sequence in the reference\n" \
-					"<options>: \n" \
-					"-h : print usage message\n" \
-					"-r : reference genome in fasta file, specify path and file name, REQUIRED\n" \
-					"-c : The prefix of training set profiles, same as the output prefix in read_analysis.py, default = training\n" \
-					"-o : The prefix of output file, default = 'simulated'\n" \
-					"-n : Number of generated reads, default = 20,000 reads\n" \
-					"--max_len : Maximum read length, default = Inf\n" \
-					"--min_len : Minimum read length, default = 50\n" \
-					"--perfect: Output perfect reads, no mutations, default = False\n" \
-					"--KmerBias: prohibits homopolymers with length >= n bases in output reads, default = 6\n"
-
-	sys.stderr.write(usage_message)
 
 
 def read_ecdf(profile):
@@ -604,57 +585,115 @@ def main():
 	number = 20000
 	perfect = False
 	# ins, del, mis rate represent the weight tuning in mix model
-	ins_rate = 1
-	del_rate = 1
-	mis_rate = 1
+	ins_rate = 1.0
+	del_rate = 1.0
+	mis_rate = 1.0
 	max_readlength = float("inf")
 	min_readlength = 50
-	kmer_bias = 0
+	kmer_bias = 6
 
-	# Parse options and parameters
-	if len(sys.argv) < 4:
-		usage()
-		sys.exit(1)
+	parser = argparse.ArgumentParser(description='NanoSimH - a fork of NanoSim, a simulator of Oxford Nanopore reads.')
+
+	parser.add_argument('-r',
+			type=str,
+			metavar='str',
+			required=True,
+			dest='ref',
+			help='Reference genome in fasta file, specify path and file name',
+		)
+	parser.add_argument('-c',
+			type=str,
+			metavar='str',
+			dest='model_prefix',
+			help='Prefix of training set profiles, same as the output prefix in read_analysis.py, default = {}'.format(model_prefix),
+			default=model_prefix,
+		)
+	parser.add_argument('-o',
+			type=str,
+			metavar='str',
+			dest='out',
+			help='Prefix of output file, default = {}'.format(out),
+			default=out,
+		)
+	parser.add_argument('-n',
+			type=int,
+			metavar='int',
+			dest='number',
+			help='Number of generated reads [{}]'.format(number),
+			default=number,
+		)
+	parser.add_argument('-m',
+			type=float,
+			metavar='float',
+			dest='mis_rate',
+			help='Mismatch rate (weight tuning) [{}]'.format(mis_rate),
+			default=mis_rate
+		)
+	parser.add_argument('-i',
+			type=float,
+			metavar='float',
+			dest='ins_rate',
+			help='Insertion rate (weight tuning) [{}]'.format(ins_rate),
+			default=ins_rate
+		)
+	parser.add_argument('-d',
+			type=float,
+			metavar='float',
+			dest='del_rate',
+			help='Deletion reate (weight tuning) [{}]'.format(del_rate),
+			default=del_rate
+		)
+	parser.add_argument('--circular',
+			action='store_true',
+			dest='circular',
+			help='Circular simulation (linear otherwise)',
+		)
+	parser.add_argument('--perfect',
+			action='store_true',
+			dest='perfect',
+			help='Output perfect reads, no mutations',
+		)
+	parser.add_argument('--max-len',
+		type=int,
+		metavar='int',
+		dest='max_readlength',
+		help='Maximum read length [{}]'.format(max_readlength),
+		default=max_readlength,
+	)
+	parser.add_argument('--min-len',
+		type=int,
+		metavar='int',
+		dest='min_readlength',
+		help='Minimum read length [{}]'.format(min_readlength),
+		default=min_readlength,
+	)
+	parser.add_argument('--kmer-bias',
+		type=int,
+		metavar='int',
+		dest='kmer_bias',
+		help='Prohibits homopolymers with length >= n bases in output reads [{}]'.format(kmer_bias),
+		default=kmer_bias,
+	)
+
+	args = parser.parse_args()
+
+	ref = args.ref
+	model_prefix = args.model_prefix
+	out = args.out
+	number = args.number
+	perfect = args.perfect
+	ins_rate = args.ins_rate
+	del_rate = args.del_rate
+	mis_rate = args.mis_rate
+	max_readlength = args.max_readlength
+	min_readlength = args.min_readlength
+	kmer_bias = args.kmer_bias
+	perfect = args.perfect
+
+	if args.circular:
+		dna_type = 'circular'
 	else:
-		dna_type = sys.argv[1]
-		if dna_type not in ["circular", "linear"]:
-			usage()
-			sys.exit(1)
-		try:
-			opts, args = getopt.getopt(sys.argv[2:], "hr:c:o:n:i:d:m:",
-									   ["max_len=", "min_len=", "perfect", "KmerBias="])
-		except getopt.GetoptError:
-			usage()
-			sys.exit(1)
-		for opt, arg in opts:
-			if opt == "-r":
-				ref = arg
-			elif opt == "-c":
-				model_prefix = arg
-			elif opt == "-o":
-				out = arg
-			elif opt == "-n":
-				number = int(arg)
-			elif opt == "-i":
-				ins_rate = float(arg)
-			elif opt == "-d":
-				del_rate = float(arg)
-			elif opt == "-m":
-				mis_rate = float(arg)
-			elif opt == "--max_len":
-				max_readlength = int(arg)
-			elif opt == "--min_len":
-				min_readlength = int(arg)
-			elif opt == "--perfect":
-				perfect = True
-			elif opt == "--KmerBias":
-				kmer_bias = int(arg)
-			elif opt == "-h":
-				usage()
-				sys.exit(0)
-			else:
-				usage()
-				sys.exit(1)
+		dna_type = 'linear'
 
 	# Generate log file
 	sys.stdout = open(out + ".log", 'w')
