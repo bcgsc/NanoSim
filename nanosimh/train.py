@@ -20,7 +20,7 @@ except NameError:
 	from six.moves import xrange
 import sys
 import os
-import getopt
+import argparse
 import numpy
 from .head_align_tail_dist import *
 from .get_besthit import *
@@ -29,19 +29,9 @@ import multiprocessing
 
 nb_cores=multiprocessing.cpu_count()
 
-# Usage information
-def usage():
-	usage_message = "./read_analysis.py <options>\n" \
-					"<options>: \n" \
-					"-h : print usage message\n" \
-					"-i : training ONT real reads, must be fasta files\n" \
-					"-r : reference genome of the training reads\n" \
-					"-m : User can provide their own alignment file, with maf extension\n" \
-					"-b : number of bins (for development), default = 20\n" \
-					"-o : The prefix of output file, default = 'training'\n"
-
-	sys.stderr.write(usage_message)
-
+def run(command):
+	print("Running '{}'".format(command),file=sys.stderr)
+	call(command, shell=True)
 
 def main(argv):
 	# Parse input and output files
@@ -51,36 +41,62 @@ def main(argv):
 	maf_file = ''
 	model_fit = True
 	num_bins = 20
-	try:
-		opts, args = getopt.getopt(argv, "hi:r:o:m:b:", ["infile=", "ref=", "outfile=", "no_model_fit"])
-	except getopt.GetoptError:
-		usage()
-		sys.exit(1)
 
-	for opt, arg in opts:
-		if opt == '-h':
-			usage()
-			sys.exit(0)
-		elif opt in ("-i", "--infile"):
-			infile = arg
-		elif opt in ("-r", "--ref"):
-			ref = arg
-		elif opt == "-m":
-			maf_file = arg
-		elif opt in ("-o", "--outfile"):
-			outfile = arg
-		elif opt == "--no_model_fit":
-			model_fit = False
-		elif opt == "-b":
-			num_bins = max(int(arg), 1)
-		else:
-			usage()
-			sys.exit(1)
+	parser = argparse.ArgumentParser(
+			description='NanoSimH - a fork of NanoSim, a simulator of Oxford Nanopore reads.',
+		)
 
-	if infile == '' or ref == '':
-		print("Please specify the training reads and its reference genome!")
-		usage()
-		sys.exit(1)
+	parser.add_argument('-i', "--infile",
+			type=str,
+			metavar='str',
+			dest='infile',
+			help='training ONT real reads, must be fasta files',
+			default='',
+		)
+	parser.add_argument('-r', "--ref",
+			type=str,
+			metavar='str',
+			required=True,
+			dest='ref',
+			help='reference genome of the training reads',
+		)
+	parser.add_argument('-m', "--maf",
+			type=str,
+			metavar='str',
+			dest='maf_file',
+			help='user can provide their own alignment file, with maf extension',
+			default='',
+		)
+	parser.add_argument('-o',
+			type=str,
+			metavar='str',
+			dest='outfile',
+			help='prefix of output file [{}]'.format(outfile),
+		)
+	parser.add_argument('-b',
+			type=int,
+			metavar='int',
+			dest='num_bins',
+			help='number of bins (for development) [{}]'.format(num_bins),
+			default=num_bins,
+		)
+	parser.add_argument('--no-model-fit',
+			action='store_false',
+			dest='model_fit',
+			help='no model fitting',
+		)
+
+	args = parser.parse_args()
+
+	infile = args.infile
+	outfile = args.outfile
+	ref = args.ref
+	maf_file = args.maf_file
+	model_fit = args.model_fit
+	num_bins = args.num_bins
+
+	assert num_bins>0
+	assert infile!='' or ref!=''
 
 	# READ PRE-PROCESS AND UNALIGNED READS ANALYSIS
 	sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process and unaligned reads analysis\n")
@@ -119,8 +135,8 @@ def main(argv):
 	else:
 		# Alignment
 		sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with LAST\n")
-		call('lastdb -P {} ref_genome "{}"'.format(nb_cores, ref), shell=True)
-		call('lastal -a 1 -P {} ref_genome "{}" | grep \'^s \' > "{}"' .format(nb_cores, in_fasta, out_maf), shell=True)
+		run('lastdb -P {} ref_genome "{}"'.format(nb_cores, ref))
+		run('lastal -a 1 -P {} ref_genome "{}" | grep \'^s \' > "{}"'.format(nb_cores, in_fasta, out_maf))
 
 		# get best hit and unaligned reads
 		unaligned_length = list(besthit_and_unaligned(in_fasta, out_maf, outfile))
@@ -156,7 +172,7 @@ def main(argv):
 		sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Model fitting\n")
 		r_path = os.path.join(os.path.dirname(__file__), "model_fitting.R")
 		if os.path.isfile(r_path):
-			call("R CMD BATCH '--args prefix=\"{}\"' \"{}\"".format(outfile,r_path), shell=True)
+			run("R CMD BATCH '--args prefix=\"{}\"' \"{}\"".format(outfile,r_path), shell=True)
 		else:
 			sys.stderr.write("Could not find 'model_fitting.R' in ../src/\n" +
 				  "Make sure you copied the whole source files from Github.")
