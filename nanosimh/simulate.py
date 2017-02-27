@@ -44,8 +44,8 @@ def fasta_write_sequence(fasta_file, seqname, seq):
 	for fasta_line in [seq[i:i+FASTA_LINE_WIDTH] for i in range(0, len(seq), FASTA_LINE_WIDTH)]:
 		fasta_file.write(fasta_line + "\n")
 
-def rnf_name(read_id, chrom_id, left, right, direction, random):
-	return "__{}__({},{},{},{},{})__{}".format(read_id, 2 if random else 1, chrom_id, direction, left, right, "[unaligned]" if random else "")
+def rnf_name(read_id, chrom_id, left, right, direction, random, suffix=""):
+	return "__{}__({},{},{},{},{})__{}".format(read_id, 2 if random else 1, chrom_id, direction, left, right, suffix)
 
 
 def read_ecdf(profile):
@@ -255,7 +255,7 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge, rnf):
 		new_read_name="{}_{}".format(chrom, pos)
 
 		new_read_name = new_read_name + "_unaligned_" + str(i)
-		read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias, False)
+		read_mutated, cigar = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias, False)
 		
 		# Reverse complement half of the reads
 		p = random.random()
@@ -385,7 +385,7 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge, rnf):
 		new_read_name = new_read_name + "_aligned_" + str(i + num_unaligned_length)
 
 		# Mutate read
-		read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
+		read_mutated, cigar = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
 
 		# Reverse complement half of the reads
 		p = random.random()
@@ -413,6 +413,7 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge, rnf):
 					right=pos+middle_ref,
 					direction=direction,
 					random=False,
+					suffix="[LEN:{},C:{}]".format(middle_ref,"{}S{}{}S".format(head,cigar,tail))
 				)
 		else:
 			seqname=new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" + str(tail) 
@@ -591,9 +592,18 @@ def error_list(m_ref, m_model, m_ht_list, error_p, trans_p):
 
 def mutate_read(read, read_name, error_log, e_dict, k, aligned=True):
 	search_pattern = "A" * k + "+|" + "T" * k + "+|" + "C" * k + "+|" + "G" * k
+	cigar = []
+
+	last_error_end=0
+
 	for key in sorted(e_dict.keys(), reverse=True):
 		val = e_dict[key]
 		key = int(round(key))
+
+		cigar.append(str(last_error_end-key))
+		cigar.append("=")
+
+		cigar.append(str(val[1]))
 
 		if val[0] == "mis":
 			ref_base = read[key: key + val[1]]
@@ -608,11 +618,13 @@ def mutate_read(read, read_name, error_log, e_dict, k, aligned=True):
 				if not k or not re.search(search_pattern, check_kmer):
 					break
 			new_read = read[:key] + new_bases + read[key + val[1]:]
+			cigar.append("X")
 
 		elif val[0] == "del":
 			new_bases = val[1] * "-"
 			ref_base = read[key: key + val[1]]
 			new_read = read[: key] + read[key + val[1]:]
+			cigar.append("D")
 
 		elif val[0] == "ins":
 			ref_base = val[1] * "-"
@@ -625,7 +637,12 @@ def mutate_read(read, read_name, error_log, e_dict, k, aligned=True):
 				if not k or not re.search(search_pattern, check_kmer):
 					break
 			new_read = read[:key] + new_bases + read[key:]
+			cigar.append("I")
 
+		else:
+			cigar.append("=")
+
+		last_error_end=key
 		read = new_read
 
 		if aligned and val[0] != "match":
@@ -633,10 +650,13 @@ def mutate_read(read, read_name, error_log, e_dict, k, aligned=True):
 							"\t" + ref_base + "\t" + new_bases + "\n")
 
 	# If choose to have kmer bias, then need to compress homopolymers to 5-mer
+	# !!!!!!!!!
+	# todo: CIGAR is incorrect if homopolymers are collapsed
+	# !!!!!!!!!
 	if k:
 		read = collapse_homo(read, k)
 
-	return read
+	return (read,"".join(cigar))
 
 
 def case_convert(s_dict):
