@@ -91,7 +91,7 @@ Simulation stage takes reference genome and read profiles as input and outputs s
       --perfect: Output perfect reads, no mutations, default = False  
       --KmerBias: prohibits homopolymers with length >= 6 bases in output reads, can be omitted  
 
-\* Notice: the use of `max_len` and `min_len` will affect the read length distributions. If the range between `max_len` and `min_len` is too small, the program will run slowlier accordingly.  
+    \* Notice: the use of `max_len` and `min_len` will affect the read length distributions. If the range between `max_len` and `min_len` is too small, the program will run slowlier accordingly.  
 
 **For example:**
 

@@ -592,7 +592,10 @@ def main():
 	min_readlength = 50
 	kmer_bias = 6
 
-	parser = argparse.ArgumentParser(description='NanoSimH - a fork of NanoSim, a simulator of Oxford Nanopore reads.')
+	parser = argparse.ArgumentParser(
+			description='NanoSimH - a fork of NanoSim, a simulator of Oxford Nanopore reads.',
+			epilog='Notice: the use of `max_len` and `min_len` will affect the read length distributions. If the range between `max_len` and `min_len` is too small, the program will run slowlier accordingly.',
+		)
 
 	parser.add_argument('-r',
 			type=str,
@@ -654,26 +657,26 @@ def main():
 			help='Output perfect reads, no mutations',
 		)
 	parser.add_argument('--max-len',
-		type=int,
-		metavar='int',
-		dest='max_readlength',
-		help='Maximum read length [{}]'.format(max_readlength),
-		default=max_readlength,
-	)
+			type=int,
+			metavar='int',
+			dest='max_readlength',
+			help='Maximum read length [{}]'.format(max_readlength),
+			default=max_readlength,
+		)
 	parser.add_argument('--min-len',
-		type=int,
-		metavar='int',
-		dest='min_readlength',
-		help='Minimum read length [{}]'.format(min_readlength),
-		default=min_readlength,
-	)
+			type=int,
+			metavar='int',
+			dest='min_readlength',
+			help='Minimum read length [{}]'.format(min_readlength),
+			default=min_readlength,
+		)
 	parser.add_argument('--kmer-bias',
-		type=int,
-		metavar='int',
-		dest='kmer_bias',
-		help='Prohibits homopolymers with length >= n bases in output reads [{}]'.format(kmer_bias),
-		default=kmer_bias,
-	)
+			type=int,
+			metavar='int',
+			dest='kmer_bias',
+			help='Prohibits homopolymers with length >= n bases in output reads [{}]'.format(kmer_bias),
+			default=kmer_bias,
+		)
 
 	args = parser.parse_args()
 
