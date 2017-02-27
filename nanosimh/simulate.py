@@ -201,7 +201,7 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
 					seq_dict[chr_name] = line.strip()
 
 	if len(seq_dict) > 1 and dna_type == "circular":
-		sys.stderr.write("Do not choose circular if there is more than one chromosome in the genome!")
+		print("Do not choose circular if there is more than one chromosome in the genome!",file=sys.stderr)
 		sys.exit(1)
 
 	for key in seq_dict.keys():
@@ -386,8 +386,12 @@ def extract_read(dna_type, length):
 		while True:
 			new_read = ""
 			ref_pos = random.randint(0, genome_len)
+			#
+			# karel:
+			# todo: check if this code is correct, Python dict might not have a well defined order of keys
+			#
 			for key in seq_len.keys():
-				if ref_pos + length <= seq_len[key]:
+				if ref_pos + length < seq_len[key]:
 					new_read = seq_dict[key][ref_pos: ref_pos + length]
 					new_read_name = key + "_" + str(ref_pos)
 					break
