@@ -172,7 +172,7 @@ def main(argv):
 		sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Model fitting\n")
 		r_path = os.path.join(os.path.dirname(__file__), "model_fitting.R")
 		if os.path.isfile(r_path):
-			run("R CMD BATCH '--args prefix=\"{}\"' \"{}\"".format(outfile,r_path), shell=True)
+			run("R CMD BATCH '--args prefix=\"{}\"' \"{}\"".format(outfile,r_path))
 		else:
 			sys.stderr.write("Could not find 'model_fitting.R' in ../src/\n" +
 				  "Make sure you copied the whole source files from Github.")
