@@ -128,13 +128,13 @@ Simulation stage takes reference genome and read profiles as input and outputs s
 **For example:**
 
 1 If you want to simulate *E. coli* genome, then circular command must be chosen because it's a circular genome  
-``nanosimh_simulate circular -r Ecoli_ref.fasta -c ecoli``
+``nanosimh_simulate --circular -r Ecoli_ref.fasta -p ecoli``
 
 2 If you want to simulate only perfect reads, i.e. no snps, or indels, just simulate the read length distribution  
-``nanosimh_simulate circular -r Ecoli_ref.fasta -c ecoli --perfect``
+``nanosimh_simulate --circular -r Ecoli_ref.fasta -p ecoli --perfect``
 
-3 If you want to simulate *S. cerevisiae* genome with kmer bias, then linear command must be chosen because it's a linear genome  
-``nanosimh_simulate linear -r yeast_ref.fasta -c yeast --KmerBias``
+3 If you want to simulate *S. cerevisiae* genome with no kmer bias, then linear command must be chosen because it's a linear genome  
+``nanosimh_simulate -r yeast_ref.fasta -p yeast --kmer-bias 0``
 
 *See more detailed example in example.sh*
 
