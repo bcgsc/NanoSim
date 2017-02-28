@@ -33,7 +33,7 @@ def run(command):
 	print("Running '{}'".format(command),file=sys.stderr)
 	call(command, shell=True)
 
-def main(argv):
+def main():
 	# Parse input and output files
 	infile = ''
 	outfile = 'training'
@@ -70,7 +70,7 @@ def main(argv):
 	parser.add_argument('-p','--profile',
 			type=str,
 			metavar='str',
-			dest='profile',
+			dest='outfile',
 			help='prefix of output files [{}]'.format(outfile),
 			default=outfile,
 		)
@@ -182,5 +182,5 @@ def main(argv):
 
 
 if __name__ == "__main__":
-	main(sys.argv[1:])
+	main()
 
