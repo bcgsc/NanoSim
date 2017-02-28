@@ -13,6 +13,7 @@ from __future__ import with_statement
 import argparse
 import sys
 import random
+import os
 import re
 import argparse
 from time import strftime
@@ -189,11 +190,14 @@ def collapse_homo(seq, k):
 	return read
 
 
-def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge, rnf):
+def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge, rnf, rnf_cigar):
 	global unaligned_length, number_aligned, aligned_dict
 	global genome_len, seq_dict, seq_len
 	global match_ht_list, align_ratio, ht_dict, match_markov_model
 	global trans_error_pr, error_par
+
+	assert min_l <= max_l, "min_len must be <= max_len"
+	assert os.path.isfile(ref), "File '{}' does not exist".format(ref)
 
 	sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read in reference genome\n")
 	seq_dict = {}
@@ -275,6 +279,7 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge, rnf):
 					right=pos+unaligned,
 					direction=direction,
 					random=True,
+					suffix="[LEN:{}]".format(unaligned),
 				)
 		else:
 			seqname=new_read_name
@@ -313,6 +318,7 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge, rnf):
 					right=pos+ref_length[i],
 					direction=direction,
 					random=False,
+					suffix="[LEN:{}]".format(ref_length[i]),
 				)
 		else:
 			seqname="{}_{}_0_{}_0".format(direction, new_read_name, ref_length[i])
@@ -414,6 +420,7 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge, rnf):
 					direction=direction,
 					random=False,
 					suffix="[LEN:{},C:{}]".format(middle_ref,"{}S{}{}S".format(head,cigar,tail))
+						if rnf_cigar else "[LEN:{}]".format(head+middle_ref+tail)
 				)
 		else:
 			seqname=new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" + str(tail) 
@@ -763,6 +770,11 @@ def main():
 			dest='rnf',
 			help='use RNF format for read names',
 		)
+	parser.add_argument('--rnf-add-cigar',
+			action='store_true',
+			dest='rnf_cigar',
+			help='add cigar to RNF names',
+		)
 	parser.add_argument('--max-len',
 			type=int,
 			metavar='int',
@@ -801,6 +813,7 @@ def main():
 	perfect = args.perfect
 	merge = args.merge
 	rnf = args.rnf
+	rnf_cigar = args.rnf_cigar
 
 	if args.circular:
 		dna_type = 'circular'
@@ -824,7 +837,18 @@ def main():
 	# Read in reference genome and generate simulated reads
 	read_profile(number, model_prefix, perfect, max_readlength, min_readlength)
 
-	simulation(ref, out, dna_type, perfect, kmer_bias, max_readlength, min_readlength, merge, rnf)
+	simulation(
+			ref=ref,
+			out=out,
+			dna_type=dna_type,
+			per=perfect,
+			kmer_bias=kmer_bias,
+			max_l=max_readlength,
+			min_l=min_readlength,
+			merge=merge,
+			rnf=rnf,
+			rnf_cigar=rnf_cigar
+		)
 
 	sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!")
 	sys.stdout.close()
