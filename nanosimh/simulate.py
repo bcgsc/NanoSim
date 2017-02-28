@@ -45,8 +45,9 @@ def fasta_write_sequence(fasta_file, seqname, seq):
 	for fasta_line in [seq[i:i+FASTA_LINE_WIDTH] for i in range(0, len(seq), FASTA_LINE_WIDTH)]:
 		fasta_file.write(fasta_line + "\n")
 
-def rnf_name(read_id, chrom_id, left, right, direction, random, suffix=""):
-	return "__{}__({},{},{},{},{})__{}".format(read_id, 2 if random else 1, chrom_id, direction, left, right, suffix)
+def rnf_name(read_id, chrom_id, left, right, direction, random, suffix="", coord_len=0,	id_len=0):
+	hex_id = '{:02x}'.format(read_id)
+	return "__{}__({},{},{},{},{})__{}".format(str(hex_id).zfill(id_len), 2 if random else 1, chrom_id, direction, str(left).zfill(coord_len), str(right).zfill(coord_len), suffix)
 
 
 def read_ecdf(profile):
@@ -240,6 +241,8 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge, rnf, rnf
 	for key in seq_dict.keys():
 		seq_len[key] = len(seq_dict[key])
 	genome_len = sum(seq_len.values())
+	rnf_coord_len=len(str(genome_len))
+	rnf_id_len=len(str(len(unaligned_length) + number_aligned))
 
 	# Change lowercase to uppercase and replace N with any base
 	seq_dict = case_convert(seq_dict)
@@ -280,6 +283,8 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge, rnf, rnf
 					direction=direction,
 					random=True,
 					suffix="[LEN:{}]".format(unaligned),
+					coord_len=rnf_coord_len,
+					id_len=rnf_id_len,
 				)
 		else:
 			seqname=new_read_name
@@ -319,6 +324,8 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge, rnf, rnf
 					direction=direction,
 					random=False,
 					suffix="[LEN:{}]".format(ref_length[i]),
+					coord_len=rnf_coord_len,
+					id_len=rnf_id_len,
 				)
 		else:
 			seqname="{}_{}_0_{}_0".format(direction, new_read_name, ref_length[i])
@@ -420,7 +427,9 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge, rnf, rnf
 					direction=direction,
 					random=False,
 					suffix="[LEN:{},C:{}]".format(middle_ref,"{}S{}{}S".format(head,cigar,tail))
-						if rnf_cigar else "[LEN:{}]".format(head+middle_ref+tail)
+						if rnf_cigar else "[LEN:{}]".format(head+middle_ref+tail),
+					coord_len=rnf_coord_len,
+					id_len=rnf_id_len,
 				)
 		else:
 			seqname=new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" + str(tail) 
