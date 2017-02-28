@@ -608,21 +608,42 @@ def error_list(m_ref, m_model, m_ht_list, error_p, trans_p):
 			prev_error += "0"
 	return l_new, middle_ref, e_dict
 
+def cigar_from_errors(e_dict,length):
+	cigar = []
+	pointer=0
+	for float_pos in sorted(e_dict.keys()):
+		op,oplen=e_dict[float_pos]
+		pos = int(round(float_pos))
+
+
+		cigar.append(pos-pointer)
+		cigar.append("M")
+
+		if op=="mis":
+			cigar.append(oplen)
+			cigar.append("X")
+		elif op=="ins":
+			cigar.append(oplen)
+			cigar.append("I")
+		elif op=="del":
+			cigar.append(oplen)
+			cigar.append("D")
+
+		pointer=pos+oplen
+
+	cigar.append(length-pointer)
+	cigar.append("M")
+
+	return "".join(map(str,cigar))
+
 
 def mutate_read(read, read_name, error_log, e_dict, k, aligned=True):
 	search_pattern = "A" * k + "+|" + "T" * k + "+|" + "C" * k + "+|" + "G" * k
-	cigar = []
-
-	last_error_end=0
 
 	for key in sorted(e_dict.keys(), reverse=True):
 		val = e_dict[key]
 		key = int(round(key))
 
-		cigar.append(str(last_error_end-key))
-		cigar.append("=")
-
-		cigar.append(str(val[1]))
 
 		if val[0] == "mis":
 			ref_base = read[key: key + val[1]]
@@ -637,13 +658,11 @@ def mutate_read(read, read_name, error_log, e_dict, k, aligned=True):
 				if not k or not re.search(search_pattern, check_kmer):
 					break
 			new_read = read[:key] + new_bases + read[key + val[1]:]
-			cigar.append("X")
 
 		elif val[0] == "del":
 			new_bases = val[1] * "-"
 			ref_base = read[key: key + val[1]]
 			new_read = read[: key] + read[key + val[1]:]
-			cigar.append("D")
 
 		elif val[0] == "ins":
 			ref_base = val[1] * "-"
@@ -656,12 +675,7 @@ def mutate_read(read, read_name, error_log, e_dict, k, aligned=True):
 				if not k or not re.search(search_pattern, check_kmer):
 					break
 			new_read = read[:key] + new_bases + read[key:]
-			cigar.append("I")
 
-		else:
-			cigar.append("=")
-
-		last_error_end=key
 		read = new_read
 
 		if aligned and val[0] != "match":
@@ -675,7 +689,7 @@ def mutate_read(read, read_name, error_log, e_dict, k, aligned=True):
 	if k:
 		read = collapse_homo(read, k)
 
-	return (read,"".join(cigar))
+	return (read,cigar_from_errors(e_dict,len(read)))
 
 
 def case_convert(s_dict):
@@ -793,7 +807,7 @@ def main():
 	parser.add_argument('--rnf-add-cigar',
 			action='store_true',
 			dest='rnf_cigar',
-			help='add cigar to RNF names',
+			help='add cigar to RNF names (not fully debugged, yet)',
 		)
 	parser.add_argument('--max-len',
 			type=int,
