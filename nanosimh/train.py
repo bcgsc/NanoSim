@@ -96,7 +96,13 @@ def main():
 	num_bins = args.num_bins
 
 	assert num_bins>0
+
 	assert infile!='' or ref!=''
+	if infile!='':
+		assert os.path.isfile(infile), "File '{}' does not exist.".format(infile)
+	if ref!='':
+		assert os.path.isfile(ref), "File '{}' does not exist.".format(ref)
+
 
 	# READ PRE-PROCESS AND UNALIGNED READS ANALYSIS
 	sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process and unaligned reads analysis\n")
@@ -123,6 +129,7 @@ def main():
 
 	# if maf file provided
 	if maf_file != '':
+		assert os.path.isfile(maf_file), "File '{}' does not exist.".format(maf_file)
 		if out_maf == maf_file:
 			out_maf = outfile + "_processed.maf"
 
