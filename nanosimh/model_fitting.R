@@ -1,5 +1,9 @@
 library(stats4)
 
+# Ensure that the results will be reproducible
+set.seed(1)
+
+
 ##### Read in data
 args <- commandArgs(TRUE)
 eval(parse(text=args[[1]]))

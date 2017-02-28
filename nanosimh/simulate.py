@@ -707,60 +707,68 @@ def main():
 	max_readlength = float("inf")
 	min_readlength = 50
 	kmer_bias = 6
+	seed = 1
 
 	parser = argparse.ArgumentParser(
 			description='NanoSimH - a fork of NanoSim, a simulator of Oxford Nanopore reads.',
 			epilog='Notice: the use of `max_len` and `min_len` will affect the read length distributions. If the range between `max_len` and `min_len` is too small, the program will run slowlier accordingly.',
 		)
 
-	parser.add_argument('-r',
+	parser.add_argument('-r','--reference',
 			type=str,
 			metavar='str',
 			required=True,
 			dest='ref',
 			help='reference genome in fasta file',
 		)
-	parser.add_argument('-c',
+	parser.add_argument('-p','--profile',
 			type=str,
 			metavar='str',
 			dest='model_prefix',
 			help='prefix of training set profiles [{}]'.format(model_prefix),
 			default=model_prefix,
 		)
-	parser.add_argument('-o',
+	parser.add_argument('-o','--out-pref',
 			type=str,
 			metavar='str',
 			dest='out',
 			help='prefix of output file [{}]'.format(out),
 			default=out,
 		)
-	parser.add_argument('-n',
+	parser.add_argument('-n','--number',
 			type=int,
 			metavar='int',
 			dest='number',
 			help='number of generated reads [{}]'.format(number),
 			default=number,
 		)
-	parser.add_argument('-m',
+	parser.add_argument('-m','--mis-rate',
 			type=float,
 			metavar='float',
 			dest='mis_rate',
 			help='mismatch rate (weight tuning) [{}]'.format(mis_rate),
-			default=mis_rate
+			default=mis_rate,
 		)
-	parser.add_argument('-i',
+	parser.add_argument('-i','--ins-rate',
 			type=float,
 			metavar='float',
 			dest='ins_rate',
 			help='insertion rate (weight tuning) [{}]'.format(ins_rate),
-			default=ins_rate
+			default=ins_rate,
 		)
-	parser.add_argument('-d',
+	parser.add_argument('-d','--del-rate',
 			type=float,
 			metavar='float',
 			dest='del_rate',
 			help='deletion reate (weight tuning) [{}]'.format(del_rate),
-			default=del_rate
+			default=del_rate,
+		)
+	parser.add_argument('-s','--seed',
+			type=int,
+			metavar='int',
+			dest='seed',
+			help='initial seed for the pseudorandom number generator (0 for random) [{}]'.format(seed),
+			default=seed,
 		)
 	parser.add_argument('--circular',
 			action='store_true',
@@ -826,11 +834,25 @@ def main():
 	merge = args.merge
 	rnf = args.rnf
 	rnf_cigar = args.rnf_cigar
+	seed = args.seed
 
 	if args.circular:
 		dna_type = 'circular'
 	else:
 		dna_type = 'linear'
+
+	if seed==0:
+		random.seed()
+		np.random.seed()
+	else:
+		random.seed(seed)
+		np.random.seed(seed)
+
+	assert ins_rate >= 0
+	assert del_rate >= 0
+	assert mis_rate >= 0
+	assert min_readlength >= 0
+	assert min_readlength <= max_readlength
 
 	# Generate log file
 	sys.stdout = open(out + ".log", 'w')
