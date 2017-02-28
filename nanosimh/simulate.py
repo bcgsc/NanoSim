@@ -852,21 +852,13 @@ def main():
 	assert del_rate >= 0
 	assert mis_rate >= 0
 	assert min_readlength >= 0
-	assert min_readlength <= max_readlength
+	assert min_readlength <= max_readlength, "Maximum read length must be longer than minimum read length."
+	assert os.path.isfile(ref), "File '{}' does not exist.".format(ref)
 
 	# Generate log file
 	sys.stdout = open(out + ".log", 'w')
 	# Record the command typed to log file
 	sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ': ' + ' '.join(sys.argv) + '\n')
-
-	if ref == "":
-		print("must provide a reference genome!")
-		usage()
-		sys.exit(1)
-
-	if max_readlength < min_readlength:
-		print("maximum read length must be longer than minimum read length!")
-		sys.exit(1)
 
 	# Read in reference genome and generate simulated reads
 	read_profile(number, model_prefix, perfect, max_readlength, min_readlength)

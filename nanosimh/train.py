@@ -9,7 +9,6 @@ This script generates read profiles Oxford Nanopore 2D reads.
 
 """
 
-
 from __future__ import print_function
 from __future__ import with_statement
 from subprocess import call
