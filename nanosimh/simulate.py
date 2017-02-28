@@ -45,9 +45,13 @@ def fasta_write_sequence(fasta_file, seqname, seq):
 	for fasta_line in [seq[i:i+FASTA_LINE_WIDTH] for i in range(0, len(seq), FASTA_LINE_WIDTH)]:
 		fasta_file.write(fasta_line + "\n")
 
-def rnf_name(read_id, chrom_id, left, right, direction, random, suffix="", coord_len=0,	id_len=0):
+def rnf_name(read_id, chrom_id, left, right, direction, suffix_dict={}, coord_len=0, id_len=0):
 	hex_id = '{:02x}'.format(read_id)
-	return "__{}__({},{},{},{},{})__{}".format(str(hex_id).zfill(id_len), 2 if random else 1, chrom_id, direction, str(left).zfill(coord_len), str(right).zfill(coord_len), suffix)
+	if len(suffix_dict)==0:
+		suffix=""
+	else:
+		suffix="[{}]".format(",".join([ "{}:{}".format(x,suffix_dict[x] if suffix_dict[x]!= "" else x) for x in suffix_dict ]))
+	return "__{}__({},{},{},{},{})__{}".format(str(hex_id).zfill(id_len), 1, chrom_id, direction, str(left).zfill(coord_len), str(right).zfill(coord_len), suffix)
 
 
 def read_ecdf(profile):
@@ -281,8 +285,7 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge, rnf, rnf
 					left=pos+1,
 					right=pos+unaligned,
 					direction=direction,
-					random=True,
-					suffix="[LEN:{}]".format(unaligned),
+					suffix_dict={"LEN":unaligned,"unaligned":""},
 					coord_len=rnf_coord_len,
 					id_len=rnf_id_len,
 				)
@@ -322,8 +325,7 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge, rnf, rnf
 					left=pos+1,
 					right=pos+ref_length[i],
 					direction=direction,
-					random=False,
-					suffix="[LEN:{}]".format(ref_length[i]),
+					suffix_dict={"LEN":ref_length},
 					coord_len=rnf_coord_len,
 					id_len=rnf_id_len,
 				)
@@ -419,15 +421,16 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge, rnf, rnf
 			read_mutated = collapse_homo(read_mutated, kmer_bias)
 
 		if rnf:
+			suffix_dict={"LEN":middle_ref}
+			if rnf_cigar:
+				suffix_dict["C"]="{}S{}{}S".format(head,cigar,tail)
 			seqname=rnf_name(
 					read_id=i+1+ num_unaligned_length,
 					chrom_id=chrom_id[chrom],
 					left=pos+1,
 					right=pos+middle_ref,
 					direction=direction,
-					random=False,
-					suffix="[LEN:{},C:{}]".format(middle_ref,"{}S{}{}S".format(head,cigar,tail))
-						if rnf_cigar else "[LEN:{}]".format(head+middle_ref+tail),
+					suffix_dict=suffix_dict,
 					coord_len=rnf_coord_len,
 					id_len=rnf_id_len,
 				)
