@@ -13,4 +13,5 @@ ecoli_K12_MG1655_ref.fa:
 
 
 clean:
-	rm -f *.fa *.maf model_* ref_genome.* *.log *.fasta
+	rm -f *.fa *.maf model_* ref_genome.* *.log *.fasta simulated_error_profile
+
