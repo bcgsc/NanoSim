@@ -27,6 +27,7 @@ except ImportError:
 	sys.exit("""You need numpy!
 				install it from http://www.numpy.org/""")
 from .mixed_models import *
+from .misc import *
 
 PYTHON_VERSION = sys.version_info
 VERSION = "1.0.0"
@@ -44,6 +45,7 @@ def fasta_write_sequence(fasta_file, seqname, seq):
 	
 	for fasta_line in [seq[i:i+FASTA_LINE_WIDTH] for i in range(0, len(seq), FASTA_LINE_WIDTH)]:
 		fasta_file.write(fasta_line + "\n")
+
 
 def rnf_name(read_id, chrom_id, left, right, direction, suffix_dict={}, coord_len=0, id_len=0):
 	hex_id = '{:02x}'.format(read_id)
@@ -95,15 +97,20 @@ def read_ecdf(profile):
 
 
 def get_length(len_dict, num, max_l, min_l):
+	assert len_dict>0
+	assert min_l <= max_l
+
 	length_list = []
 	for i in xrange(num):
 		middle_ref = 0
 		key = tuple(len_dict.keys())[0]
-		while middle_ref <= min_l or middle_ref > max_l:
+		while middle_ref < min_l or middle_ref > max_l:
 			p = random.random()
 			for k_p, v_p in len_dict[key].items():
 				if k_p[0] <= p < k_p[1]:
 					middle_ref = int(round((p - k_p[0])/(k_p[1] - k_p[0]) * (v_p[1] - v_p[0]) + v_p[0]))
+					if middle_ref<1:
+						print("Warning: middle_ref < 1", file=sys.stderr)
 					break
 		length_list.append(middle_ref)
 
@@ -119,6 +126,7 @@ def read_profile(number, model_prefix, per, max_l, min_l):
 	sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read error profile\n")
 	error_par = {}
 	model_profile = model_prefix + "_model_profile"
+	assert_file_exists(model_profile, True)
 	with open(model_profile, 'r') as mod_profile:
 		mod_profile.readline()
 		for line in mod_profile:
@@ -131,7 +139,9 @@ def read_profile(number, model_prefix, per, max_l, min_l):
 				error_par["del"] = [float(x) for x in new_line[1:]]
 
 	trans_error_pr = {}
-	with open(model_prefix + "_error_markov_model", "r") as error_markov:
+	error_markov_fn=model_prefix + "_error_markov_model"
+	assert_file_exists(error_markov_fn, True)
+	with open(error_markov_fn, "r") as error_markov:
 		error_markov.readline()
 		for line in error_markov:
 			info = line.strip().split()
@@ -141,16 +151,22 @@ def read_profile(number, model_prefix, per, max_l, min_l):
 			trans_error_pr[k][(float(info[1]), float(info[1]) + float(info[2]))] = "ins"
 			trans_error_pr[k][(1 - float(info[3]), 1)] = "del"
 
-	with open(model_prefix + "_first_match.hist", 'r') as fm_profile:
+	first_match_fn=model_prefix + "_first_match.hist"
+	assert_file_exists(first_match_fn, True)
+	with open(first_match_fn, 'r') as fm_profile:
 		match_ht_list = read_ecdf(fm_profile)
 
-	with open(model_prefix + "_match_markov_model", 'r') as mm_profile:
+	match_markov_fn=model_prefix + "_match_markov_model"
+	assert_file_exists(match_markov_fn, True)
+	with open(match_markov_fn, 'r') as mm_profile:
 		match_markov_model = read_ecdf(mm_profile)
 
 	# Read length of unaligned reads
 	sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read ECDF of unaligned reads\n")
 	unaligned_length = []
-	with open(model_prefix + "_unaligned_length_ecdf", 'r') as u_profile:
+	unaligned_length_fn=model_prefix + "_unaligned_length_ecdf"
+	assert_file_exists(unaligned_length_fn, True)
+	with open(unaligned_length_fn, 'r') as u_profile:
 		new = u_profile.readline().strip()
 		rate = new.split('\t')[1]
 		# if parameter perfect is used, all reads should be aligned, number_aligned equals total number of reads.
@@ -168,11 +184,15 @@ def read_profile(number, model_prefix, per, max_l, min_l):
 	sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read ECDF of aligned reads\n")
 
 	# Read align ratio profile
-	with open(model_prefix + "_align_ratio", 'r') as a_profile:
+	align_ratio_fn=model_prefix + "_align_ratio"
+	assert_file_exists(align_ratio_fn, True)
+	with open(align_ratio_fn, 'r') as a_profile:
 		align_ratio = read_ecdf(a_profile)
 
 	# Read head/unaligned region ratio
-	with open(model_prefix + "_ht_ratio", 'r') as ht_profile:
+	ht_ratio_fn=model_prefix + "_ht_ratio"
+	assert_file_exists(ht_ratio_fn, True)
+	with open(ht_ratio_fn, 'r') as ht_profile:
 		ht_dict = read_ecdf(ht_profile)
 
 	# Read length of aligned reads
@@ -182,6 +202,7 @@ def read_profile(number, model_prefix, per, max_l, min_l):
 	else:
 		length_profile = model_prefix + "_aligned_length_ecdf"
 
+	assert_file_exists(length_profile, True)
 	with open(length_profile, 'r') as align_profile:
 		aligned_dict = read_ecdf(align_profile)
 		
@@ -217,6 +238,7 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge, rnf, rnf
 
 
 	# Read in the reference genome
+	assert_file_exists(ref)
 	with open(ref, 'r') as infile:
 		for line in infile:
 			if line[0] == ">":

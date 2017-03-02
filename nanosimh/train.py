@@ -25,6 +25,7 @@ from .head_align_tail_dist import *
 from .get_besthit import *
 from .besthit_to_histogram import * 
 import multiprocessing
+from .misc import *
 
 nb_cores=multiprocessing.cpu_count()
 
@@ -99,9 +100,9 @@ def main():
 
 	assert infile!='' or ref!=''
 	if infile!='':
-		assert os.path.isfile(infile), "File '{}' does not exist.".format(infile)
+		assert_file_exists(infile, True)
 	if ref!='':
-		assert os.path.isfile(ref), "File '{}' does not exist.".format(ref)
+		assert_file_exists(ref, True)
 
 
 	# READ PRE-PROCESS AND UNALIGNED READS ANALYSIS
@@ -129,7 +130,7 @@ def main():
 
 	# if maf file provided
 	if maf_file != '':
-		assert os.path.isfile(maf_file), "File '{}' does not exist.".format(maf_file)
+		assert_file_exists(maf_file, True)
 		if out_maf == maf_file:
 			out_maf = outfile + "_processed.maf"
 
