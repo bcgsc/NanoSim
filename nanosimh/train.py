@@ -144,7 +144,7 @@ def main():
 		# Alignment
 		sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with LAST\n")
 		run('lastdb -P {} ref_genome "{}"'.format(nb_cores, ref))
-		run('lastal -a 1 -P {} ref_genome "{}" | grep \'^s \' > "{}"'.format(nb_cores, in_fasta, out_maf))
+		run('lastal -T0 -r1 -q1 -a1 -b1 -m100 -P {} ref_genome "{}" | grep \'^s \' > "{}"'.format(nb_cores, in_fasta, out_maf))
 
 		# get best hit and unaligned reads
 		unaligned_length = list(besthit_and_unaligned(in_fasta, out_maf, outfile))

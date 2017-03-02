@@ -97,7 +97,7 @@ def read_ecdf(profile):
 
 
 def get_length(len_dict, num, max_l, min_l):
-	assert len_dict>0
+	#assert len_dict>0
 	assert min_l <= max_l
 
 	length_list = []
