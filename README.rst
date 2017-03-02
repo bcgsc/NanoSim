@@ -22,6 +22,12 @@ NanoSimH is a modified version of `NanoSim`_, a fast and scalable read simulator
 Installation
 ------------
 
+**From BioConda (recommended)**
+
+.. code-block:: bash
+
+	conda install -y  -c bioconda nanosimh
+
 **From PyPI**
 
 .. code-block:: bash
