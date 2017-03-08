@@ -16,6 +16,7 @@ import random
 import os
 import re
 import argparse
+import progressbar
 from time import strftime
 try:
 	test_xrange=xrange(42)
@@ -281,7 +282,10 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge, rnf, rnf
 
 	# Simulate unaligned reads
 	num_unaligned_length = len(unaligned_length)
-	for i in xrange(num_unaligned_length):
+
+	print("Simulating unaligned reads",file=sys.stderr)
+	bar = progressbar.ProgressBar()
+	for i in bar(range(num_unaligned_length)):
 		unaligned = unaligned_length[i]
 		unaligned, error_dict = unaligned_error_list(unaligned, error_par)
 		new_read, (chrom, pos) = extract_read(dna_type, unaligned)
@@ -360,108 +364,113 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, merge, rnf, rnf
 		out_error.close()
 		return
 
-	i = 0
-	while i < number_aligned:
-		ref = get_length(aligned_dict, 1, max_l, min_l)[0]
-		middle, middle_ref, error_dict = error_list(ref, match_markov_model, match_ht_list, error_par,
-													trans_error_pr)
 
-		for k_align in sorted(align_ratio.keys()):
-			if k_align[0] <= middle < k_align[1]:
-				break
+	print("Simulating aligned reads",file=sys.stderr)
 
-		p = random.random()
-		for k_r, v_r in align_ratio[k_align].items():
-			if k_r[0] <= p < k_r[1]:
-				a_ratio = (p - k_r[0])/(k_r[1] - k_r[0]) * (v_r[1] - v_r[0]) + v_r[0]
-				total = int(round(middle / a_ratio))
-				remainder = total - int(round(middle))
-				break
+	with progressbar.ProgressBar(max_value=number_aligned) as bar:
+		i = 0
+		while i < number_aligned:
+			bar.update(i)
+			ref = get_length(aligned_dict, 1, max_l, min_l)[0]
+			middle, middle_ref, error_dict = error_list(ref, match_markov_model, match_ht_list, error_par,
+														trans_error_pr)
 
-		if total > max_l:
-			continue
-
-		#####################################
-		# todo: fix default value of header #
-		#####################################
-		#
-		# Karel : I have added the line below to prevent the following error
-		#
-		#   ../src/simulator.py circular -r ecoli_K12_MG1655_ref.fa -c ecoli -n 1 # Note the -c option has to be the same as -o in read_analysis.py, or both use default parameter
-		#   Traceback (most recent call last):
-		#     File "../src/simulator.py", line 662, in <module>
-		#       main()
-		#     File "../src/simulator.py", line 656, in main
-		#       simulation(ref, out, dna_type, perfect, kmer_bias, max_readlength, min_readlength)
-		#     File "../src/simulator.py", line 337, in simulation
-		#       read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated
-		#   UnboundLocalError: local variable 'head' referenced before assignment
-		#   make: *** [all] Error 1
-		#
-		head=0
-
-		if remainder == 0:
-			head = 0
-			tail = 0
-		else:
-			for k_ht in sorted(ht_dict.keys()):
-				if k_ht[0] <= remainder < k_ht[1]:
-					p = random.random()
-					for k_h, v_h in ht_dict[k_ht].items():
-						if k_h[0] <= p < k_h[1]:
-							ratio = (p - k_h[0])/(k_h[1] - k_h[0]) * (v_h[1] - v_h[0]) + v_h[0]
-							head = int(round(remainder * ratio))
-							tail = remainder - head
-							break
+			for k_align in sorted(align_ratio.keys()):
+				if k_align[0] <= middle < k_align[1]:
 					break
 
-		# Extract middle region from reference genome
-		new_read, (chrom, pos) = extract_read(dna_type, middle_ref)
-		new_read_name="{}_{}".format(chrom, pos)
+			p = random.random()
+			for k_r, v_r in align_ratio[k_align].items():
+				if k_r[0] <= p < k_r[1]:
+					a_ratio = (p - k_r[0])/(k_r[1] - k_r[0]) * (v_r[1] - v_r[0]) + v_r[0]
+					total = int(round(middle / a_ratio))
+					remainder = total - int(round(middle))
+					break
 
-		new_read_name = new_read_name + "_aligned_" + str(i + num_unaligned_length)
+			if total > max_l:
+				continue
 
-		# Mutate read
-		read_mutated, cigar = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
+			#####################################
+			# todo: fix default value of header #
+			#####################################
+			#
+			# Karel : I have added the line below to prevent the following error
+			#
+			#   ../src/simulator.py circular -r ecoli_K12_MG1655_ref.fa -c ecoli -n 1 # Note the -c option has to be the same as -o in read_analysis.py, or both use default parameter
+			#   Traceback (most recent call last):
+			#     File "../src/simulator.py", line 662, in <module>
+			#       main()
+			#     File "../src/simulator.py", line 656, in main
+			#       simulation(ref, out, dna_type, perfect, kmer_bias, max_readlength, min_readlength)
+			#     File "../src/simulator.py", line 337, in simulation
+			#       read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated
+			#   UnboundLocalError: local variable 'head' referenced before assignment
+			#   make: *** [all] Error 1
+			#
+			head=0
 
-		# Reverse complement half of the reads
-		p = random.random()
-		if p < 0.5:
-			read_mutated = reverse_complement(read_mutated)
-			new_read_name += "_R"
-			direction = "R"
-		else:
-			new_read_name += "_F"
-			direction = "F"
+			if remainder == 0:
+				head = 0
+				tail = 0
+			else:
+				for k_ht in sorted(ht_dict.keys()):
+					if k_ht[0] <= remainder < k_ht[1]:
+						p = random.random()
+						for k_h, v_h in ht_dict[k_ht].items():
+							if k_h[0] <= p < k_h[1]:
+								ratio = (p - k_h[0])/(k_h[1] - k_h[0]) * (v_h[1] - v_h[0]) + v_h[0]
+								head = int(round(remainder * ratio))
+								tail = remainder - head
+								break
+						break
 
-		# Add head and tail region
-		read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated
+			# Extract middle region from reference genome
+			new_read, (chrom, pos) = extract_read(dna_type, middle_ref)
+			new_read_name="{}_{}".format(chrom, pos)
 
-		read_mutated = read_mutated + ''.join(np.random.choice(BASES, tail))
+			new_read_name = new_read_name + "_aligned_" + str(i + num_unaligned_length)
 
-		if kmer_bias:
-			read_mutated = collapse_homo(read_mutated, kmer_bias)
+			# Mutate read
+			read_mutated, cigar = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
 
-		if rnf:
-			suffix_dict={"LEN":middle_ref}
-			if rnf_cigar:
-				suffix_dict["C"]="{}S{}{}S".format(head,cigar,tail)
-			seqname=rnf_name(
-					read_id=i+1+ num_unaligned_length,
-					chrom_id=chrom_id[chrom],
-					left=pos+1,
-					right=pos+middle_ref,
-					direction=direction,
-					suffix_dict=suffix_dict,
-					coord_len=rnf_coord_len,
-					id_len=rnf_id_len,
-				)
-		else:
-			seqname=new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" + str(tail) 
+			# Reverse complement half of the reads
+			p = random.random()
+			if p < 0.5:
+				read_mutated = reverse_complement(read_mutated)
+				new_read_name += "_R"
+				direction = "R"
+			else:
+				new_read_name += "_F"
+				direction = "F"
 
-		fasta_write_sequence(out_reads, seqname, read_mutated)
+			# Add head and tail region
+			read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated
 
-		i += 1
+			read_mutated = read_mutated + ''.join(np.random.choice(BASES, tail))
+
+			if kmer_bias:
+				read_mutated = collapse_homo(read_mutated, kmer_bias)
+
+			if rnf:
+				suffix_dict={"LEN":middle_ref}
+				if rnf_cigar:
+					suffix_dict["C"]="{}S{}{}S".format(head,cigar,tail)
+				seqname=rnf_name(
+						read_id=i+1+ num_unaligned_length,
+						chrom_id=chrom_id[chrom],
+						left=pos+1,
+						right=pos+middle_ref,
+						direction=direction,
+						suffix_dict=suffix_dict,
+						coord_len=rnf_coord_len,
+						id_len=rnf_id_len,
+					)
+			else:
+				seqname=new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" + str(tail) 
+
+			fasta_write_sequence(out_reads, seqname, read_mutated)
+
+			i += 1
 
 	out_reads.close()
 	out_error.close()
