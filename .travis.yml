@@ -1,0 +1,40 @@
+language: python
+os:
+- linux
+#- osx
+python:
+#- '2.6'
+- '2.7'
+- '3.2'
+- '3.3'
+- '3.4'
+- '3.5'
+- '3.6'
+sudo: false
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    - r-packages-precise
+    packages:
+    - g++-4.8
+    - gcc-4.8
+    - r-base
+    - r-base-dev
+    #- zlib1g-dev
+    #- libbz2-dev
+before_install:
+- wget http://last.cbrc.jp/last-833.zip
+- unzip last-*.zip
+- mv last*/ last
+- pip install .
+install:
+- make -j -C last CXX=/usr/bin/g++-4.8
+- pip install six
+before_script:
+- d=`pwd`
+- export PATH=$PATH:$d/last/src
+- echo $d
+- echo $PATH
+script:
+- travis_wait 60 make -C test
