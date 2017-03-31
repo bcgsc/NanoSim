@@ -96,3 +96,6 @@ _See more detailed example in example.sh_
   
 3. `simulated_error_profile`  
   Contains all the information of errors introduced into each reads, including error type, position, original bases and current bases.  
+
+## Acknowledgements
+Sincere thanks to my labmates and all contributors and users to this tool.
