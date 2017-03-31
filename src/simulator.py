@@ -317,7 +317,14 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
                             tail = remainder - head
                             break
                     break
-
+            # if remainder is larger than any empirical value, then randomly divide it into head and tail
+            Try:
+                head
+            except NameError:
+                p = random.random()
+                head = int(round(remainder * p))
+                tail = remainder - head
+        
         # Extract middle region from reference genome
         new_read, new_read_name = extract_read(dna_type, middle_ref)
         new_read_name = new_read_name + "_aligned_" + str(i + num_unaligned_length)
