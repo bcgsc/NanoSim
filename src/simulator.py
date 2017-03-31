@@ -318,7 +318,7 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
                             break
                     break
             # if remainder is larger than any empirical value, then randomly divide it into head and tail
-            Try:
+            try:
                 head
             except NameError:
                 p = random.random()
