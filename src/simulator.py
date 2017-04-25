@@ -262,6 +262,8 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
     genome_len = sum(seq_len.values())
 
     # Change lowercase to uppercase and replace N with any base
+    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Fix ambiguous bases\n")
+    sys.stdout.flush()
     seq_dict = case_convert(seq_dict)
 
     # Start simulation
@@ -613,10 +615,16 @@ def case_convert(s_dict):
 
     for k, v in s_dict.items():
         up_string = v.upper()
-        for i in xrange(len(up_string)):
-            if up_string[i] in base_code:
-                up_string = up_string[:i] + random.choice(base_code[up_string[i]]) + up_string[i+1:]
-        out_dict[k] = up_string
+        up_list = list(up_string)
+        for i in xrange(len(up_list)):
+            if up_list[i] in base_code:
+                up_list[i] = random.choice(base_code[up_list[i]])
+        out_dict[k] = ''.join(up_list)
+        sys.stdout.write(".");
+        sys.stdout.flush();
+
+    sys.stdout.write("\n");
+    sys.stdout.flush();
 
     return out_dict
 
