@@ -117,6 +117,7 @@ def read_profile(number, model_prefix, per, max_l, min_l):
 
     # Read model profile for match, mismatch, insertion and deletions
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read error profile\n")
+    sys.stdout.flush()
     error_par = {}
     model_profile = model_prefix + "_model_profile"
     with open(model_profile, 'r') as mod_profile:
@@ -149,6 +150,7 @@ def read_profile(number, model_prefix, per, max_l, min_l):
 
     # Read length of unaligned reads
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read ECDF of unaligned reads\n")
+    sys.stdout.flush()
     unaligned_length = []
     with open(model_prefix + "_unaligned_length_ecdf", 'r') as u_profile:
         new = u_profile.readline().strip()
@@ -166,6 +168,7 @@ def read_profile(number, model_prefix, per, max_l, min_l):
 
     # Read profile of aligned reads
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read ECDF of aligned reads\n")
+    sys.stdout.flush()
 
     # Read align ratio profile
     with open(model_prefix + "_align_ratio", 'r') as a_profile:
@@ -202,6 +205,7 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
     global trans_error_pr, error_par
 
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read in reference genome\n")
+    sys.stdout.flush()
     seq_dict = {}
     seq_len = {}
 
@@ -231,6 +235,7 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
 
     # Start simulation
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of random reads\n")
+    sys.stdout.flush()
     out_reads = open(out + "_reads.fasta", 'w')
     out_error = open(out + "_error_profile", 'w')
     out_error.write("Seq_name\tSeq_pos\terror_type\terror_length\tref_base\tseq_base\n")
@@ -258,6 +263,7 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
 
     # Simulate aligned reads
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of aligned reads\n")
+    sys.stdout.flush()
 
     if per:
         ref_length = get_length(aligned_dict, number_aligned, max_l, min_l)
@@ -647,6 +653,7 @@ def main():
     sys.stdout = open(out + ".log", 'w')
     # Record the command typed to log file
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ': ' + ' '.join(sys.argv) + '\n')
+    sys.stdout.flush()
 
     if ref == "":
         print("must provide a reference genome!")
