@@ -117,6 +117,7 @@ def read_profile(number, model_prefix, per, max_l, min_l):
 
     # Read model profile for match, mismatch, insertion and deletions
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read error profile\n")
+    sys.stdout.flush()
     error_par = {}
     model_profile = model_prefix + "_model_profile"
     with open(model_profile, 'r') as mod_profile:
@@ -149,6 +150,7 @@ def read_profile(number, model_prefix, per, max_l, min_l):
 
     # Read length of unaligned reads
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read ECDF of unaligned reads\n")
+    sys.stdout.flush()
     unaligned_length = []
     with open(model_prefix + "_unaligned_length_ecdf", 'r') as u_profile:
         new = u_profile.readline().strip()
@@ -166,6 +168,7 @@ def read_profile(number, model_prefix, per, max_l, min_l):
 
     # Read profile of aligned reads
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read ECDF of aligned reads\n")
+    sys.stdout.flush()
 
     # Read align ratio profile
     with open(model_prefix + "_align_ratio", 'r') as a_profile:
@@ -195,6 +198,39 @@ def collapse_homo(seq, k):
     return read
 
 
+# Taken from https://github.com/lh3/readfq
+def readfq(fp): # this is a generator function
+    last = None # this is a buffer keeping the last unprocessed line
+    while True: # mimic closure; is it a bad idea?
+        if not last: # the first record or a record following a fastq
+            for l in fp: # search for the start of the next record
+                if l[0] in '>@': # fasta/q header line
+                    last = l[:-1] # save this line
+                    break
+        if not last: break
+        name, seqs, last = last[1:].partition(" ")[0], [], None
+        for l in fp: # read the sequence
+            if l[0] in '@+>':
+                last = l[:-1]
+                break
+            seqs.append(l[:-1])
+        if not last or last[0] != '+': # this is a fasta record
+            yield name, ''.join(seqs), None # yield a fasta record
+            if not last: break
+        else: # this is a fastq record
+            seq, leng, seqs = ''.join(seqs), 0, []
+            for l in fp: # read the quality
+                seqs.append(l[:-1])
+                leng += len(l) - 1
+                if leng >= len(seq): # have read enough quality
+                    last = None
+                    yield name, seq, ''.join(seqs); # yield a fastq record
+                    break
+            if last: # reach EOF before reading enough quality
+                yield name, seq, None # yield a fasta record instead
+                break
+
+
 def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
     global unaligned_length, number_aligned, aligned_dict
     global genome_len, seq_dict, seq_len
@@ -202,21 +238,20 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
     global trans_error_pr, error_par
 
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read in reference genome\n")
+    sys.stdout.flush()
     seq_dict = {}
     seq_len = {}
 
     # Read in the reference genome
     with open(ref, 'r') as infile:
-        for line in infile:
-            if line[0] == ">":
-                new_line = line.strip()[1:]
-                info = re.split(r'[_\s]\s*', new_line)
-                chr_name = "-".join(info)
-            else:
-                if chr_name in seq_dict:
-                    seq_dict[chr_name] += line.strip()
-                else:
-                    seq_dict[chr_name] = line.strip()
+        for seqN, seqS, seqQ in readfq(infile):
+            info = re.split(r'[_\s]\s*', seqN)
+            chr_name = "-".join(info)
+            seq_dict[chr_name] = seqS
+            sys.stdout.write(".");
+            sys.stdout.flush();
+    sys.stdout.write("\n");
+    sys.stdout.flush();
 
     if len(seq_dict) > 1 and dna_type == "circular":
         sys.stderr.write("Do not choose circular if there is more than one chromosome in the genome!")
@@ -227,10 +262,13 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
     genome_len = sum(seq_len.values())
 
     # Change lowercase to uppercase and replace N with any base
+    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Fix ambiguous bases\n")
+    sys.stdout.flush()
     seq_dict = case_convert(seq_dict)
 
     # Start simulation
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of random reads\n")
+    sys.stdout.flush()
     out_reads = open(out + "_reads.fasta", 'w')
     out_error = open(out + "_error_profile", 'w')
     out_error.write("Seq_name\tSeq_pos\terror_type\terror_length\tref_base\tseq_base\n")
@@ -258,6 +296,7 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
 
     # Simulate aligned reads
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of aligned reads\n")
+    sys.stdout.flush()
 
     if per:
         ref_length = get_length(aligned_dict, number_aligned, max_l, min_l)
@@ -576,10 +615,16 @@ def case_convert(s_dict):
 
     for k, v in s_dict.items():
         up_string = v.upper()
-        for i in xrange(len(up_string)):
-            if up_string[i] in base_code:
-                up_string = up_string[:i] + random.choice(base_code[up_string[i]]) + up_string[i+1:]
-        out_dict[k] = up_string
+        up_list = list(up_string)
+        for i in xrange(len(up_list)):
+            if up_list[i] in base_code:
+                up_list[i] = random.choice(base_code[up_list[i]])
+        out_dict[k] = ''.join(up_list)
+        sys.stdout.write(".");
+        sys.stdout.flush();
+
+    sys.stdout.write("\n");
+    sys.stdout.flush();
 
     return out_dict
 
@@ -647,6 +692,7 @@ def main():
     sys.stdout = open(out + ".log", 'w')
     # Record the command typed to log file
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ': ' + ' '.join(sys.argv) + '\n')
+    sys.stdout.flush()
 
     if ref == "":
         print("must provide a reference genome!")
