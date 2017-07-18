@@ -35,6 +35,7 @@ CONTACT = "cheny@bcgsc.ca"
 
 BASES = ['A', 'T', 'C', 'G']
 
+
 # Usage information
 def usage():
     usage_message = "./simulator.py [command] <options>\n" \
@@ -199,35 +200,37 @@ def collapse_homo(seq, k):
 
 
 # Taken from https://github.com/lh3/readfq
-def readfq(fp): # this is a generator function
-    last = None # this is a buffer keeping the last unprocessed line
-    while True: # mimic closure; is it a bad idea?
-        if not last: # the first record or a record following a fastq
-            for l in fp: # search for the start of the next record
-                if l[0] in '>@': # fasta/q header line
-                    last = l[:-1] # save this line
+def readfq(fp):  # this is a generator function
+    last = None  # this is a buffer keeping the last unprocessed line
+    while True:  # mimic closure; is it a bad idea?
+        if not last:  # the first record or a record following a fastq
+            for l in fp:  # search for the start of the next record
+                if l[0] in '>@':  # fasta/q header line
+                    last = l[:-1]  # save this line
                     break
-        if not last: break
+        if not last:
+            break
         name, seqs, last = last[1:].partition(" ")[0], [], None
-        for l in fp: # read the sequence
+        for l in fp:  # read the sequence
             if l[0] in '@+>':
                 last = l[:-1]
                 break
             seqs.append(l[:-1])
-        if not last or last[0] != '+': # this is a fasta record
-            yield name, ''.join(seqs), None # yield a fasta record
-            if not last: break
-        else: # this is a fastq record
+        if not last or last[0] != '+':  # this is a fasta record
+            yield name, ''.join(seqs), None  # yield a fasta record
+            if not last:
+                break
+        else:  # this is a fastq record
             seq, leng, seqs = ''.join(seqs), 0, []
-            for l in fp: # read the quality
+            for l in fp:  # read the quality
                 seqs.append(l[:-1])
                 leng += len(l) - 1
-                if leng >= len(seq): # have read enough quality
+                if leng >= len(seq):  # have read enough quality
                     last = None
-                    yield name, seq, ''.join(seqs); # yield a fastq record
+                    yield name, seq, ''.join(seqs)  # yield a fastq record
                     break
-            if last: # reach EOF before reading enough quality
-                yield name, seq, None # yield a fasta record instead
+            if last:  # reach EOF before reading enough quality
+                yield name, seq, None  # yield a fasta record instead
                 break
 
 
@@ -248,10 +251,10 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
             info = re.split(r'[_\s]\s*', seqN)
             chr_name = "-".join(info)
             seq_dict[chr_name] = seqS
-            sys.stdout.write(".");
-            sys.stdout.flush();
-    sys.stdout.write("\n");
-    sys.stdout.flush();
+            sys.stdout.write(".")
+            sys.stdout.flush()
+    sys.stdout.write("\n")
+    sys.stdout.flush()
 
     if len(seq_dict) > 1 and dna_type == "circular":
         sys.stderr.write("Do not choose circular if there is more than one chromosome in the genome!")
@@ -260,11 +263,6 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
     for key in seq_dict.keys():
         seq_len[key] = len(seq_dict[key])
     genome_len = sum(seq_len.values())
-
-    # Change lowercase to uppercase and replace N with any base
-    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Fix ambiguous bases\n")
-    sys.stdout.flush()
-    seq_dict = case_convert(seq_dict)
 
     # Start simulation
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of random reads\n")
@@ -280,6 +278,8 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
         unaligned, error_dict = unaligned_error_list(unaligned, error_par)
         new_read, new_read_name = extract_read(dna_type, unaligned)
         new_read_name = new_read_name + "_unaligned_" + str(i)
+        # Change lowercase to uppercase and replace N with any base
+        new_read = case_convert(new_read)
         read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias, False)
         
         # Reverse complement half of the reads
@@ -315,7 +315,10 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
                 new_read_name += "_F"
             
             out_reads.write(">" + new_read_name + "_0_" + str(ref_length[i]) + "_0" + '\n')
-                
+
+            # Change lowercase to uppercase and replace N with any base
+            new_read = case_convert(new_read)
+
             out_reads.write(new_read + "\n")
         out_reads.close()
         out_error.close()
@@ -369,6 +372,7 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
         new_read_name = new_read_name + "_aligned_" + str(i + num_unaligned_length)
 
         # Mutate read
+        new_read = case_convert(new_read)
         read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
 
         # Reverse complement half of the reads
@@ -382,7 +386,7 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
         # Add head and tail region
         read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated
 
-        read_mutated = read_mutated + ''.join(np.random.choice(BASES, tail))
+        read_mutated += ''.join(np.random.choice(BASES, tail))
 
         if kmer_bias:
             read_mutated = collapse_homo(read_mutated, kmer_bias)
@@ -607,26 +611,19 @@ def mutate_read(read, read_name, error_log, e_dict, k, aligned=True):
     return read
 
 
-def case_convert(s_dict):
-    out_dict = {}
+def case_convert(seq):
     base_code = {'Y': ['C', 'T'], 'R': ['A', 'G'], 'W': ['A', 'T'], 'S': ['G', 'C'], 'K': ['T', 'G'], 'M': ['C', 'A'],
                  'D': ['A', 'G', 'T'], 'V': ['A', 'C', 'G'], 'H': ['A', 'C', 'T'], 'B': ['C', 'G', 'T'],
                  'N': ['A', 'T', 'C', 'G'], 'X': ['A', 'T', 'C', 'G']}
 
-    for k, v in s_dict.items():
-        up_string = v.upper()
-        up_list = list(up_string)
-        for i in xrange(len(up_list)):
-            if up_list[i] in base_code:
-                up_list[i] = random.choice(base_code[up_list[i]])
-        out_dict[k] = ''.join(up_list)
-        sys.stdout.write(".");
-        sys.stdout.flush();
+    up_string = seq.upper()
+    up_list = list(up_string)
+    for i in xrange(len(up_list)):
+        if up_list[i] in base_code:
+            up_list[i] = random.choice(base_code[up_list[i]])
+    out_seq = ''.join(up_list)
 
-    sys.stdout.write("\n");
-    sys.stdout.flush();
-
-    return out_dict
+    return out_seq
 
 
 def main():
