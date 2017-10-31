@@ -198,26 +198,42 @@ def hist(outfile):
                     mismatch += 1
 
     # write the histogram for other matches and errors:
+    total_match = 0
+    total_mis = 0
+    total_ins = 0
+    total_del = 0
+
     out_match.write("number of bases\tMatches:\n")
     for key in dic_match:
         out_match.write(str(key) + "\t" + str(dic_match[key]) + "\n")
+        total_match += key * dic_match[key]
     out_match.close()
 
     out_mis.write("number of bases\tMismatches:\n")
     for key in dic_mis:
         out_mis.write(str(key) + "\t" + str(dic_mis[key]) + "\n")
+        total_mis += key * dic_mis[key]
     out_mis.close()
 
     out_ins.write("number of bases\tInsertions:\n")
     for key in dic_ins:
         out_ins.write(str(key) + "\t" + str(dic_ins[key]) + "\n")
+        total_ins += key * dic_ins[key]
     out_ins.close()
 
     out_del.write("number of bases\tDeletions:\n")
     for key in dic_del:
         out_del.write(str(key) + "\t" + str(dic_del[key]) + "\n")
+        total_del += key * dic_del[key]
     out_del.close()
 
+    out_error_rate = open(outfile + "_error_rate.tsv", 'w')
+    out_error_rate.write("Mismatch rate:\t" + str(total_mis * 1.0 / (total_mis + total_match + total_del)) + '\n')
+    out_error_rate.write("Insertion rate:\t" + str(total_ins * 1.0 / (total_mis + total_match + total_del)) + '\n')
+    out_error_rate.write("Deletion rate:\t" + str(total_del * 1.0 / (total_mis + total_match + total_del)) + '\n')
+    out_error_rate.write("Total error rate:\t" + str((total_mis + total_ins + total_del) * 1.0 / (total_mis + total_match + total_del)) + '\n')
+    out_error_rate.close()
+    
     predecessor = {"mis": error_list["mis/mis"] + error_list["mis/ins"] + error_list["mis/del"],
                    "ins": error_list["ins/mis"] + error_list["ins/ins"] + error_list["ins/del"],
                    "del": error_list["del/mis"] + error_list["del/ins"] + error_list["del/del"],
