@@ -36,7 +36,7 @@ def usage():
                     "-r : reference genome of the training reads\n" \
                     "-m : User can provide their own alignment file, with maf extension\n" \
                     "-b : number of bins (for development), default = 20\n" \
-                    "-o : The prefix of output file, default = 'training'\n"
+                    "-o : The prefix of output file, default = 'training'\n" \
                     "--no_model_fit : Skip the model fitting step\n"
 
     sys.stderr.write(usage_message)
