@@ -75,10 +75,10 @@ def hist(outfile):
             prev_error = ""
             flag = True
             new = line.strip().split()
-            ref = new[6]
+            ref = new[6].upper()
             new_line = next(f)
             new = new_line.strip().split()
-            query = new[6]
+            query = new[6].upper()
             match = 0
             mismatch = 0
             ins = 0
