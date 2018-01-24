@@ -1,4 +1,5 @@
-# NanoSim  
+![NanoSim](https://github.com/bcgsc/NanoSim/blob/master/NanoSim%20logo.png)
+
 NanoSim is a fast and scalable read simulator that captures the technology-specific features of ONT data, and allows for adjustments upon improvement of nanopore sequencing technology.  
 
 __Citation__: Chen Yang, Justin Chu, René L Warren, Inanç Birol; NanoSim: nanopore sequence read simulator based on statistical characterization. Gigascience 2017 gix010. doi: 10.1093/gigascience/gix010
