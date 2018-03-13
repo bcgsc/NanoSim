@@ -681,6 +681,7 @@ def main():
                 kmer_bias = int(arg)
             elif opt == "--seed":
                 random.seed(int(arg))
+                np.random.seed(int(arg))
             elif opt == "-h":
                 usage()
                 sys.exit(0)
