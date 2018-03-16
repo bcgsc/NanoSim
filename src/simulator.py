@@ -50,7 +50,8 @@ def usage():
                     "--max_len : Maximum read length, default = Inf\n" \
                     "--min_len : Minimum read length, default = 50\n" \
                     "--perfect: Output perfect reads, no mutations, default = False\n" \
-                    "--KmerBias: prohibits homopolymers with length >= n bases in output reads, default = 6\n"
+                    "--KmerBias: prohibits homopolymers with length >= n bases in output reads, default = 6\n" \
+                    "--seed: manually seeds the pseudo-random number generator, default = None\n"
 
     sys.stderr.write(usage_message)
 
@@ -188,7 +189,7 @@ def read_profile(number, model_prefix, per, max_l, min_l):
 
     with open(length_profile, 'r') as align_profile:
         aligned_dict = read_ecdf(align_profile)
-        
+
 
 def collapse_homo(seq, k):
     read = re.sub("A" * k + "+", "A" * (k - 1), seq)
@@ -281,7 +282,7 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
         # Change lowercase to uppercase and replace N with any base
         new_read = case_convert(new_read)
         read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias, False)
-        
+
         # Reverse complement half of the reads
         p = random.random()
         if p < 0.5:
@@ -305,7 +306,7 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
         for i in xrange(number_aligned):
             new_read, new_read_name = extract_read(dna_type, ref_length[i])
             new_read_name = new_read_name + "_perfect_" + str(i)
-            
+
             # Reverse complement half of the reads
             p = random.random()
             if p < 0.5:
@@ -313,7 +314,7 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
                 new_read_name += "_R"
             else:
                 new_read_name += "_F"
-            
+
             out_reads.write(">" + new_read_name + "_0_" + str(ref_length[i]) + "_0" + '\n')
 
             # Change lowercase to uppercase and replace N with any base
@@ -366,7 +367,7 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l):
                 p = random.random()
                 head = int(round(remainder * p))
                 tail = remainder - head
-        
+
         # Extract middle region from reference genome
         new_read, new_read_name = extract_read(dna_type, middle_ref)
         new_read_name = new_read_name + "_aligned_" + str(i + num_unaligned_length)
@@ -651,7 +652,7 @@ def main():
             sys.exit(1)
         try:
             opts, args = getopt.getopt(sys.argv[2:], "hr:c:o:n:i:d:m:",
-                                       ["max_len=", "min_len=", "perfect", "KmerBias="])
+                                       ["max_len=", "min_len=", "perfect", "KmerBias=", "seed="])
         except getopt.GetoptError:
             usage()
             sys.exit(1)
@@ -678,6 +679,9 @@ def main():
                 perfect = True
             elif opt == "--KmerBias":
                 kmer_bias = int(arg)
+            elif opt == "--seed":
+                random.seed(int(arg))
+                np.random.seed(int(arg))
             elif opt == "-h":
                 usage()
                 sys.exit(0)
