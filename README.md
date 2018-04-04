@@ -9,6 +9,9 @@ LAST (Tested with version 581)
 R (Tested with version 3.2.3)  
 Python (2.6 or above)  
 Numpy (Tested with version 1.10.1 or above)  
+Python packages:  
+* six  
+* numpy  
 
 ## Usage
 NanoSim is implemented using R for error model fitting and Python for read length analysis and simulation. The first step of NanoSim is read characterization, which provides a comprehensive alignment-based analysis, and generates a set of read profiles serving as the input to the next step, the simulation stage. The simulation tool uses the model built in the previous step to produce in silico reads for a given reference genome. It also outputs a list of introduced errors, consisting of the position on each read, error type and reference bases.
