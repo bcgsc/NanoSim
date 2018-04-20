@@ -23,7 +23,8 @@ import os
 import getopt
 import numpy
 import head_align_tail_dist as align
-import get_besthit
+import get_besthit_maf
+import get_primary_sam
 import besthit_to_histogram as error_model
 
 
@@ -34,7 +35,7 @@ def usage():
                     "-h : print usage message\n" \
                     "-i : training ONT real reads, must be fasta files\n" \
                     "-r : reference genome of the training reads\n" \
-                    "-m : User can provide their own alignment file, with maf extension\n" \
+                    "-m : User can provide their own alignment file with extensions (sam or maf)\n" \
                     "-b : number of bins (for development), default = 20\n" \
                     "-o : The prefix of output file, default = 'training'\n" \
                     "--no_model_fit : Skip the model fitting step\n"
@@ -47,7 +48,7 @@ def main(argv):
     infile = ''
     outfile = 'training'
     ref = ''
-    maf_file = ''
+    alnm_file = ''
     model_fit = True
     num_bins = 20
     try:
@@ -65,7 +66,7 @@ def main(argv):
         elif opt in ("-r", "--ref"):
             ref = arg
         elif opt == "-m":
-            maf_file = arg
+            alnm_file = arg
         elif opt in ("-o", "--outfile"):
             outfile = arg
         elif opt == "--no_model_fit":
@@ -83,7 +84,6 @@ def main(argv):
 
     # READ PRE-PROCESS AND UNALIGNED READS ANALYSIS
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process and unaligned reads analysis\n")
-    out_maf = outfile + ".maf"
 
     # Read pre-process
     in_fasta = outfile + ".fasta"
@@ -105,24 +105,48 @@ def main(argv):
     del dic_reads
 
     # if maf file provided
-    if maf_file != '':
-        if out_maf == maf_file:
-            out_maf = outfile + "_processed.maf"
+    if alnm_file != '':
+        filename, file_extension = os.path.splitext(alnm_file)
+        if file_extension == "maf":
+            out_maf = outfile + ".maf"
+            if out_maf == alnm_file:
+                out_maf = outfile + "_processed.maf"
 
-        call("grep '^s ' " + maf_file + " > " + out_maf, shell=True)
+            call("grep '^s ' " + alnm_file + " > " + out_maf, shell=True)
 
-        # get best hit and unaligned reads
-        unaligned_length = list(get_besthit.besthit_and_unaligned(in_fasta, out_maf, outfile))
+            # get best hit and unaligned reads
+            unaligned_length = list(get_besthit.besthit_and_unaligned(in_fasta, out_maf, outfile))
+
+        elif file_extension == "sam":
+            out_sam = outfile + ".sam"
+            if out_sam == alnm_file:
+                out_sam = outfile + "_processed.sam"
+
+            #get the primary alignments and define unaligned reads.
+            unaligned_length = list(get_besthit.besthit_and_unaligned(in_fasta, out_maf, outfile))
+        else:
+            print("Please specify an acceptable alignment format! (maf or sam)\n")
+            usage()
+            sys.exit(1)
 
     # if maf file not provided
     else:
-        # Alignment
-        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with LAST\n")
-        call("lastdb ref_genome " + ref, shell=True)
-        call("lastal -a 1 ref_genome " + in_fasta + " | grep '^s ' > " + out_maf, shell=True)
-
+        # Align with minimap2 by default
+        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with minimap2\n")
+        call("minimap2 -ax map-ont " + ref + " " + in_fasta + " > " + out_sam, shell=True)
         # get best hit and unaligned reads
-        unaligned_length = list(get_besthit.besthit_and_unaligned(in_fasta, out_maf, outfile))
+        out_sam_primary = open(outfile + "_primary.sam", 'w')
+        SAM_or_BAM_Reader = HTSeq.SAM_Reader
+        alignments = SAM_or_BAM_Reader(out_sam)
+        unaligned_length = []
+        for alnm in alignments:
+            if alnm.aligned and not alnm.not_primary_alignment and not alnm.supplementary:
+                out_sam_primary.write(alnm.original_sam_line)
+            else:
+                unaligned_length.append(len(alnm.read.seq))
+        out_sam_primary.close()
+
+        #unaligned_length = list(get_besthit.besthit_and_unaligned(in_fasta, out_maf, outfile))
 
     # ALIGNED READS ANALYSIS
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
