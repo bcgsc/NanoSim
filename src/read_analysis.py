@@ -143,7 +143,7 @@ def main(argv):
 
     # ALIGNED READS ANALYSIS
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
-    num_aligned = align.head_align_tail(outfile, num_bins)
+    num_aligned = align.head_align_tail(outfile, num_bins, file_extension)
 
     # Length distribution of unaligned reads
     out1 = open(outfile + "_unaligned_length_ecdf", 'w')
