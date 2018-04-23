@@ -49,11 +49,12 @@ def main(argv):
     infile = ''
     outfile = 'training'
     ref = ''
+    aligner = ''
     alnm_file = ''
     model_fit = True
     num_bins = 20
     try:
-        opts, args = getopt.getopt(argv, "hi:r:o:m:b:", ["infile=", "ref=", "outfile=", "no_model_fit"])
+        opts, args = getopt.getopt(argv, "hi:r:a:o:m:b:", ["infile=", "ref=", "outfile=", "no_model_fit"])
     except getopt.GetoptError:
         usage()
         sys.exit(1)
@@ -112,6 +113,8 @@ def main(argv):
         if aligner != "":
             print("Please note that when you provide alignment files, we are skipping alignment step\n")
         filename, file_extension = os.path.splitext(alnm_file)
+        file_extension = file_extension[1:]
+        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Processing alignment file: " + file_extension + "\n")
         if file_extension == "maf":
             out_maf = outfile + ".maf"
             if out_maf == alnm_file:
@@ -123,13 +126,8 @@ def main(argv):
             unaligned_length = list(get_besthit_maf.besthit_and_unaligned(in_fasta, out_maf, outfile))
 
         elif file_extension == "sam":
-            # convert to maf and then continue as before.
-            out_sam = outfile + ".sam"
-            if out_sam == alnm_file:
-                out_sam = outfile + "_processed.sam"
-
             #get the primary alignments and define unaligned reads.
-            unaligned_length = list(get_primary_sam.primary_and_unaligned(out_sam, outfile))
+            unaligned_length = list(get_primary_sam.primary_and_unaligned(alnm_file, outfile))
         else:
             print("Please specify an acceptable alignment format! (maf or sam)\n")
             usage()
@@ -137,7 +135,7 @@ def main(argv):
 
     # if maf file not provided
     else:
-        if aligner == "minimap2" or "":
+        if aligner == "minimap2" or aligner == "":
             # Align with minimap2 by default
             file_extension = "sam"
             out_sam = outfile + ".sam"
