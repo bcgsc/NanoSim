@@ -2,9 +2,12 @@
 
 NanoSim is a fast and scalable read simulator that captures the technology-specific features of ONT data, and allows for adjustments upon improvement of nanopore sequencing technology.  
 
+The second version of NanoSim (v2.0) uses minimap2 to align long genomic ONT reads to reference genome. It leads to much faster alignment step and reduces the overal runtime of NanoSim. We also utilize HTSeq which is a python package for analysing high-throughput sequencing data. It helps to read SAM alignment files in much efficient way.
+
 __Citation__: Chen Yang, Justin Chu, René L Warren, Inanç Birol; NanoSim: nanopore sequence read simulator based on statistical characterization. Gigascience 2017 gix010. doi: 10.1093/gigascience/gix010
 
 ## Dependencies
+minimap2 (Tested with version 2.10)  
 LAST (Tested with version 581)  
 R (Tested with version 3.2.3)  
 Python (2.6 or above)  
@@ -12,12 +15,13 @@ Numpy (Tested with version 1.10.1 or above)
 Python packages:  
 * six  
 * numpy  
+* HTSeq  
 
 ## Usage
 NanoSim is implemented using R for error model fitting and Python for read length analysis and simulation. The first step of NanoSim is read characterization, which provides a comprehensive alignment-based analysis, and generates a set of read profiles serving as the input to the next step, the simulation stage. The simulation tool uses the model built in the previous step to produce in silico reads for a given reference genome. It also outputs a list of introduced errors, consisting of the position on each read, error type and reference bases.
 
 ### 1. Characterization stage  
-Characterization stage takes a reference and a training read set in FASTA format as input. User can also provide their own alignment file in MAF format.  
+Characterization stage takes a reference and a training read set in FASTA format as input and alignes these reads to the reference using minimap (default) or LAST aligners. User can also provide their own alignment file in SAM or MAF formats.  
 
 __Usage:__  
 ```
@@ -26,6 +30,7 @@ __Usage:__
     -h : print usage message  
     -i : training ONT real reads, must be fasta files  
     -r : reference genome of the training reads  
+    -a : Aligner to be used: LAST or minimap2 (default)  
     -m : User can provide their own alignment file, with maf extension, can be omitted  
     -o : The prefix of output file, default = 'training'  
 ```

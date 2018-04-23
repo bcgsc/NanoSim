@@ -35,7 +35,7 @@ def usage():
                     "-h : print usage message\n" \
                     "-i : training ONT real reads, must be fasta files\n" \
                     "-r : reference genome of the training reads\n" \
-                    "-a : Aligner to be used: LASTAL or minimap2 (default)\n" \
+                    "-a : Aligner to be used: LAST or minimap2 (default)\n" \
                     "-m : User can provide their own alignment file with extensions (sam or maf)\n" \
                     "-b : number of bins (for development), default = 20\n" \
                     "-o : The prefix of output file, default = 'training'\n" \
@@ -145,15 +145,15 @@ def main(argv):
             call("minimap2 --MD --cs -ax map-ont " + ref + " " + in_fasta + " > " + out_sam, shell=True)
             # get primary alignments and unaligned reads
             unaligned_length = list(get_primary_sam.primary_and_unaligned(out_sam, outfile))
-        elif aligner == "LASTAL":
+        elif aligner == "LAST":
             file_extension = "maf"
             out_maf = outfile + ".maf"
-            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with LASTAL\n")
+            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with LAST\n")
             call("lastdb ref_genome " + ref, shell=True)
             call("lastal -a 1 ref_genome " + in_fasta + " | grep '^s ' > " + out_maf, shell=True)
             unaligned_length = list(get_besthit_maf.besthit_and_unaligned(in_fasta, out_maf, outfile))
         else:
-            print("Please specify an acceptable aligner (minimap2 or LASTAL)\n")
+            print("Please specify an acceptable aligner (minimap2 or LAST)\n")
             usage()
             sys.exit(1)
 
