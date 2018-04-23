@@ -35,6 +35,7 @@ def usage():
                     "-h : print usage message\n" \
                     "-i : training ONT real reads, must be fasta files\n" \
                     "-r : reference genome of the training reads\n" \
+                    "-a : Aligner to be used: LASTAL or minimap2 (default)\n" \
                     "-m : User can provide their own alignment file with extensions (sam or maf)\n" \
                     "-b : number of bins (for development), default = 20\n" \
                     "-o : The prefix of output file, default = 'training'\n" \
@@ -65,6 +66,8 @@ def main(argv):
             infile = arg
         elif opt in ("-r", "--ref"):
             ref = arg
+        elif opt == "-a":
+            aligner = arg
         elif opt == "-m":
             alnm_file = arg
         elif opt in ("-o", "--outfile"):
@@ -106,6 +109,8 @@ def main(argv):
 
     # if an alignment file is provided
     if alnm_file != '':
+        if aligner != "":
+            print("Please note that when you provide alignment files, we are skipping alignment step\n")
         filename, file_extension = os.path.splitext(alnm_file)
         if file_extension == "maf":
             out_maf = outfile + ".maf"
@@ -132,13 +137,25 @@ def main(argv):
 
     # if maf file not provided
     else:
-        # Align with minimap2 by default
-        file_extension = "sam"
-        out_sam = outfile + ".sam"
-        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with minimap2\n")
-        call("minimap2 --MD -ax map-ont " + ref + " " + in_fasta + " > " + out_sam, shell=True)
-        # get primary alignments and unaligned reads
-        unaligned_length = list(get_primary_sam.primary_and_unaligned(out_sam, outfile))
+        if aligner == "minimap2" or "":
+            # Align with minimap2 by default
+            file_extension = "sam"
+            out_sam = outfile + ".sam"
+            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with minimap2\n")
+            call("minimap2 --MD --cs -ax map-ont " + ref + " " + in_fasta + " > " + out_sam, shell=True)
+            # get primary alignments and unaligned reads
+            unaligned_length = list(get_primary_sam.primary_and_unaligned(out_sam, outfile))
+        elif aligner == "LASTAL":
+            file_extension = "maf"
+            out_maf = outfile + ".maf"
+            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with LASTAL\n")
+            call("lastdb ref_genome " + ref, shell=True)
+            call("lastal -a 1 ref_genome " + in_fasta + " | grep '^s ' > " + out_maf, shell=True)
+            unaligned_length = list(get_besthit_maf.besthit_and_unaligned(in_fasta, out_maf, outfile))
+        else:
+            print("Please specify an acceptable aligner (minimap2 or LASTAL)\n")
+            usage()
+            sys.exit(1)
 
 
     # ALIGNED READS ANALYSIS
@@ -170,8 +187,9 @@ def main(argv):
 
     if model_fit:
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Model fitting\n")
-        path = sys.argv[0].split("/")
-        r_path = '/'.join(path[:-1]) + '/' + "model_fitting.R"
+        #path = sys.argv[0].split("/")
+        #r_path = '/'.join(path[:-1]) + '/' + "model_fitting.R"
+        r_path = "/projects/btl/shafez/nanosim/NanoSim_v2/src/model_fitting.R"
         if os.path.isfile(r_path):
             call("R CMD BATCH '--args prefix=\"" + outfile + "\"' " + r_path, shell=True)
         else:

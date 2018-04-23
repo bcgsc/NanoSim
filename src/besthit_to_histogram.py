@@ -307,7 +307,7 @@ def hist(outfile, alnm_ftype):
             try:
                 list_hist, list_op_unique = parse_cs(alnm.optional_field('cs'))
             except:
-                cs_string = get_cs(alnm.cigar, alnm.optional_field('MD'))
+                cs_string = get_cs(alnm.original_sam_line.split()[5], alnm.optional_field('MD'))
                 list_hist, list_op_unique = parse_cs(cs_string)
 
             flag = True
