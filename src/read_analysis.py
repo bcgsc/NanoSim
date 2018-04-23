@@ -104,7 +104,7 @@ def main(argv):
 
     del dic_reads
 
-    # if maf file provided
+    # if an alignment file is provided
     if alnm_file != '':
         filename, file_extension = os.path.splitext(alnm_file)
         if file_extension == "maf":
@@ -115,15 +115,16 @@ def main(argv):
             call("grep '^s ' " + alnm_file + " > " + out_maf, shell=True)
 
             # get best hit and unaligned reads
-            unaligned_length = list(get_besthit.besthit_and_unaligned(in_fasta, out_maf, outfile))
+            unaligned_length = list(get_besthit_maf.besthit_and_unaligned(in_fasta, out_maf, outfile))
 
         elif file_extension == "sam":
+            # convert to maf and then continue as before.
             out_sam = outfile + ".sam"
             if out_sam == alnm_file:
                 out_sam = outfile + "_processed.sam"
 
             #get the primary alignments and define unaligned reads.
-            unaligned_length = list(get_besthit.besthit_and_unaligned(in_fasta, out_maf, outfile))
+            unaligned_length = list(get_primary_sam.primary_and_unaligned(out_sam, outfile))
         else:
             print("Please specify an acceptable alignment format! (maf or sam)\n")
             usage()
