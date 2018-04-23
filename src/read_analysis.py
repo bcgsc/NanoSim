@@ -133,21 +133,13 @@ def main(argv):
     # if maf file not provided
     else:
         # Align with minimap2 by default
+        file_extension = "sam"
+        out_sam = outfile + ".sam"
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with minimap2\n")
-        call("minimap2 -ax map-ont " + ref + " " + in_fasta + " > " + out_sam, shell=True)
-        # get best hit and unaligned reads
-        out_sam_primary = open(outfile + "_primary.sam", 'w')
-        SAM_or_BAM_Reader = HTSeq.SAM_Reader
-        alignments = SAM_or_BAM_Reader(out_sam)
-        unaligned_length = []
-        for alnm in alignments:
-            if alnm.aligned and not alnm.not_primary_alignment and not alnm.supplementary:
-                out_sam_primary.write(alnm.original_sam_line)
-            else:
-                unaligned_length.append(len(alnm.read.seq))
-        out_sam_primary.close()
+        call("minimap2 --MD -ax map-ont " + ref + " " + in_fasta + " > " + out_sam, shell=True)
+        # get primary alignments and unaligned reads
+        unaligned_length = list(get_primary_sam.primary_and_unaligned(out_sam, outfile))
 
-        #unaligned_length = list(get_besthit.besthit_and_unaligned(in_fasta, out_maf, outfile))
 
     # ALIGNED READS ANALYSIS
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
@@ -174,7 +166,7 @@ def main(argv):
 
     # MATCH AND ERROR MODELS
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": match and error models\n")
-    error_model.hist(outfile)
+    error_model.hist(outfile, file_extension)
 
     if model_fit:
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Model fitting\n")
