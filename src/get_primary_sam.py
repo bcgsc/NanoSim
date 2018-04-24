@@ -15,8 +15,9 @@ def primary_and_unaligned(sam_alnm_file, outfile):
     alignments = sam_reader(sam_alnm_file)
     for alnm in alignments:
         out1.write(alnm.original_sam_line)
-        if alnm.aligned and not alnm.not_primary_alignment and not alnm.supplementary:
-            out2.write(alnm.original_sam_line)
+        if alnm.aligned:
+            if not alnm.not_primary_alignment and not alnm.supplementary:
+                out2.write(alnm.original_sam_line)
         else:
             unaligned_dict.append(len(alnm.read.seq))
 
