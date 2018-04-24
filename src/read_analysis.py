@@ -187,9 +187,8 @@ def main(argv):
 
     if model_fit:
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Model fitting\n")
-        #path = sys.argv[0].split("/")
-        #r_path = '/'.join(path[:-1]) + '/' + "model_fitting.R"
-        r_path = "/projects/btl/shafez/nanosim/NanoSim_v2/src/model_fitting.R"
+        path = sys.argv[0].split("/")
+        r_path = '/'.join(path[:-1]) + '/' + "model_fitting.R"
         if os.path.isfile(r_path):
             call("R CMD BATCH '--args prefix=\"" + outfile + "\"' " + r_path, shell=True)
         else:
