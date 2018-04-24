@@ -86,6 +86,11 @@ def main(argv):
         usage()
         sys.exit(1)
 
+    if aligner != '' and alnm_file != '':
+        print("Please specify either an alignment file (-m ) OR an aligner to use for alignment (-a )")
+        usage()
+        sys.exit(1)
+
     # READ PRE-PROCESS AND UNALIGNED READS ANALYSIS
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process and unaligned reads analysis\n")
 
@@ -110,8 +115,6 @@ def main(argv):
 
     # if an alignment file is provided
     if alnm_file != '':
-        if aligner != "":
-            print("Please note that when you provide alignment files, we are skipping alignment step\n")
         filename, file_extension = os.path.splitext(alnm_file)
         file_extension = file_extension[1:]
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Processing alignment file: " + file_extension + "\n")
@@ -135,8 +138,7 @@ def main(argv):
 
     # if maf file not provided
     else:
-        if aligner == "minimap2" or aligner == "":
-            # Align with minimap2 by default
+        if aligner == "minimap2" or aligner == "": # Align with minimap2 by default
             file_extension = "sam"
             out_sam = outfile + ".sam"
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with minimap2\n")
