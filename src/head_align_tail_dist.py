@@ -66,12 +66,12 @@ def get_head_tail(cigar_string):
     head_info = cigar_string[0]
     tail_info = cigar_string[-1]
 
-    if head_info.type == "S":
+    if head_info.type == "S" or head_info.type == "H":
         head = head_info.size
     else:
         head = 0
 
-    if tail_info.type == "S":
+    if tail_info.type == "S" or tail_info.type == "H":
         tail = tail_info.size
     else:
         tail = 0
@@ -79,20 +79,20 @@ def get_head_tail(cigar_string):
     return head, tail
 
 
-def head_align_tail(outfile, num_of_bins, alnm_ftype):
-    out1 = open(outfile + '_aligned_length_ecdf', 'w')
-    out2 = open(outfile + '_aligned_reads_ecdf', 'w')
-    out3 = open(outfile + '_ht_ratio', 'w')
-    out4 = open(outfile + "_align_ratio", 'w')
+def head_align_tail(prefix, num_of_bins, alnm_ftype):
+    out1 = open(prefix + '_aligned_length_ecdf', 'w')
+    out2 = open(prefix + '_aligned_reads_ecdf', 'w')
+    out3 = open(prefix + '_ht_ratio', 'w')
+    out4 = open(prefix + "_align_ratio", 'w')
 
     '''
-    out5 = open(outfile + "_total.txt", 'w')
-    out6 = open(outfile + "_middle.txt", 'w')
-    out7 = open(outfile + "_head.txt", 'w')
-    out8 = open(outfile + "_middle_ref.txt", 'w')
-    out9 = open(outfile + "_ht.txt", 'w')
-    out10 = open(outfile + "_ratio.txt", 'w')
-    out11 = open(outfile + "_tail.txt", 'w')
+    out5 = open(prefix + "_total.txt", 'w')
+    out6 = open(prefix + "_middle.txt", 'w')
+    out7 = open(prefix + "_head.txt", 'w')
+    out8 = open(prefix + "_middle_ref.txt", 'w')
+    out9 = open(prefix + "_ht.txt", 'w')
+    out10 = open(prefix + "_ratio.txt", 'w')
+    out11 = open(prefix + "_tail.txt", 'w')
     '''
 
     aligned = []
@@ -101,7 +101,7 @@ def head_align_tail(outfile, num_of_bins, alnm_ftype):
     align_ratio = {}
 
     if alnm_ftype == "maf":
-        besthit_out = outfile + "_besthit.maf"
+        besthit_out = prefix + "_besthit.maf"
         with open(besthit_out, 'r') as f:
             for line in f:
                 ref = line.strip().split()
@@ -135,7 +135,7 @@ def head_align_tail(outfile, num_of_bins, alnm_ftype):
                 '''
     else:
         sam_reader = HTSeq.SAM_Reader
-        alnm_file_sam = outfile + "_primary.sam"
+        alnm_file_sam = prefix + "_primary.sam"
         alignments = sam_reader(alnm_file_sam)
         for alnm in alignments:
             ref = alnm.iv.chrom
@@ -161,9 +161,15 @@ def head_align_tail(outfile, num_of_bins, alnm_ftype):
                     ht_ratio[ht] = [r]
                 else:
                     ht_ratio[ht].append(r)
+            '''
+            out5.write(str(read_len_total) + '\n')
+            out6.write(str(middle) + '\n')
+            out7.write(str(head) + '\n')
+            out8.write(str(aligned_ref) + '\n')
+            out9.write(str(ht) + '\n')
+            out10.write(str(ratio) + '\n')
+            out11.write(str(tail) + '\n')
 
-
-    '''
     out5.close()
     out6.close()
     out7.close()
