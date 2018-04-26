@@ -3,10 +3,10 @@
 from __future__ import with_statement
 
 
-def besthit_and_unaligned(infile, outmaf, outfile):
+def besthit_and_unaligned(infile, outmaf, prefix):
     align_dict = {}
-    out1 = open(outfile + "_besthit.maf", 'w')
-    unaligned_dict = {}
+    out_best = open(prefix + "_besthit.maf", 'w')
+    unaligned_len = []
 
     with open(outmaf, 'r') as f:
         for line in f:
@@ -26,7 +26,7 @@ def besthit_and_unaligned(infile, outmaf, outfile):
             name = query_info[1]
             length = int(query_info[3])
             if align_dict[name][0] == length and not align_dict[name][2]:
-                out1.write(ref + query)
+                out_best.write(ref + query)
                 align_dict[name][2] = True
 
     with open(infile, 'r') as f2:
@@ -39,7 +39,7 @@ def besthit_and_unaligned(infile, outmaf, outfile):
                     flag = True
             else:
                 if flag:
-                    unaligned_dict[last_name] = len(line.strip())
+                    unaligned_len.append(len(line.strip()))
 
-    out1.close()
-    return unaligned_dict.values()
+    out_best.close()
+    return unaligned_len

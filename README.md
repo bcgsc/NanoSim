@@ -2,22 +2,26 @@
 
 NanoSim is a fast and scalable read simulator that captures the technology-specific features of ONT data, and allows for adjustments upon improvement of nanopore sequencing technology.  
 
+The second version of NanoSim (v2.0) uses minimap2 as default aligner to align long genomic ONT reads to reference genome. It leads to much faster alignment step and reduces the overall runtime of NanoSim. We also utilize HTSeq, a python package, to read SAM alignment files efficiently.
+
 __Citation__: Chen Yang, Justin Chu, René L Warren, Inanç Birol; NanoSim: nanopore sequence read simulator based on statistical characterization. Gigascience 2017 gix010. doi: 10.1093/gigascience/gix010
 
 ## Dependencies
+minimap2 (Tested with version 2.10)  
 LAST (Tested with version 581)  
 R (Tested with version 3.2.3)  
-Python (2.6 or above)  
+Python (2.7 or >= 3.4)  
 Numpy (Tested with version 1.10.1 or above)  
 Python packages:  
 * six  
 * numpy  
+* HTSeq  
 
 ## Usage
 NanoSim is implemented using R for error model fitting and Python for read length analysis and simulation. The first step of NanoSim is read characterization, which provides a comprehensive alignment-based analysis, and generates a set of read profiles serving as the input to the next step, the simulation stage. The simulation tool uses the model built in the previous step to produce in silico reads for a given reference genome. It also outputs a list of introduced errors, consisting of the position on each read, error type and reference bases.
 
 ### 1. Characterization stage  
-Characterization stage takes a reference and a training read set in FASTA format as input. User can also provide their own alignment file in MAF format.  
+Characterization stage takes a reference and a training read set in FASTA format as input and aligns these reads to the reference using minimap2 (default) or LAST aligner. User can also provide their own alignment file in SAM or MAF formats.  
 
 __Usage:__  
 ```
@@ -26,7 +30,8 @@ __Usage:__
     -h : print usage message  
     -i : training ONT real reads, must be fasta files  
     -r : reference genome of the training reads  
-    -m : User can provide their own alignment file, with maf extension, can be omitted  
+    -a : Aligner to be used: minimap2 or LAST, default = 'minimap2' 
+    -m : User can provide their own alignment file, with maf or sam extension, can be omitted  
     -o : The prefix of output file, default = 'training'  
 ```
 \* NOTICE: -m option allows users to provide their own alignment file. Make sure that the name of query sequences are the same as appears in the fasta files. For fasta files, some headers have spaces in them and most aligners only take part of the header (before the first white space/tab) as the query name. However, the truncated headers may not be unique if using the output of poretools. We suggest users to pre-process the fasta files by concatenating all elements in the header via '\_' before alignment and feed the processed fasta file as input of NanoSim.  
