@@ -26,6 +26,7 @@ import head_align_tail_dist as align
 import get_besthit_maf
 import get_primary_sam
 import besthit_to_histogram as error_model
+import model_fitting
 
 
 # Usage information
@@ -129,7 +130,7 @@ def main(argv):
             unaligned_length = get_besthit_maf.besthit_and_unaligned(in_fasta, processed_maf, prefix)
 
         elif file_extension == "sam":
-            #get the primary alignments and define unaligned reads.
+            # get the primary alignments and define unaligned reads.
             unaligned_length = get_primary_sam.primary_and_unaligned(alnm_file, prefix)
         else:
             print("Please specify an acceptable alignment format! (maf or sam)\n")
@@ -156,7 +157,6 @@ def main(argv):
             print("Please specify an acceptable aligner (minimap2 or LAST)\n")
             usage()
             sys.exit(1)
-
 
     # Aligned reads analysis
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
@@ -187,13 +187,7 @@ def main(argv):
 
     if model_fit:
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Model fitting\n")
-        path = sys.argv[0].split("/")
-        r_path = '/'.join(path[:-1]) + '/' + "model_fitting.R"
-        if os.path.isfile(r_path):
-            call("R CMD BATCH '--args prefix=\"" + prefix + "\"' " + r_path, shell=True)
-        else:
-            sys.stderr.write("Could not find 'model_fitting.R' in ../src/\n" +
-                  "Make sure you copied the whole source files from Github.")
+        model_fitting.model_fitting(prefix, int(num_threads))
 
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
 
