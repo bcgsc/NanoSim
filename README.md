@@ -8,17 +8,18 @@ __Citation__: Chen Yang, Justin Chu, René L Warren, Inanç Birol; NanoSim: nano
 
 ## Dependencies
 minimap2 (Tested with version 2.10)  
-LAST (Tested with version 581)  
-R (Tested with version 3.2.3)  
+LAST (Tested with version 581 and 916)  
+~~R (Tested with version 3.2.3)~~ (Not used since V2.1.0)  
 Python (2.7 or >= 3.4)  
 Numpy (Tested with version 1.10.1 or above)  
 Python packages:  
 * six  
-* numpy  
+* numpy (Tested with version 1.10.1 or above)
 * HTSeq  
+* scipy (Tested with verson 1.0.0)
 
 ## Usage
-NanoSim is implemented using R for error model fitting and Python for read length analysis and simulation. The first step of NanoSim is read characterization, which provides a comprehensive alignment-based analysis, and generates a set of read profiles serving as the input to the next step, the simulation stage. The simulation tool uses the model built in the previous step to produce in silico reads for a given reference genome. It also outputs a list of introduced errors, consisting of the position on each read, error type and reference bases.
+NanoSim is implemented using Python for error model fitting, read length analysis, and simulation. The first step of NanoSim is read characterization, which provides a comprehensive alignment-based analysis, and generates a set of read profiles serving as the input to the next step, the simulation stage. The simulation tool uses the model built in the previous step to produce in silico reads for a given reference genome. It also outputs a list of introduced errors, consisting of the position on each read, error type and reference bases.
 
 ### 1. Characterization stage  
 Characterization stage takes a reference and a training read set in FASTA format as input and aligns these reads to the reference using minimap2 (default) or LAST aligner. User can also provide their own alignment file in SAM or MAF formats.  
@@ -87,6 +88,7 @@ _See more detailed example in example.sh_
 11. `training_model_profile` Fitted model for errors  
 12. `training_processed.maf` A re-formatted MAF file for user-provided alignment file  
 13. `training_unaligned_length_ecdf` Length distribution of unaligned reads  
+14. `training_error_rate.tsv` Mismatch rate, insertion rate and deletion rate
 
 ### 2. Simulation stage  
 1. `simulated.log`  
