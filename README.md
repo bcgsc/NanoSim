@@ -11,7 +11,6 @@ minimap2 (Tested with version 2.10)
 LAST (Tested with version 581 and 916)  
 ~~R (Tested with version 3.2.3)~~ (Not used since V2.1.0)  
 Python (2.7 or >= 3.4)  
-Numpy (Tested with version 1.10.1 or above)  
 Python packages:  
 * six  
 * numpy (Tested with version 1.10.1 or above)
