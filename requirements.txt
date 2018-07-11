@@ -1,0 +1,6 @@
+HTSeq==0.9.1
+numpy==1.13.3
+pybedtools==0.7.10
+pysam==0.13
+scipy==1.0.0
+six==1.10.0
