@@ -6,6 +6,9 @@ The second version of NanoSim (v2.0) uses minimap2 as default aligner to align l
 
 __Citation__: Chen Yang, Justin Chu, René L Warren, Inanç Birol; NanoSim: nanopore sequence read simulator based on statistical characterization. Gigascience 2017 gix010. doi: 10.1093/gigascience/gix010
 
+## Transcriptome simulation
+For transcriptome simulaton (directRNA / cDNA reads), please use [Trans-NanoSim](https://github.com/bcgsc/Trans-NanoSim) for now. We are working on merging Trans-NanoSim pipeline into NanoSim repository and it will be available shortly.
+
 ## Dependencies
 minimap2 (Tested with version 2.10)  
 LAST (Tested with version 581 and 916)  
@@ -106,6 +109,7 @@ _See more detailed example in example.sh_
   
 3. `simulated_error_profile`  
   Contains all the information of errors introduced into each reads, including error type, position, original bases and current bases.  
+
 
 ## Acknowledgements
 Sincere thanks to my labmates and all contributors and users to this tool.
