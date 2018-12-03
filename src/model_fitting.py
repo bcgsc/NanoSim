@@ -20,6 +20,7 @@ from mixed_model import *
 
 poisgeom = poisgeom_gen(name="poisgeom")
 weigeom = weigeom_gen(name="weigeom", a=1)
+weigeom2 = weigeom2_gen(name="weigeom2", a=1)
 
 
 def read_histogram(f, error):

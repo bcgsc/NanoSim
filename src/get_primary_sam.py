@@ -2,6 +2,7 @@
 
 from __future__ import with_statement
 import HTSeq
+import numpy
 
 
 def primary_and_unaligned(sam_alnm_file, prefix):
@@ -16,4 +17,5 @@ def primary_and_unaligned(sam_alnm_file, prefix):
             unaligned_len.append(len(alnm.read.seq))
 
     out_primary.close()
+    unaligned_len = numpy.array(unaligned_len)
     return unaligned_len

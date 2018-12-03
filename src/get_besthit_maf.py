@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from __future__ import with_statement
+import numpy
 
 
 def besthit_and_unaligned(infile, outmaf, prefix):
@@ -42,4 +43,5 @@ def besthit_and_unaligned(infile, outmaf, prefix):
                     unaligned_len.append(len(line.strip()))
 
     out_best.close()
+    unaligned_len = numpy.array(unaligned_len)
     return unaligned_len

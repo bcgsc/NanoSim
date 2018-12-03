@@ -22,6 +22,8 @@ import sys
 import os
 import getopt
 import numpy
+from sklearn.neighbors import KernelDensity
+from sklearn.externals import joblib
 import head_align_tail_dist as align
 import get_besthit_maf
 import get_primary_sam
@@ -36,9 +38,8 @@ def usage():
                     "-h : print usage message\n" \
                     "-i : training ONT real reads, must be fasta files\n" \
                     "-r : reference genome of the training reads\n" \
-                    "-a : Aligner to be used: minimap2 or LAST, default = 'minimap2\n" \
+                    "-a : Aligner to be used: minimap2 or LAST, default = 'minimap2\n'" \
                     "-m : User can provide their own alignment file, with maf or sam extension, can be omitted\n" \
-                    "-b : number of bins (for development), default = 20\n" \
                     "-t : number of threads for LAST alignment, default = 1\n" \
                     "-o : The prefix of output file, default = 'training'\n" \
                     "--no_model_fit : Skip the model fitting step\n"
@@ -55,7 +56,6 @@ def main(argv):
     alnm_file = ''
     model_fit = True
     num_threads = '1'
-    num_bins = 20
     try:
         opts, args = getopt.getopt(argv, "hi:r:a:o:m:b:t:", ["infile=", "ref=", "prefix=", "no_model_fit"])
     except getopt.GetoptError:
@@ -78,8 +78,6 @@ def main(argv):
             prefix = arg
         elif opt == "--no_model_fit":
             model_fit = False
-        elif opt == "-b":
-            num_bins = max(int(arg), 1)
         elif opt == "-t":
             num_threads = arg
         else:
@@ -92,7 +90,7 @@ def main(argv):
         sys.exit(1)
 
     if aligner != '' and alnm_file != '':
-        print("Please specify either an alignment file (-m ) OR an aligner to use for alignment (-a )")
+        print("Please specify either an alignment file (-m) OR an aligner to use for alignment (-a)")
         usage()
         sys.exit(1)
 
@@ -139,11 +137,11 @@ def main(argv):
 
     # if alignment file is not provided
     else:
-        if aligner == "minimap2" or aligner == "": # Align with minimap2 by default
+        if aligner == "minimap2" or aligner == "":  # Align with minimap2 by default
             file_extension = "sam"
             out_sam = prefix + ".sam"
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with minimap2\n")
-            call("minimap2 --cs -ax map-ont " + ref + " " + in_fasta + " > " + out_sam, shell=True)
+            call("minimap2 --cs -ax map-ont -t " + num_threads + " " + ref + " " + in_fasta + " > " + out_sam, shell=True)
             # get primary alignments and unaligned reads
             unaligned_length = get_primary_sam.primary_and_unaligned(out_sam, prefix)
         elif aligner == "LAST":
@@ -160,25 +158,21 @@ def main(argv):
 
     # Aligned reads analysis
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
-    num_aligned = align.head_align_tail(prefix, num_bins, file_extension)
+    num_aligned = align.head_align_tail(prefix, file_extension)
 
     # Length distribution of unaligned reads
-    out_unaligned_ecdf = open(prefix + "_unaligned_length_ecdf", 'w')
+    alignment_rate = open(prefix + "_reads_alignment_rate", 'w')
 
     num_unaligned = len(unaligned_length)
     if num_unaligned != 0:
-        max_length = max(unaligned_length)
-        hist_unaligned, edges_unaligned = numpy.histogram(unaligned_length, bins=numpy.arange(0, max_length + 50, 50),
-                                                          density=True)
-        cdf = numpy.cumsum(hist_unaligned * 50)
-        out_unaligned_ecdf.write("Aligned / Unaligned ratio:" + "\t" + str(num_aligned * 1.0 / num_unaligned) + '\n')
-        out_unaligned_ecdf.write("bin\t0-" + str(max_length) + '\n')
-        for i in xrange(len(cdf)):
-            out_unaligned_ecdf.write(str(edges_unaligned[i]) + '-' + str(edges_unaligned[i+1]) + "\t" + str(cdf[i]) + '\n')
+        alignment_rate.write("Aligned / Unaligned ratio:" + "\t" + str(num_aligned * 1.0 / num_unaligned) + '\n')
+        unaligned_length_2d = unaligned_length[:, numpy.newaxis]
+        kde_unaligned = KernelDensity(bandwidth=10).fit(unaligned_length_2d)
+        joblib.dump(kde_unaligned, prefix + "_unaligned_length.pkl")
     else:
-        out_unaligned_ecdf.write("Aligned / Unaligned ratio:\t100%\n")
+        alignment_rate.write("Aligned / Unaligned ratio:\t100%\n")
 
-    out_unaligned_ecdf.close()
+    alignment_rate.close()
     del unaligned_length
 
     # MATCH AND ERROR MODELS

@@ -20,10 +20,20 @@ class poisgeom_gen(rv_discrete):
 
 
 class weigeom_gen(rv_discrete):
-    # Weibull-Geometric distribution
+    # Weibull-Geometric distribution, Geometric start from 0
     def _cdf(self, x, l, k, p, w):
         wei_cdf = 1 - np.exp(-1 * np.power(x / l, k))
         return w * wei_cdf + (1 - w) * geom.cdf(x, p, loc=-1)
+
+    def _pmf(self, x, l, k, p, w):
+        return self.cdf(x, l, k, p, w) - self.cdf(x-1, l, k, p, w)
+
+
+class weigeom2_gen(rv_discrete):
+    # Weibull-Geometric distribution, Geometric start from 1
+    def _cdf(self, x, l, k, p, w):
+        wei_cdf = 1 - np.exp(-1 * np.power(x / l, k))
+        return w * wei_cdf + (1 - w) * geom.cdf(x, p)
 
     def _pmf(self, x, l, k, p, w):
         return self.cdf(x, l, k, p, w) - self.cdf(x-1, l, k, p, w)
