@@ -38,7 +38,7 @@ def usage():
                     "-h : print usage message\n" \
                     "-i : training ONT real reads, must be fasta files\n" \
                     "-r : reference genome of the training reads\n" \
-                    "-a : Aligner to be used: minimap2 or LAST, default = 'minimap2\n'" \
+                    "-a : Aligner to be used: minimap2 or LAST, default = 'minimap2'\n" \
                     "-m : User can provide their own alignment file, with maf or sam extension, can be omitted\n" \
                     "-t : number of threads for LAST alignment, default = 1\n" \
                     "-o : The prefix of output file, default = 'training'\n" \

@@ -6,12 +6,11 @@ This script defines Poisson-Geometric distribution and Weibull-Geometric distrib
 """
 
 import numpy as np
-import math
+from math import ceil
 from scipy.stats import rv_discrete, poisson, geom
 
 
 # Scipy geometric starts with x = 1
-
 
 class poisgeom_gen(rv_discrete):
     # Poisson-Geometric distribution
@@ -54,7 +53,7 @@ def wei_geom(lam, k, prob, weight):
     # Draw a random number from Weibull-Geometric distribution
     tmp_rand = np.random.random()
     if tmp_rand < weight:
-        value = int(round(math.ceil(lam * np.random.weibull(k))))
+        value = int(round(ceil(lam * np.random.weibull(k))))
     else:
         value = np.random.geometric(prob) - 1
 
