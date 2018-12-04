@@ -12,13 +12,13 @@ For transcriptome simulaton (directRNA / cDNA reads), please use [Trans-NanoSim]
 ## Dependencies
 minimap2 (Tested with version 2.10)  
 LAST (Tested with version 581 and 916)  
-~~R (Tested with version 3.2.3)~~ (Not used since V2.1.0)  
 Python (2.7 or >= 3.4)  
 Python packages:  
 * six  
 * numpy (Tested with version 1.10.1 or above)
 * HTSeq  
-* scipy (Tested with verson 1.0.0)
+* scipy (Tested with verson 1.0.0)  
+* scikit-learn (Tested with version 0.20.0)
 
 ## Usage
 NanoSim is implemented using Python for error model fitting, read length analysis, and simulation. The first step of NanoSim is read characterization, which provides a comprehensive alignment-based analysis, and generates a set of read profiles serving as the input to the next step, the simulation stage. The simulation tool uses the model built in the previous step to produce in silico reads for a given reference genome. It also outputs a list of introduced errors, consisting of the position on each read, error type and reference bases.
