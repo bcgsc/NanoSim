@@ -397,7 +397,7 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, median_l=None, 
             out_reads.write(">" + new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" +
                             str(tail) + '\n')
             out_reads.write(read_mutated + '\n')
-            print("Read ", passed, middle_ref, middle, head, tail, total)
+            # print("Read ", passed, middle_ref, middle, head, tail, total)
             passed += 1
         i = number_aligned - passed
 

@@ -68,7 +68,7 @@ def get_cs(cigar_str, md_str):
     mx = 0
     my = 0
     md = re.findall('(\\d+)|(\\^[A-Za-z]+)|([A-Za-z])', md_str)
-    cigar = re.findall('(\d+)([MIDSHNX=])' , cigar_str)
+    cigar = re.findall('(\d+)([MIDSHNX=])', cigar_str)
     for m in md:
         if m[1] != "":
             l = len(m[1]) - 1
@@ -81,13 +81,13 @@ def get_cs(cigar_str, md_str):
                 ml = int(m[0])
             else:
                 ml = 1
-            while (k < len(cigar) and cigar[k][1] != 'D'):
+            while k < len(cigar) and cigar[k][1] != 'D':
                 cl = int(cigar[k][0])
                 op = cigar[k][1]
                 if op == "M":
-                    if (my + ml < cy + cl):
+                    if my + ml < cy + cl:
                         if ml > 0:
-                            if (m[2] != ""):
+                            if m[2] != "":
                                 cs.extend(['*', 'a', 'b'])
                             else:
                                 cs.extend([':', ml])
