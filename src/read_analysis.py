@@ -40,7 +40,7 @@ def usage():
                     "-r : reference genome of the training reads\n" \
                     "-a : Aligner to be used: minimap2 or LAST, default = 'minimap2'\n" \
                     "-m : User can provide their own alignment file, with maf or sam extension, can be omitted\n" \
-                    "-t : number of threads for LAST alignment, default = 1\n" \
+                    "-t : number of threads for alignment and model fitting, default = 1\n" \
                     "-o : The prefix of output file, default = 'training'\n" \
                     "--no_model_fit : Skip the model fitting step\n"
 

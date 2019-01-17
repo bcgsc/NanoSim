@@ -83,7 +83,6 @@ def get_head_tail(cigar_string):
 
 
 def head_align_tail(prefix, alnm_ftype):
-    '''
     out1 = open(prefix + "_total.txt", 'w')
     out2 = open(prefix + "_middle.txt", 'w')
     out3 = open(prefix + "_head.txt", 'w')
@@ -91,7 +90,6 @@ def head_align_tail(prefix, alnm_ftype):
     out5 = open(prefix + "_ht.txt", 'w')
     out6 = open(prefix + "_ratio.txt", 'w')
     out7 = open(prefix + "_tail.txt", 'w')
-    '''
 
     aligned_length = []
     total_length = []
@@ -117,7 +115,6 @@ def head_align_tail(prefix, alnm_ftype):
                 if ht != 0:
                     r = float(head) / ht
                     head_vs_ht_ratio.append(r)
-                '''
                 out1.write(query[5] + '\n')
                 out2.write(query[3] + '\n')
                 out3.write(query[2] + '\n')
@@ -125,7 +122,6 @@ def head_align_tail(prefix, alnm_ftype):
                 out5.write(str(ht) + '\n')
                 out6.write(str(ratio) + '\n')
                 out7.write(str(tail) + '\n')
-                '''
     else:
         sam_reader = HTSeq.SAM_Reader
         alnm_file_sam = prefix + "_primary.sam"
@@ -147,10 +143,9 @@ def head_align_tail(prefix, alnm_ftype):
             if head != 0:
                 r = float(head) / ht
                 head_vs_ht_ratio.append(r)
-    '''
             out1.write(str(read_len_total) + '\n')
             out2.write(str(middle) + '\n')
-            out3.write(str(head) + '\n')
+            out3.write(str(alnm.read.name) + '\t' + str(head) + '\n')
             out4.write(str(aligned_ref) + '\n')
             out5.write(str(ht) + '\n')
             out6.write(str(ratio) + '\n')
@@ -163,7 +158,6 @@ def head_align_tail(prefix, alnm_ftype):
     out5.close()
     out6.close()
     out7.close()
-    '''
 
     aligned_length = numpy.array(aligned_length)
     total_length = numpy.array(total_length)

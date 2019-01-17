@@ -351,6 +351,8 @@ def simulation(ref, out, dna_type, per, kmer_bias, max_l, min_l, median_l=None, 
             total_l = np.random.lognormal(np.log(median_l), sd_l, i)
             ref_l = total_l - remainder_l
 
+        ref_l = [x for x in ref_l if x > 0]
+
         for j in xrange(len(ref_l)):
             # check if the total length fits the criteria
             ref = int(ref_l[j])
