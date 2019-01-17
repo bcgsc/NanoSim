@@ -3,9 +3,6 @@
   <component name="ChangeListManager">
     <list default="true" id="a9f164de-6d2c-42c6-81f8-6eabf80c338b" name="Default" comment="">
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/head_align_tail_dist.py" afterPath="$PROJECT_DIR$/src/head_align_tail_dist.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/read_analysis.py" afterPath="$PROJECT_DIR$/src/read_analysis.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/simulator.py" afterPath="$PROJECT_DIR$/src/simulator.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
     </list>
     <ignored path="simulator.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -28,18 +25,7 @@
     <favorites_list name="simulator" />
   </component>
   <component name="FileEditorManager">
-    <leaf>
-      <file leaf-file-name="simulator.py" pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/src/simulator.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.6158324" vertical-offset="5879" max-vertical-offset="13248">
-              <caret line="365" column="26" selection-start-line="365" selection-start-column="26" selection-end-line="365" selection-end-column="26" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-    </leaf>
+    <leaf />
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -52,8 +38,8 @@
         <option value="$PROJECT_DIR$/src/mixed_model.py" />
         <option value="$PROJECT_DIR$/src/besthit_to_histogram.py" />
         <option value="$PROJECT_DIR$/src/read_analysis.py" />
-        <option value="$PROJECT_DIR$/src/head_align_tail_dist.py" />
         <option value="$PROJECT_DIR$/src/simulator.py" />
+        <option value="$PROJECT_DIR$/src/head_align_tail_dist.py" />
       </list>
     </option>
   </component>
@@ -91,7 +77,7 @@
     <property name="options.lastSelected" value="preferences.sourceCode.Python" />
     <property name="options.splitter.main.proportions" value="0.3" />
     <property name="options.splitter.details.proportions" value="0.2" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/src/simulator.py" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/src/head_align_tail_dist.py" />
     <property name="FullScreen" value="false" />
   </component>
   <component name="PyConsoleOptionsProvider">
@@ -239,7 +225,7 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="943" y="28" width="970" height="1018" extended-state="1" />
-    <editor active="true" />
+    <editor active="false" />
     <layout>
       <window_info id="Changes" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.24973433" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
@@ -328,13 +314,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/head_align_tail_dist.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.74380165" vertical-offset="2232" max-vertical-offset="3510">
-          <caret line="159" column="16" selection-start-line="159" selection-start-column="16" selection-end-line="159" selection-end-column="16" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/src/read_analysis.py">
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="-0.3381295" vertical-offset="1128" max-vertical-offset="3420">
@@ -344,8 +323,16 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/src/simulator.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.6158324" vertical-offset="5879" max-vertical-offset="13248">
-          <caret line="365" column="26" selection-start-line="365" selection-start-column="26" selection-end-line="365" selection-end-column="26" />
+        <state vertical-scroll-proportion="0.30151337" vertical-offset="5879" max-vertical-offset="13248">
+          <caret line="350" column="66" selection-start-line="350" selection-start-column="66" selection-end-line="350" selection-end-column="66" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/head_align_tail_dist.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.25688073" vertical-offset="2620" max-vertical-offset="3492">
+          <caret line="165" column="7" selection-start-line="165" selection-start-column="7" selection-end-line="165" selection-end-column="7" />
           <folding />
         </state>
       </provider>
