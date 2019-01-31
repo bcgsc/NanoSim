@@ -68,7 +68,7 @@ def get_cs(cigar_str, md_str):
     mx = 0
     my = 0
     md = re.findall('(\\d+)|(\\^[A-Za-z]+)|([A-Za-z])', md_str)
-    cigar = re.findall('(\d+)([MIDSHNX=])' , cigar_str)
+    cigar = re.findall('(\d+)([MIDSHNX=])', cigar_str)
     for m in md:
         if m[1] != "":
             l = len(m[1]) - 1
@@ -81,13 +81,13 @@ def get_cs(cigar_str, md_str):
                 ml = int(m[0])
             else:
                 ml = 1
-            while (k < len(cigar) and cigar[k][1] != 'D'):
+            while k < len(cigar) and cigar[k][1] != 'D':
                 cl = int(cigar[k][0])
                 op = cigar[k][1]
                 if op == "M":
-                    if (my + ml < cy + cl):
+                    if my + ml < cy + cl:
                         if ml > 0:
-                            if (m[2] != ""):
+                            if m[2] != "":
                                 cs.extend(['*', 'a', 'b'])
                             else:
                                 cs.extend([':', ml])
@@ -154,22 +154,22 @@ def hist(outfile, alnm_ftype):
                   "del0/mis": 0, "del0/ins": 0, "del0/del": 0, "ins0/mis": 0, "ins0/ins": 0, "ins0/del": 0}
     first_error = {"mis": 0, "ins": 0, "del": 0}
 
+    for x in xrange(0, 150):
+        dic_match[x] = 0
+        match_list[x] = {}
+        for y in xrange(0, 150):
+            match_list[x][y] = 0
+        for key in match_bin.keys():
+            match_bin[key][x] = 0
+    for x in xrange(0, 150):
+        dic_first_match[x] = 0
+
+    for x in xrange(0, 30):
+        dic_mis[x] = 0
+        dic_ins[x] = 0
+        dic_del[x] = 0
+
     if alnm_ftype == "maf":
-        for x in xrange(0, 150):
-            dic_match[x] = 0
-            match_list[x] = {}
-            for y in xrange(0, 150):
-                match_list[x][y] = 0
-            for key in match_bin.keys():
-                match_bin[key][x] = 0
-        for x in xrange(0, 150):
-            dic_first_match[x] = 0
-
-        for x in xrange(0, 30):
-            dic_mis[x] = 0
-            dic_ins[x] = 0
-            dic_del[x] = 0
-
         with open(outfile + "_besthit.maf", 'r') as f:
             for line in f:
                 prev_match = 0

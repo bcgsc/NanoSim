@@ -1,4 +1,4 @@
-NanoSim 1.0.0
+NanoSim V2
 
 -------------------------------------------------------------------------------
 NanoSim is a fast and scalable read simulator that captures the technology-
@@ -9,27 +9,34 @@ nanopore sequencing technology.
 -------------------------------------------------------------------------------
 Dependencies:
 
-LAST (Tested with version 581)
-R (Tested with version 3.2.3)
-Python (2.6 or above)
-Numpy (Tested with version 1.10.1 or above)
+minimap2 (Tested with version 2.10)
+LAST (Tested with version 581 and 916)
+R (Tested with version 3.2.3) (Not used since V2.1.0)
+Python (2.7 or >= 3.4)
+Python packages:
+
+six
+numpy (Tested with version 1.10.1 or above)
+HTSeq
+scipy (Tested with verson 1.0.0)
 
 -------------------------------------------------------------------------------
 Usage
 
-NanoSim is implemented using R for error model fitting and Python for read
-length analysis and simulation. The first step of NanoSim is read
-characterization, which provides a comprehensive alignment-based analysis, and 
-generates a set of read profiles serving as the input to the next step, the 
-simulation stage. The simulation tool uses the model built in the previous step 
-to produce in silico reads for a given reference genome. It also outputs a list 
-of introduced errors, consisting of the position on each read, error type and 
-reference bases.
+NanoSim is implemented using Python for error model fitting, read length 
+analysis, and simulation. The first step of NanoSim is read characterization, 
+which provides a comprehensive alignment-based analysis, and generates a set of
+read profiles serving as the input to the next step, the simulation stage. The
+simulation tool uses the model built in the previous step to produce in silico
+reads for a given reference genome. It also outputs a list of introduced
+errors, consisting of the position on each read, error type and reference bases.
 
 1. Characterization stage
 
-Characterization stage takes a reference and a training read set in FASTA format
-as input. User can also provide their own alignment file in MAF format.
+Characterization stage takes a reference and a training read set in FASTA 
+format as input and aligns these reads to the reference using minimap2 
+(default) or LAST aligner. User can also provide their own alignment file in 
+SAM or MAF formats.
 
 Usage:
 
@@ -38,17 +45,23 @@ Usage:
     -h : print usage message  
     -i : training ONT real reads, must be fasta files  
     -r : reference genome of the training reads  
-    -m : User can provide their own alignment file, in maf extension. Optional  
-    -o : The prefix of output file, default = 'training'  
+    -a : Aligner to be used: minimap2 or LAST, default = 'minimap2' 
+    -m : User can provide their own alignment file, with maf or sam 
+         extension, can be omitted  
+    -o : The prefix of output file, default = 'training'   
 
 * NOTICE: -m option allows users to provide their own alignment file. Make sure 
   that the name of query sequences are the same as appears in the fasta files. 
   For fasta files, some headers have spaces in them and most aligners only take 
-  part of the header (before the first white space/tab) as the query name. However, 
-  the truncated headers may not be unique if using the output of poretools. We 
-  suggest users to pre-process the fasta files by concatenating all elements in
-  the header via '_' before alignment and feed the processed fasta file as input 
-  of NanoSim.
+  part of the header (before the first white space/tab) as the query name.
+  However, the truncated headers may not be unique if using the output of 
+  poretools. We suggest users to pre-process the fasta files by concatenating 
+  all elements in the header via '_' before alignment and feed the processed 
+  fasta file as input of NanoSim.
+  
+Some ONT read profiles are ready to use for users. With the profiles, users can 
+run simulation tool directly. Please go to ftp://ftp.bcgsc.ca/supplementary/NanoSim/
+to download E. coli or S. cerevisiae datasets and profiles.
 
 2. Simulation stage
 
@@ -68,8 +81,15 @@ Usage:
          read_analysis.py, default = training  
     -o : The prefix of output file, default = 'simulated'  
     -n : Number of generated reads, default = 20,000 reads  
-    --perfect: Output perfect reads, no mutations. Optional 
-    --KmerBias: prohibits homopolymers with length >= 6 bases in output reads. Optional 
+    --max_len : Maximum read length, default = Inf  
+    --min_len : Minimum read length, default = 50  
+    --perfect : Output perfect reads, no mutations. Optional  
+    --KmerBias: prohibits homopolymers with length >= 6 bases in output reads,
+                Optional 
+                
+* Notice: the use of max_len and min_len will affect the read length distributions. 
+If the range between max_len and min_len is too small, the program will run slowlier
+accordingly.
 
 For example:
 1 If you want to simulate E. coli genome, then circular command must be chosen 
@@ -107,6 +127,7 @@ Explaination of output files
     training_model_profile: Fitted model for errors
     training_processed.maf: A re-formatted MAF file for user-provided alignment file
     training_unaligned_length_ecdf: Length distribution of unaligned reads
+    training_error_rate.tsv: Mismatch rate, insertion rate and deletion rate
 
 2. Simulation stage
     simulated.log: Log file for simulation process
