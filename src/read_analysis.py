@@ -21,6 +21,8 @@ except ImportError:
 import sys
 import os
 import getopt
+import argparse
+import HTSeq
 import numpy
 from sklearn.neighbors import KernelDensity
 from sklearn.externals import joblib
@@ -29,6 +31,7 @@ import get_besthit_maf
 import get_primary_sam
 import besthit_to_histogram as error_model
 import model_fitting
+import model_intron_retention as model_ir
 
 
 # Usage information
@@ -49,50 +52,93 @@ def usage():
 
 def main(argv):
     # Parse input and output files
-    infile = ''
+
     prefix = 'training'
-    ref = ''
-    aligner = ''
-    alnm_file = ''
     model_fit = True
-    num_threads = '1'
-    try:
-        opts, args = getopt.getopt(argv, "hi:r:a:o:m:b:t:", ["infile=", "ref=", "prefix=", "no_model_fit"])
-    except getopt.GetoptError:
-        usage()
-        sys.exit(1)
+    intron_retention = True
+    detect_IR = False
+    quantify = False
 
-    for opt, arg in opts:
-        if opt == '-h':
-            usage()
-            sys.exit(0)
-        elif opt in ("-i", "--infile"):
-            infile = arg
-        elif opt in ("-r", "--ref"):
-            ref = arg
-        elif opt == "-a":
-            aligner = arg
-        elif opt == "-m":
-            alnm_file = arg
-        elif opt in ("-o", "--prefix"):
-            prefix = arg
-        elif opt == "--no_model_fit":
+    parser = argparse.ArgumentParser(
+        description='Given the read profiles from characterization step, ' \
+                    'simulate genomic/transcriptic ONT reads and output error profiles',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    subparsers = parser.add_subparsers(help = "You may run the simulator on transcriptome or genome mode. You may also only quanity expression profiles.", dest='mode')
+
+    parser_g = subparsers.add_parser('genome', help="Run the simulator on genome mode.")
+    parser_g.add_argument('-i', '--read', help='Input read for training.', required=False)
+    parser_g.add_argument('-rg', '--ref_g', help='Reference genome.', required=False)
+    parser_g.add_argument('-a', '--aligner', help='The aligner to be used minimap2 or LAST (Default = minimap2)', default = 'minimap2')
+    parser_g.add_argument('-ga', '--g_alnm', help='Genome alignment file in sam or maf format (optional)', default= '')
+    parser_g.add_argument('-o', '--output', help='The output name and location for profiles', default = "training")
+    parser_g.add_argument('--no_model_fit', help='Disable model fitting step', action='store_true')
+    parser_g.add_argument('-t', '--num_threads', help='Number of threads to be used in alignments and model fitting (Default = 1)', default=1)
+
+    parser_t = subparsers.add_parser('transcriptome', help="Run the simulator on transcriptome mode.")
+    parser_t.add_argument('-i', '--read', help='Input read for training.', required=False)
+    parser_t.add_argument('-rg', '--ref_g', help='Reference genome.', required=False)
+    parser_t.add_argument('-rt', '--ref_t', help='Reference Transcriptome.', required=False)
+    parser_t.add_argument('-annot', '--annot', help='Annotation file in ensemble GTF/GFF formats.', required=False)
+    parser_t.add_argument('-a', '--aligner', help='The aligner to be used minimap2 or LAST (Default = minimap2)', default = 'minimap2')
+    parser_t.add_argument('-ga', '--g_alnm', help='Genome alignment file in sam or maf format (optional)', default= '')
+    parser_t.add_argument('-ta', '--t_alnm', help='Transcriptome alignment file in sam or maf format (optional)', default= '')
+    parser_t.add_argument('-o', '--output', help='The output name and location for profiles', default = "training")
+    parser_t.add_argument('--no_model_fit', help='Disable model fitting step', action='store_true')
+    parser_t.add_argument('--no_intron_retention', help='Disable Intron Retention analysis', action='store_true')
+    parser_t.add_argument('--detect_IR', help='Detect Intron Retention events using input reads and exit', action='store_true')
+    parser_t.add_argument('-b', '--num_bins', help='Number of bins to be used (Default = 20)', default = 20)
+    parser_t.add_argument('-t', '--num_threads', help='Number of threads to be used in alignments and model fitting (Default = 1)', default=1)
+
+    parser_e = subparsers.add_parser('quantify', help="Quantify expression profile of transcripts")
+    #parser_e.add_argument('--quantify', help='Quantify expression profile of input reads', action='store_true')
+
+    args = parser.parse_args()
+    #args_t = parser_t.parse_args()
+    #args_g = parser_g.parse_args()
+    #args_e = parser_e.parse_args()
+
+
+    #parse transcriptome mode arguments.
+    if args.mode == "transcriptome":
+        infile = args.read
+        ref_g = args.ref_g
+        ref_t = args.ref_t
+        annot = args.annot
+        aligner = args.aligner
+        g_alnm = args.g_alnm
+        t_alnm = args.t_alnm
+        outfile = args.output
+        num_bins = max(args.num_bins, 20) #I may remove it because of ecdf > KSE
+        num_threads = max(args.num_threads, 1)
+        if args.no_model_fit:
             model_fit = False
-        elif opt == "-t":
-            num_threads = arg
-        else:
-            usage()
-            sys.exit(1)
+        if args.no_intron_retention:
+            intron_retention = False
+        if args.detect_IR:
+            detect_IR = True
 
-    if infile == '' or ref == '':
-        print("Please specify the training reads and its reference genome!")
-        usage()
-        sys.exit(1)
+    #parse genome mode arguments
+    if args.mode == "genome":
+        infile = args.read
+        ref_g = args.ref_g
+        aligner = args.aligner
+        g_alnm = args.g_alnm
+        outfile = args.output
+        num_threads = max(args.num_threads, 1)
+        if args.no_model_fit:
+            model_fit = False
 
-    if aligner != '' and alnm_file != '':
-        print("Please specify either an alignment file (-m) OR an aligner to use for alignment (-a)")
-        usage()
-        sys.exit(1)
+    #parse quanity mode arguments
+    if args.mode == "quantify":
+        # Quantifying the transcript abundance from input read
+        sys.stdout.write('Quantifying transcripts abundance: \n')
+        # sys.stdout.log.write('Quantifying transcripts abundance: \n')
+        call("minimap2 -t " + str(num_threads) + " -x map-ont -p0 " + ref_t + " " + infile + " > " + outfile + "_mapping.paf", shell=True)
+        call("python nanopore_transcript_abundance.py -i " + outfile + "_mapping.paf > " + outfile + "_abundance.tsv",
+             shell=True)
+        sys.stdout.write('Finished! \n')
+
 
     # READ PRE-PROCESS AND ALIGNMENT ANALYSIS
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process and unaligned reads analysis\n")
