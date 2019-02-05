@@ -144,7 +144,7 @@ def align_genome(g_alnm, prefix, aligner):
             # get the primary alignments and define unaligned reads.
             unaligned_length = get_primary_sam.primary_and_unaligned(alnm_file, prefix)
         else:
-            print("Please specify an acceptable alignment format! (maf or sam)\n")
+            print("Please specify an acceptable alignment format! (.maf or .sam)\n")
             usage()
             sys.exit(1)
 
@@ -212,13 +212,19 @@ def main(argv):
     parser_t.add_argument('-t', '--num_threads', help='Number of threads to be used in alignments and model fitting (Default = 1)', default=1)
 
     parser_e = subparsers.add_parser('quantify', help="Quantify expression profile of transcripts")
-    #parser_e.add_argument('--quantify', help='Quantify expression profile of input reads', action='store_true')
+    parser_e.add_argument('-o', '--output', help='The output name and location', default="training")
+    parser_e.add_argument('-i', '--read', help='Input reads to use to quantification.', required=True)
+    parser_e.add_argument('-rt', '--ref_t', help='Reference Transcriptome.', required=True)
+    parser_t.add_argument('-t', '--num_threads', help='Number of threads to be used (Default = 1)', default=1)
+
+    parser_ir = subparsers.add_parser('detect_ir', help="Detect Intron Retention events using the input read")
+    parser_ir.add_argument('-o', '--output', help='The output name and location for profiles', default = "training")
+
 
     args = parser.parse_args()
     #args_t = parser_t.parse_args()
     #args_g = parser_g.parse_args()
     #args_e = parser_e.parse_args()
-
 
     #parse transcriptome mode arguments.
     if args.mode == "transcriptome":
@@ -230,7 +236,7 @@ def main(argv):
         g_alnm = args.g_alnm
         t_alnm = args.t_alnm
         prefix = args.output
-        num_bins = max(args.num_bins, 20) #I may remove it because of ecdf > KSE
+        num_bins = max(args.num_bins, 20) #I may remove it because of ecdf > KDE
         num_threads = max(args.num_threads, 1)
         if args.no_model_fit:
             model_fit = False
@@ -252,14 +258,33 @@ def main(argv):
 
     #parse quanity mode arguments
     if args.mode == "quantify":
+        infile = args.read
+        ref_t = args.ref_t
+        prefix = args.output
+        num_threads = max(args.num_threads, 1)
         # Quantifying the transcript abundance from input read
         sys.stdout.write('Quantifying transcripts abundance: \n')
-        # sys.stdout.log.write('Quantifying transcripts abundance: \n')
         call("minimap2 -t " + str(num_threads) + " -x map-ont -p0 " + ref_t + " " + infile + " > " + prefix + "_mapping.paf", shell=True)
         call("python nanopore_transcript_abundance.py -i " + prefix + "_mapping.paf > " + prefix + "_abundance.tsv",
              shell=True)
         sys.stdout.write('Finished! \n')
         sys.exit(1)
+
+    if args.mode == "detect_ir":
+        annot = args.annot
+        prefix = args.output
+        # Read the annotation GTF/GFF3 file
+        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Parse the annotation file (GTF/GFF3)\n")
+        # If gtf provided, convert to GFF3 (gt gtf_to_gff3)
+        annot_filename, annot_file_extension = os.path.splitext(annot)
+        annot_file_extension = annot_file_extension[1:]
+        if annot_file_extension.upper() == "GTF":
+            call("gt gtf_to_gff3 -tidy -o " + prefix + ".gff3" + annot, shell=True)
+
+        # Next, add intron info into gff3:
+        call(
+            "gt gff3 -tidy -retainids -checkids -addintrons -o " + prefix + "_addedintron.gff3 " + annot_filename + ".gff3",
+            shell=True)
 
     # READ PRE-PROCESS AND ALIGNMENT ANALYSIS
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process and unaligned reads analysis\n")
@@ -280,9 +305,10 @@ def main(argv):
 
     del dic_reads
 
+    if args.mode == "genome":
+        alnm_ext, unaligned_length = align_genome(g_alnm, prefix, aligner)
 
     if args.mode == "transcriptome":
-
         alnm_ext, unaligned_length = align_transcriptome(g_alnm, t_alnm, prefix, aligner)
 
         if detect_IR == "True":
@@ -310,11 +336,19 @@ def main(argv):
                     dict_ref_len[ref_id] += len(line.strip())
 
         if intron_retention:
+            # Read the annotation GTF/GFF3 file
+            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Parse the annotation file (GTF/GFF3)\n")
+            # If gtf provided, convert to GFF3 (gt gtf_to_gff3)
+            annot_filename, annot_file_extension = os.path.splitext(annot)
+            annot_file_extension = annot_file_extension[1:]
+            if annot_file_extension.upper() == "GTF":
+                call("gt gtf_to_gff3 -tidy -o " + prefix + ".gff3" + annot, shell=True)
+
+            # Next, add intron info into gff3:
+            call("gt gff3 -tidy -retainids -checkids -addintrons -o " + prefix + "_addedintron.gff3 " + annot_filename + ".gff3",
+                shell=True)
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Modeling Intron Retention\n")
             model_ir.intron_retention(prefix, ref_t)
-
-    if args.mode == "genome":
-        alnm_ext, unaligned_length = align_genome(g_alnm, prefix, aligner)
 
 
     # Aligned reads analysis
