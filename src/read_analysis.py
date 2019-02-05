@@ -222,39 +222,6 @@ def main(argv):
 
 
     args = parser.parse_args()
-    #args_t = parser_t.parse_args()
-    #args_g = parser_g.parse_args()
-    #args_e = parser_e.parse_args()
-
-    #parse transcriptome mode arguments.
-    if args.mode == "transcriptome":
-        infile = args.read
-        ref_g = args.ref_g
-        ref_t = args.ref_t
-        annot = args.annot
-        aligner = args.aligner
-        g_alnm = args.g_alnm
-        t_alnm = args.t_alnm
-        prefix = args.output
-        num_bins = max(args.num_bins, 20) #I may remove it because of ecdf > KDE
-        num_threads = max(args.num_threads, 1)
-        if args.no_model_fit:
-            model_fit = False
-        if args.no_intron_retention:
-            intron_retention = False
-        if args.detect_IR:
-            detect_IR = True
-
-    #parse genome mode arguments
-    if args.mode == "genome":
-        infile = args.read
-        ref_g = args.ref_g
-        aligner = args.aligner
-        g_alnm = args.g_alnm
-        prefix = args.output
-        num_threads = max(args.num_threads, 1)
-        if args.no_model_fit:
-            model_fit = False
 
     #parse quanity mode arguments
     if args.mode == "quantify":
@@ -285,6 +252,10 @@ def main(argv):
         call(
             "gt gff3 -tidy -retainids -checkids -addintrons -o " + prefix + "_addedintron.gff3 " + annot_filename + ".gff3",
             shell=True)
+        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Modeling Intron Retention\n")
+        model_ir.intron_retention(prefix, ref_t)
+        sys.stdout.write('Finished! \n')
+        sys.exit(1)
 
     # READ PRE-PROCESS AND ALIGNMENT ANALYSIS
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process and unaligned reads analysis\n")
@@ -306,23 +277,36 @@ def main(argv):
     del dic_reads
 
     if args.mode == "genome":
+        infile = args.read
+        ref_g = args.ref_g
+        aligner = args.aligner
+        g_alnm = args.g_alnm
+        prefix = args.output
+        num_threads = max(args.num_threads, 1)
+        if args.no_model_fit:
+            model_fit = False
+
         alnm_ext, unaligned_length = align_genome(g_alnm, prefix, aligner)
 
     if args.mode == "transcriptome":
+        infile = args.read
+        ref_g = args.ref_g
+        ref_t = args.ref_t
+        annot = args.annot
+        aligner = args.aligner
+        g_alnm = args.g_alnm
+        t_alnm = args.t_alnm
+        prefix = args.output
+        num_bins = max(args.num_bins, 20) #I may remove it because of ecdf > KDE
+        num_threads = max(args.num_threads, 1)
+        if args.no_model_fit:
+            model_fit = False
+        if args.no_intron_retention:
+            intron_retention = False
+        if args.detect_IR:
+            detect_IR = True
+
         alnm_ext, unaligned_length = align_transcriptome(g_alnm, t_alnm, prefix, aligner)
-
-        if detect_IR == "True":
-            # Read the annotation GTF/GFF3 file
-            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Parse the annotation file (GTF/GFF3)\n")
-            # If gtf provided, convert to GFF3 (gt gtf_to_gff3)
-            annot_filename, annot_file_extension = os.path.splitext(annot)
-            annot_file_extension = annot_file_extension[1:]
-            if annot_file_extension.upper() == "GTF":
-                call("gt gtf_to_gff3 -tidy -o " + prefix + ".gff3" + annot, shell=True)
-
-            # Next, add intron info into gff3:
-            call("gt gff3 -tidy -retainids -checkids -addintrons -o " + prefix + "_addedintron.gff3 " + annot_filename + ".gff3",
-                shell=True)
 
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read the length of reference transcripts \n")
         # Read the length of reference transcripts from the reference transcriptome
@@ -353,7 +337,7 @@ def main(argv):
 
     # Aligned reads analysis
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
-    num_aligned = align.head_align_tail(prefix, alnm_ext)
+    num_aligned = align.head_align_tail(prefix, alnm_ext, args.mode)
 
     # Length distribution of unaligned reads
     alignment_rate = open(prefix + "_reads_alignment_rate", 'w')
