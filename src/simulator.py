@@ -630,11 +630,20 @@ def case_convert(seq):
 
 
 def main():
+
+    parser = argparse.ArgumentParser(
+        description='Given the read profiles from characterization step, ' \
+                    'simulate transcriptome ONT reads and output error profiles',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+
+    exp = ""
     ref = ""
     model_prefix = "training"
     out = "simulated"
     number = 20000
     perfect = False
+    model_ir = False
     # ins, del, mis rate represent the weight tuning in mix model
     ins_rate = 1
     del_rate = 1
@@ -645,58 +654,89 @@ def main():
     sd_readlength = None
     kmer_bias = 0
 
-    # Parse options and parameters
-    if len(sys.argv) < 4:
-        usage()
-        sys.exit(1)
-    else:
-        dna_type = sys.argv[1]
-        if dna_type not in ["circular", "linear"]:
+    subparsers = parser.add_subparsers(help = "You may run the simulator on transcriptome or genome mode.", dest='mode')
+
+    parser_g = subparsers.add_parser('genome', help="Run the simulator on genome mode.")
+    parser_g.add_argument('-rg', '--ref_genome', help='Input reference genome', type=str, required=True)
+    parser_g.add_argument('-c', '--model_prefix', help='Address for profiles created in characterization step (model_prefix)', type = str, default= "training")
+    parser_g.add_argument('-o', '--output', help='Output address for simulated reads', type = str, default= "simulated")
+    parser_g.add_argument('-n', '--number', help='Number of reads to be simulated', type = int, default = 20000)
+    parser_g.add_argument('-i', '--insertion_rate', help='Insertion rate (optional)', type = float, default= 1)
+    parser_g.add_argument('-d', '--deletion_rate', help='Deletion rate (optional)', type = float, default= 1)
+    parser_g.add_argument('-m', '--mismatch_rate', help='Mismatch rate (optional)', type = float, default= 1)
+    parser_g.add_argument('-max', '--max_len', help='The maximum length for simulated reads', type=int, default= float("inf"))
+    parser_g.add_argument('-min', '--min_len', help='The minimum length for simulated reads', type=int, default= 50)
+    parser_g.add_argument('-med', '--median_len', help='The median read length', type=int, default=None)
+    parser_g.add_argument('--sd_len', help='The standard deviation of read length in log scale', type=int, default=None)
+    parser_g.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
+    parser_g.add_argument('-k', '--KmerBias', help='Determine whether to considert Kmer Bias or not', type = int, default= 0)
+    parser_g.add_argument('--perfect', help='Ignore profiles and simulate perfect reads', action='store_true')
+    parser_g.add_argument('--dna_type', help='Specify the dna type: circular OR linear, default = linear', type=str, default="linear")
+
+    parser_t = subparsers.add_parser('transcriptome', help="Run the simulator on transcriptome mode.", dest='mode')
+    parser_t.add_argument('-rt', '--ref_transcriptome', help='Input reference transcriptome', type = str, required= True)
+    parser_t.add_argument('-rg', '--ref_genome', help='Input reference genome', type=str, required=True)
+    parser_t.add_argument('-e', '--expression', help='Expression profile in the specified format specified in the documentation', type = str)
+    parser_t.add_argument('-c', '--model_prefix', help='Address for profiles created in characterization step (model_prefix)', type = str, default= "training")
+    parser_t.add_argument('-o', '--output', help='Output address for simulated reads', type = str, default= "simulated")
+    parser_t.add_argument('-n', '--number', help='Number of reads to be simulated', type = int, default = 20000)
+    parser_t.add_argument('-i', '--insertion_rate', help='Insertion rate (optional)', type = float, default= 1)
+    parser_t.add_argument('-d', '--deletion_rate', help='Deletion rate (optional)', type = float, default= 1)
+    parser_t.add_argument('-m', '--mismatch_rate', help='Mismatch rate (optional)', type = float, default= 1)
+    parser_t.add_argument('-max', '--max_len', help='The maximum length for simulated reads', type=int, default= float("inf"))
+    parser_t.add_argument('-min', '--min_len', help='The minimum length for simulated reads', type=int, default= 50)
+    parser_t.add_argument('-k', '--KmerBias', help='Determine whether to considert Kmer Bias or not', type = int, default= 0)
+    parser_t.add_argument('--model_ir', help='Consider Intron Retention model from characterization step when simulating reads', action='store_true')
+    parser_t.add_argument('--perfect', help='Ignore profiles and simulate perfect reads', action='store_true')
+
+    args = parser.parse_args()
+
+    if args.mode == "genome":
+        ref_g = args.ref_g
+        model_prefix = args.model_prefix
+        out = args.output
+        number = args.number
+        ins_rate = args.insertion_rate
+        del_rate = args.delection_rate
+        mis_rate = args.mismatch_rate
+        max_readlength = args.max_len
+        min_readlength = args.min_len
+        median_readlength = args.median_len
+        sd_readlength = args.sd_len
+        if args.seed:
+            random.seed(int(args.seed))
+            np.random.seed(int(args.seed))
+        if args.perfect:
+            perfect = True
+        kmer_bias = args.KmerBias
+
+        if (median_readlength and not sd_readlength) or (sd_readlength and not median_readlength):
+            sys.stderr.write("Please provide both mean and standard deviation of read length!\n\n")
             usage()
             sys.exit(1)
-        try:
-            opts, args = getopt.getopt(sys.argv[2:], "hr:c:o:n:i:d:m:",
-                                       ["max_len=", "min_len=", "median_len=", "sd_len=",
-                                        "perfect", "KmerBias=", "seed="])
-        except getopt.GetoptError:
-            usage()
-            sys.exit(1)
-        for opt, arg in opts:
-            if opt == "-r":
-                ref = arg
-            elif opt == "-c":
-                model_prefix = arg
-            elif opt == "-o":
-                out = arg
-            elif opt == "-n":
-                number = int(arg)
-            elif opt == "-i":
-                ins_rate = float(arg)
-            elif opt == "-d":
-                del_rate = float(arg)
-            elif opt == "-m":
-                mis_rate = float(arg)
-            elif opt == "--max_len":
-                max_readlength = int(arg)
-            elif opt == "--min_len":
-                min_readlength = int(arg)
-            elif opt == "--median_len":
-                median_readlength = float(arg)
-            elif opt == "--sd_len":
-                sd_readlength = float(arg)
-            elif opt == "--perfect":
-                perfect = True
-            elif opt == "--KmerBias":
-                kmer_bias = int(arg)
-            elif opt == "--seed":
-                random.seed(int(arg))
-                np.random.seed(int(arg))
-            elif opt == "-h":
-                usage()
-                sys.exit(0)
-            else:
-                usage()
-                sys.exit(1)
+
+    elif args.mode == "transcriptome":
+        ref_g = args.ref_g
+        ref_t = args.ref_t
+        exp = args.expression
+        model_prefix = args.model_prefix
+        out = args.output
+        number = args.number
+        ins_rate = args.insertion_rate
+        del_rate = args.delection_rate
+        mis_rate = args.mismatch_rate
+        max_readlength = args.max_len
+        min_readlength = args.min_len
+        median_readlength = args.median_len
+        if args.seed:
+            random.seed(int(args.seed))
+            np.random.seed(int(args.seed))
+        if args.perfect:
+            perfect = True
+        if args.KmerBias:
+            kmer_bias = args.KmerBias
+        if args.model_ir:
+            model_ir = True
 
     # Generate log file
     sys.stdout = open(out + ".log", 'w')
@@ -704,20 +744,12 @@ def main():
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ': ' + ' '.join(sys.argv) + '\n')
     sys.stdout.flush()
 
-    if ref == "":
-        sys.stderr.write("must provide a reference genome!\n\n")
-        usage()
-        sys.exit(1)
 
     if max_readlength < min_readlength:
         sys.stderr.write("maximum read length must be longer than minimum read length!\n\n")
         usage()
         sys.exit(1)
 
-    if (median_readlength and not sd_readlength) or (sd_readlength and not median_readlength):
-        sys.stderr.write("Please provide both mean and standard deviation of read length!\n\n")
-        usage()
-        sys.exit(1)
 
     # Read in reference genome and generate simulated reads
     read_profile(number, model_prefix, perfect)
