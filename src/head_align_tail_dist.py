@@ -64,6 +64,25 @@ def flex_bins(num_of_bins, ratio_dict, num_of_reads):
     return ratio_bins
 
 
+def kde2d(x, y):
+    x = numpy.array(x)
+    y = numpy.array(y)
+    xy = numpy.vstack([x, y])
+    d = xy.shape[0]
+    n = xy.shape[1]
+    bw = (n * (d + 2) / 4.) ** (-1. / (d + 4))  # silverman
+    kde_2d = KernelDensity(bandwidth=bw).fit(xy.T)
+    # xmin = x.min()
+    # xmax = x.max()
+    # ymin = y.min()
+    # ymax = y.max()
+    # X, Y = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
+    # positions = np.vstack([X.ravel(), Y.ravel()])
+    # Z = np.reshape(np.exp(kde_2d.score_samples(positions.T)), X.shape)
+
+    return kde_2d
+
+
 def get_head_tail(cigar_string):
 
     head_info = cigar_string[0]
@@ -82,7 +101,7 @@ def get_head_tail(cigar_string):
     return head, tail
 
 
-def head_align_tail(prefix, alnm_ftype):
+def head_align_tail(*args):
     '''
     out1 = open(prefix + "_total.txt", 'w')
     out2 = open(prefix + "_middle.txt", 'w')
@@ -92,6 +111,16 @@ def head_align_tail(prefix, alnm_ftype):
     out6 = open(prefix + "_ratio.txt", 'w')
     out7 = open(prefix + "_tail.txt", 'w')
     '''
+    prefix = args[0]
+    alnm_ftype = args[1]
+    mode = args[2]
+    if len(args) == 4:
+        dict_ref_len = args[3]
+
+
+    if mode == "transcriptome":
+        x = []  # total length of reference
+        y = []  # aligned length on reference
 
     aligned_length = []
     total_length = []
@@ -104,6 +133,10 @@ def head_align_tail(prefix, alnm_ftype):
             for line in f:
                 ref = line.strip().split()
                 aligned_ref = int(ref[3])
+                if mode == "transcriptome":
+                    total_ref = int(ref[5])
+                    x.append(total_ref)
+                    y.append(aligned_ref)
                 aligned_length.append(aligned_ref)
                 query = next(f).strip().split()
                 head = int(query[2])
@@ -134,6 +167,10 @@ def head_align_tail(prefix, alnm_ftype):
             ref = alnm.iv.chrom
             aligned_ref = alnm.iv.length
             aligned_length.append(aligned_ref)
+            if mode == "transcriptome":
+                total_ref = dict_ref_len[ref]
+                x.append(total_ref)
+                y.append(aligned_ref)
 
             read_len_total = len(alnm.read.seq)
             total_length.append(read_len_total)
@@ -164,6 +201,9 @@ def head_align_tail(prefix, alnm_ftype):
     out6.close()
     out7.close()
     '''
+    if mode == "transcriptome":
+        kde_2d = kde2d(x, y)
+        joblib.dump(kde_2d, prefix + '_aligned_region_2d.pkl')
 
     aligned_length = numpy.array(aligned_length)
     total_length = numpy.array(total_length)
