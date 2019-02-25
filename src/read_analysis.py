@@ -288,6 +288,10 @@ def main(argv):
 
         alnm_ext, unaligned_length = align_genome(g_alnm, prefix, aligner)
 
+        # Aligned reads analysis
+        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
+        num_aligned = align.head_align_tail(prefix, alnm_ext, args.mode)
+
     if args.mode == "transcriptome":
         infile = args.read
         ref_g = args.ref_g
@@ -334,10 +338,9 @@ def main(argv):
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Modeling Intron Retention\n")
             model_ir.intron_retention(prefix, ref_t)
 
-
-    # Aligned reads analysis
-    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
-    num_aligned = align.head_align_tail(prefix, alnm_ext, args.mode)
+        # Aligned reads analysis
+        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
+        num_aligned = align.head_align_tail(prefix, alnm_ext, args.mode, dict_ref_len)
 
     # Length distribution of unaligned reads
     alignment_rate = open(prefix + "_reads_alignment_rate", 'w')
