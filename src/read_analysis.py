@@ -49,7 +49,8 @@ def usage():
 
     sys.stderr.write(usage_message)
 
-def align_transcriptome(g_alnm, t_alnm, prefix, aligner):
+
+def align_transcriptome(in_fasta, prefix, aligner, num_threads, g_alnm, t_alnm, ref_t, ref_g):
 
     if (g_alnm != '' and t_alnm == '') or (g_alnm == '' and t_alnm != ''):
         print("Please specify either both alignment files (-ga and -ta) OR an aligner to use for alignment (-a)")
@@ -66,22 +67,17 @@ def align_transcriptome(g_alnm, t_alnm, prefix, aligner):
             sys.exit(1)
         else:
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Processing the alignment files: " + t_alnm_ext + "\n")
-            if t_alnm_ext == "maf":
-                outmaf_g = prefix + "_genome_alnm.maf"
-                outmaf_t = prefix + "_transcriptome_alnm.maf"
-                if outmaf_g == g_alnm:
-                    outmaf_g = prefix + "_genome_alnm_processed.maf"
-                if outmaf_t == t_alnm:
-                    outmaf_t = prefix + "_transcriptome_alnm_processed.maf"
+            if g_alnm_ext == t_alnm_ext == "maf":
+                processed_maf_g = prefix + "_genome_alnm_processed.maf"
+                processed_maf_t = prefix + "_transcriptome_alnm_processed.maf"
+                call("grep '^s ' " + g_alnm + " > " + processed_maf_g, shell=True)
+                call("grep '^s ' " + t_alnm + " > " + processed_maf_t, shell=True)
 
-                call("grep '^s ' " + g_alnm + " > " + outmaf_g, shell=True)
-                call("grep '^s ' " + t_alnm + " > " + outmaf_t, shell=True)
+                unaligned_length = get_besthit_maf.besthit_and_unaligned(in_fasta, processed_maf_t, prefix)
 
-                unaligned_length = list(get_besthit_maf.besthit_and_unaligned(in_fasta, outmaf_t, prefix))
+            elif g_alnm_ext == t_alnm_ext == "sam":
 
-            elif t_alnm_ext == "sam":
-
-                unaligned_length = list(get_primary_sam.primary_and_unaligned(g_alnm, t_alnm, prefix))
+                unaligned_length = get_primary_sam.primary_and_unaligned(t_alnm, prefix)
 
     elif (g_alnm == '' and t_alnm == ''):
         if aligner == "minimap2":
@@ -89,9 +85,9 @@ def align_transcriptome(g_alnm, t_alnm, prefix, aligner):
             t_alnm_ext = "sam"
             outsam_g = prefix + "_genome_alnm.sam"
             outsam_t = prefix + "_transcriptome_alnm.sam"
-            # Alignment to reference genome
 
-            # [EDIT] I should change the options for minimap when dealing with cDNA and dRNA reads.
+            # Alignment to reference genome
+            # [EDIT] I may change the options for minimap2 when dealing with cDNA and dRNA reads.
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with minimap2 to reference genome\n")
             call("minimap2 -ax splice " + ref_g + " " + in_fasta + " > " + outsam_g, shell=True)
             # Alignment to reference transcriptome
@@ -99,7 +95,7 @@ def align_transcriptome(g_alnm, t_alnm, prefix, aligner):
             call("minimap2 --cs -ax map-ont " + ref_t + " " + in_fasta + " > " + outsam_t, shell=True)
 
             # [EDIT] I may add a script to remove minimap2/LAST post-alignment files after alignment.
-            unaligned_length = list(get_primary_sam.primary_and_unaligned(outsam_g, outsam_t, prefix))
+            unaligned_length = get_primary_sam.primary_and_unaligned(outsam_t, prefix)
 
         elif aligner == "LAST":
             g_alnm_ext = "maf"
@@ -117,7 +113,7 @@ def align_transcriptome(g_alnm, t_alnm, prefix, aligner):
             call("lastal -a 1 -P " + num_threads + " ref_transcriptome " + in_fasta + " | grep '^s ' > " + outmaf_t,
                  shell=True)
 
-            unaligned_length = list(get_besthit_maf.besthit_and_unaligned(in_fasta, outmaf_t, prefix))
+            unaligned_length = get_besthit_maf.besthit_and_unaligned(in_fasta, outmaf_t, prefix)
 
         else:
             print("Please specify an acceptable aligner (minimap2 or LAST)\n")
@@ -126,7 +122,8 @@ def align_transcriptome(g_alnm, t_alnm, prefix, aligner):
 
     return t_alnm_ext, unaligned_length
 
-def align_genome(g_alnm, prefix, aligner):
+
+def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g):
     # if an alignment file is provided
     if g_alnm != '':
         pre, file_ext = os.path.splitext(g_alnm)
@@ -135,14 +132,14 @@ def align_genome(g_alnm, prefix, aligner):
         if file_extension == "maf":
             processed_maf = prefix + "_processed.maf"
 
-            call("grep '^s ' " + alnm_file + " > " + processed_maf, shell=True)
+            call("grep '^s ' " + g_alnm + " > " + processed_maf, shell=True)
 
             # get best hit and unaligned reads
             unaligned_length = get_besthit_maf.besthit_and_unaligned(in_fasta, processed_maf, prefix)
 
         elif file_extension == "sam":
             # get the primary alignments and define unaligned reads.
-            unaligned_length = get_primary_sam.primary_and_unaligned(alnm_file, prefix)
+            unaligned_length = get_primary_sam.primary_and_unaligned(g_alnm, prefix)
         else:
             print("Please specify an acceptable alignment format! (.maf or .sam)\n")
             usage()
@@ -152,15 +149,15 @@ def align_genome(g_alnm, prefix, aligner):
     else:
         if aligner == "minimap2" or aligner == "":  # Align with minimap2 by default
             file_extension = "sam"
-            out_sam = prefix + ".sam"
+            out_sam = prefix + "_genome_alnm.sam"
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with minimap2\n")
-            call("minimap2 --cs -ax map-ont -t " + num_threads + " " + ref + " " + in_fasta + " > " + out_sam,
+            call("minimap2 --cs -ax map-ont -t " + num_threads + " " + ref_g + " " + in_fasta + " > " + out_sam,
                  shell=True)
             # get primary alignments and unaligned reads
             unaligned_length = get_primary_sam.primary_and_unaligned(out_sam, prefix)
         elif aligner == "LAST":
             file_extension = "maf"
-            out_maf = prefix + ".maf"
+            out_maf = prefix + "_genome_alnm.maf"
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with LAST\n")
             call("lastdb ref_genome " + ref, shell=True)
             call("lastal -a 1 -P " + num_threads + " ref_genome " + in_fasta + " | grep '^s ' > " + out_maf, shell=True)
@@ -170,6 +167,7 @@ def align_genome(g_alnm, prefix, aligner):
             usage()
             sys.exit(1)
     return file_extension, unaligned_length
+
 
 def main(argv):
     # Parse input and output files
@@ -215,13 +213,26 @@ def main(argv):
     parser_e.add_argument('-o', '--output', help='The output name and location', default="training")
     parser_e.add_argument('-i', '--read', help='Input reads to use to quantification.', required=True)
     parser_e.add_argument('-rt', '--ref_t', help='Reference Transcriptome.', required=True)
-    parser_t.add_argument('-t', '--num_threads', help='Number of threads to be used (Default = 1)', default=1)
+    parser_e.add_argument('-t', '--num_threads', help='Number of threads to be used (Default = 1)', default=1)
 
     parser_ir = subparsers.add_parser('detect_ir', help="Detect Intron Retention events using the input read")
     parser_ir.add_argument('-o', '--output', help='The output name and location for profiles', default = "training")
 
-
     args = parser.parse_args()
+
+    if len(sys.argv) == 1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+
+    if len(sys.argv) == 2:
+        if args.mode == "genome":
+            parser_g.print_help(sys.stderr)
+        elif args.mode == "transcriptome":
+            parser_t.print_help(sys.stderr)
+        else:
+            parser.print_help(sys.stderr)
+        sys.exit(1)
+
 
     #parse quanity mode arguments
     if args.mode == "quantify":
@@ -257,25 +268,6 @@ def main(argv):
         sys.stdout.write('Finished! \n')
         sys.exit(1)
 
-    # READ PRE-PROCESS AND ALIGNMENT ANALYSIS
-    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process and unaligned reads analysis\n")
-    # Read pre-process
-    in_fasta = prefix + "_processed.fasta"  # use the prefix of input fasta file for processed fasta file
-    processed_fasta = open(in_fasta, 'w')
-    dic_reads = {}
-    with open(infile, 'r') as f:
-        for line in f:
-            if line[0] == '>':
-                name = '-'.join(line.strip()[1:].split())
-                dic_reads[name] = ""
-            else:
-                dic_reads[name] += line.strip()
-    for k, v in dic_reads.items():
-        processed_fasta.write('>' + k + '\n' + v + '\n')
-    processed_fasta.close()
-
-    del dic_reads
-
     if args.mode == "genome":
         infile = args.read
         ref_g = args.ref_g
@@ -286,7 +278,35 @@ def main(argv):
         if args.no_model_fit:
             model_fit = False
 
-        alnm_ext, unaligned_length = align_genome(g_alnm, prefix, aligner)
+        print("running the code with following parameters:\n")
+        print("infile", infile)
+        print("ref_g", ref_g)
+        print("aligner", aligner)
+        print("g_alnm", g_alnm)
+        print("prefix", prefix)
+        print("num_threads", num_threads)
+        print("model_fit", model_fit)
+
+        # READ PRE-PROCESS AND ALIGNMENT ANALYSIS
+        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process and unaligned reads analysis\n")
+        # Read pre-process
+        in_fasta = prefix + "_processed.fasta"  # use the prefix of input fasta file for processed fasta file
+        processed_fasta = open(in_fasta, 'w')
+        dic_reads = {}
+        with open(infile, 'r') as f:
+            for line in f:
+                if line[0] == '>':
+                    name = '-'.join(line.strip()[1:].split())
+                    dic_reads[name] = ""
+                else:
+                    dic_reads[name] += line.strip()
+        for k, v in dic_reads.items():
+            processed_fasta.write('>' + k + '\n' + v + '\n')
+        processed_fasta.close()
+
+        del dic_reads
+
+        alnm_ext, unaligned_length = align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g)
 
         # Aligned reads analysis
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
@@ -310,7 +330,42 @@ def main(argv):
         if args.detect_IR:
             detect_IR = True
 
-        alnm_ext, unaligned_length = align_transcriptome(g_alnm, t_alnm, prefix, aligner)
+        print("running the code with following parameters:\n")
+        print("infile", infile)
+        print("ref_g", ref_g)
+        print("ref_t", ref_t)
+        print("annot", annot)
+        print("aligner", aligner)
+        print("g_alnm", g_alnm)
+        print("t_alnm", t_alnm)
+        print("prefix", prefix)
+        print("num_bins", num_bins)
+        print("num_threads", num_threads)
+        print("model_fit", model_fit)
+        print("intron_retention", intron_retention)
+        print("detect_IR", detect_IR)
+
+
+        # READ PRE-PROCESS AND ALIGNMENT ANALYSIS
+        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process and unaligned reads analysis\n")
+        # Read pre-process
+        in_fasta = prefix + "_processed.fasta"  # use the prefix of input fasta file for processed fasta file
+        processed_fasta = open(in_fasta, 'w')
+        dic_reads = {}
+        with open(infile, 'r') as f:
+            for line in f:
+                if line[0] == '>':
+                    name = '-'.join(line.strip()[1:].split())
+                    dic_reads[name] = ""
+                else:
+                    dic_reads[name] += line.strip()
+        for k, v in dic_reads.items():
+            processed_fasta.write('>' + k + '\n' + v + '\n')
+        processed_fasta.close()
+
+        del dic_reads
+
+        alnm_ext, unaligned_length = align_transcriptome(in_fasta, prefix, aligner, num_threads, g_alnm, t_alnm, ref_t, ref_g)
 
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read the length of reference transcripts \n")
         # Read the length of reference transcripts from the reference transcriptome
