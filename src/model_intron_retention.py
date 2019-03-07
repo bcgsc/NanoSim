@@ -2,7 +2,6 @@
 
 
 from __future__ import with_statement
-import glob
 import sys
 from time import strftime
 import HTSeq
@@ -19,10 +18,7 @@ def invert_strand(iv):
         raise ValueError("Illegal strand")
     return iv2
 
-def intron_retention(outfile, ref_t):
-    gff_file = outfile + "_addedintron.gff3"
-    talnm_file = glob.glob(outfile + "_transcriptome_alnm.sam")[0]
-    galnm_file = glob.glob(outfile + "_genome_alnm.sam")[0]
+def intron_retention(outfile, gff_file, galnm_file, talnm_file):
 
     #read intron information from GFF file
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Reading intron coordinates from GFF file\n")
@@ -31,15 +27,22 @@ def intron_retention(outfile, ref_t):
     dict_intron_info = {}
     for feature in gff_features:
         if "Parent" in feature.attr:
-            info = feature.attr["Parent"].split(':')
-            if info[0] == "transcript":
-                feature_id = info[1]
-                if feature_id not in dict_intron_info:
-                    dict_intron_info[feature_id] = []
-        if feature.type == "intron":
-            # feature_id_2 = feature.name.split(':')[1] #feature_id_2 is same as feature_id above if feature is intron, I was just checking and testing it. then removed this line.
-            features[feature.iv] += feature_id
-            dict_intron_info[feature_id].append((feature.iv.start, feature.iv.end, feature.iv.length))
+            info = feature.name.split(":")
+            if len(info) == 1:
+                feature_id = info[0]
+            else:
+                if info[0] == "transcript":
+                    feature_id = info[1]
+                else:
+                    continue
+
+            feature_id = feature_id.split(".")[0]
+            if feature_id not in dict_intron_info:
+                dict_intron_info[feature_id] = []
+
+            if feature.type == "intron":
+                features[feature.iv] += feature_id
+                dict_intron_info[feature_id].append((feature.iv.start, feature.iv.end, feature.iv.length))
 
     #read primary genome alignment for each read
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read primary genome alignment for each read\n")
@@ -143,6 +146,10 @@ def intron_retention(outfile, ref_t):
                     dict_states[(previous_state, current_state)] += 1
                     previous_state = current_state
 
+    del dict_g_alnm
+    del dict_t_alnm
+    #print (dict_first_intron_state)
+    #print (dict_states)
     sum_first_introns = dict_first_intron_state[True] + dict_first_intron_state[False]
     sum_for_noIR = dict_states[(False, False)] + dict_states[(False, True)]
     sum_for_IR = dict_states[(True, False)] + dict_states[(True, True)]
@@ -150,13 +157,22 @@ def intron_retention(outfile, ref_t):
     fout = open(outfile + "_IR_markov_model", 'w')
     fout.write("succedent\tno_IR\tIR\n")
 
-    fout.write("start\t" + str(round(dict_first_intron_state[False] / float(sum_first_introns), 4)) + "\t" \
-               + str(round(dict_first_intron_state[True] / float(sum_first_introns), 4)) + "\n")
+    if sum_first_introns != 0:
+        fout.write("start\t" + str(round(dict_first_intron_state[False] / float(sum_first_introns), 4)) + "\t" \
+                   + str(round(dict_first_intron_state[True] / float(sum_first_introns), 4)) + "\n")
+    else:
+        fout.write("start\t0.0\t0.0\n")
 
-    fout.write("no_IR\t" + str(round(dict_states[(False, False)] / float(sum_for_noIR), 4)) + "\t" \
-               + str(round(dict_states[(False, True)] / float(sum_for_noIR), 4)) + "\n")
+    if sum_for_noIR != 0:
+        fout.write("no_IR\t" + str(round(dict_states[(False, False)] / float(sum_for_noIR), 4)) + "\t" \
+                   + str(round(dict_states[(False, True)] / float(sum_for_noIR), 4)) + "\n")
+    else:
+        fout.write("no_IR\t0.0\t0.0\n")
 
-    fout.write("IR\t" + str(round(dict_states[(True, False)] / float(sum_for_IR), 4)) + "\t" \
-               + str(round(dict_states[(True, True)] / float(sum_for_IR), 4)) + "\n")
+    if sum_for_IR != 0:
+        fout.write("IR\t" + str(round(dict_states[(True, False)] / float(sum_for_IR), 4)) + "\t" \
+                   + str(round(dict_states[(True, True)] / float(sum_for_IR), 4)) + "\n")
+    else:
+        fout.write("IR\t0.0\t0.0\n")
 
     fout.close()
