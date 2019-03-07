@@ -20,6 +20,7 @@ except ImportError:
     pass
 import sys
 import os
+import re
 import getopt
 import argparse
 import HTSeq
@@ -50,6 +51,41 @@ def usage():
     sys.stderr.write(usage_message)
 
 
+# Taken from https://github.com/lh3/readfq
+def readfq(fp):  # this is a generator function
+    last = None  # this is a buffer keeping the last unprocessed line
+    while True:  # mimic closure; is it a bad idea?
+        if not last:  # the first record or a record following a fastq
+            for l in fp:  # search for the start of the next record
+                if l[0] in '>@':  # fasta/q header line
+                    last = l[:-1]  # save this line
+                    break
+        if not last:
+            break
+        name, seqs, last = last[1:].partition(" ")[0], [], None
+        for l in fp:  # read the sequence
+            if l[0] in '@+>':
+                last = l[:-1]
+                break
+            seqs.append(l[:-1])
+        if not last or last[0] != '+':  # this is a fasta record
+            yield name, ''.join(seqs), None  # yield a fasta record
+            if not last:
+                break
+        else:  # this is a fastq record
+            seq, leng, seqs = ''.join(seqs), 0, []
+            for l in fp:  # read the quality
+                seqs.append(l[:-1])
+                leng += len(l) - 1
+                if leng >= len(seq):  # have read enough quality
+                    last = None
+                    yield name, seq, ''.join(seqs)  # yield a fastq record
+                    break
+            if last:  # reach EOF before reading enough quality
+                yield name, seq, None  # yield a fasta record instead
+                break
+
+
 def align_transcriptome(in_fasta, prefix, aligner, num_threads, g_alnm, t_alnm, ref_t, ref_g):
 
     if (g_alnm != '' and t_alnm == '') or (g_alnm == '' and t_alnm != ''):
@@ -57,6 +93,8 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, g_alnm, t_alnm, 
         usage()
         sys.exit(1)
     if g_alnm != "" and t_alnm != "":
+        out_g = g_alnm
+        out_t = t_alnm
         g_alnm_filename, g_alnm_ext = os.path.splitext(g_alnm)
         t_alnm_filename, t_alnm_ext = os.path.splitext(t_alnm)
         g_alnm_ext = g_alnm_ext [1:]
@@ -85,6 +123,8 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, g_alnm, t_alnm, 
             t_alnm_ext = "sam"
             outsam_g = prefix + "_genome_alnm.sam"
             outsam_t = prefix + "_transcriptome_alnm.sam"
+            out_g = outsam_g
+            out_t = outsam_t
 
             # Alignment to reference genome
             # [EDIT] I may change the options for minimap2 when dealing with cDNA and dRNA reads.
@@ -102,6 +142,8 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, g_alnm, t_alnm, 
             t_alnm_ext = "maf"
             outmaf_g = prefix + "_genome_alnm.maf"
             outmaf_t = prefix + "_transcriptome_alnm.maf"
+            out_g = outmaf_g
+            out_t = outmaf_t
             # Alignment to reference genome
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with LAST to reference genome\n")
             call("lastdb ref_genome " + ref_g, shell=True)
@@ -120,7 +162,7 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, g_alnm, t_alnm, 
             usage()
             sys.exit(1)
 
-    return t_alnm_ext, unaligned_length
+    return t_alnm_ext, unaligned_length, out_g, out_t
 
 
 def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g):
@@ -287,24 +329,20 @@ def main(argv):
         print("num_threads", num_threads)
         print("model_fit", model_fit)
 
+        dir_name = os.path.dirname(prefix)
+        basename = os.path.basename(prefix)
+        call("mkdir -p " + dir_name, shell=True)
+
         # READ PRE-PROCESS AND ALIGNMENT ANALYSIS
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process and unaligned reads analysis\n")
-        # Read pre-process
-        in_fasta = prefix + "_processed.fasta"  # use the prefix of input fasta file for processed fasta file
+        in_fasta = prefix + "_processed.fasta"
         processed_fasta = open(in_fasta, 'w')
-        dic_reads = {}
         with open(infile, 'r') as f:
-            for line in f:
-                if line[0] == '>':
-                    name = '-'.join(line.strip()[1:].split())
-                    dic_reads[name] = ""
-                else:
-                    dic_reads[name] += line.strip()
-        for k, v in dic_reads.items():
-            processed_fasta.write('>' + k + '\n' + v + '\n')
+            for seqN, seqS, seqQ in readfq(f):
+                info = re.split(r'[_\s]\s*', seqN)
+                chr_name = "-".join(info)
+                processed_fasta.write('>' + chr_name + '\n' + seqS + '\n')
         processed_fasta.close()
-
-        del dic_reads
 
         alnm_ext, unaligned_length = align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g)
 
@@ -345,38 +383,31 @@ def main(argv):
         print("intron_retention", intron_retention)
         print("detect_IR", detect_IR)
 
+        dir_name = os.path.dirname(prefix)
+        basename = os.path.basename(prefix)
+        call("mkdir -p " + dir_name, shell=True)
 
         # READ PRE-PROCESS AND ALIGNMENT ANALYSIS
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process and unaligned reads analysis\n")
-        # Read pre-process
-        in_fasta = prefix + "_processed.fasta"  # use the prefix of input fasta file for processed fasta file
+        in_fasta = prefix + "_processed.fasta"
         processed_fasta = open(in_fasta, 'w')
-        dic_reads = {}
         with open(infile, 'r') as f:
-            for line in f:
-                if line[0] == '>':
-                    name = '-'.join(line.strip()[1:].split())
-                    dic_reads[name] = ""
-                else:
-                    dic_reads[name] += line.strip()
-        for k, v in dic_reads.items():
-            processed_fasta.write('>' + k + '\n' + v + '\n')
+            for seqN, seqS, seqQ in readfq(f):
+                info = re.split(r'[_\s]\s*', seqN)
+                chr_name = "-".join(info)
+                processed_fasta.write('>' + chr_name + '\n' + seqS + '\n')
         processed_fasta.close()
 
-        del dic_reads
-
-        alnm_ext, unaligned_length = align_transcriptome(in_fasta, prefix, aligner, num_threads, g_alnm, t_alnm, ref_t, ref_g)
+        alnm_ext, unaligned_length, out_g, out_t = align_transcriptome(in_fasta, prefix, aligner, num_threads, g_alnm, t_alnm, ref_t, ref_g)
 
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read the length of reference transcripts \n")
         # Read the length of reference transcripts from the reference transcriptome
         dict_ref_len = {}
         with open(ref_t) as f:
-            for line in f:
-                if line.startswith(">"):
-                    ref_id = line.split()[0][1:]
-                    dict_ref_len[ref_id] = 0
-                else:
-                    dict_ref_len[ref_id] += len(line.strip())
+            for seqN, seqS, seqQ in readfq(f):
+                info = re.split(r'[_\s]\s*', seqN)
+                chr_name = "-".join(info)
+                dict_ref_len[chr_name] = len(seqS)
 
         if intron_retention:
             # Read the annotation GTF/GFF3 file
@@ -385,13 +416,13 @@ def main(argv):
             annot_filename, annot_file_extension = os.path.splitext(annot)
             annot_file_extension = annot_file_extension[1:]
             if annot_file_extension.upper() == "GTF":
-                call("gt gtf_to_gff3 -tidy -o " + prefix + ".gff3" + annot, shell=True)
+                call("gt gtf_to_gff3 -tidy -o " + prefix + ".gff3 " + annot, shell=True)
 
             # Next, add intron info into gff3:
-            call("gt gff3 -tidy -retainids -checkids -addintrons -o " + prefix + "_addedintron.gff3 " + annot_filename + ".gff3",
+            call("gt gff3 -tidy -retainids -checkids -addintrons -force -o " + prefix + "_addedintron.gff3 " + annot_filename + ".gff3",
                 shell=True)
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Modeling Intron Retention\n")
-            model_ir.intron_retention(prefix, ref_t)
+            model_ir.intron_retention(prefix, prefix + "_addedintron.gff3", out_g, out_t)
 
         # Aligned reads analysis
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
@@ -420,9 +451,9 @@ def main(argv):
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Model fitting\n")
         model_fitting.model_fitting(prefix, int(num_threads))
 
-    call("find . -name \*ref_genome.* -delete", shell=True)
-    call("find . -name \*ref_transcriptome.* -delete", shell=True)
-    call("find . -name \*.pyc -delete", shell=True)
+    #call("find . -name \*ref_genome.* -delete", shell=True)
+    #call("find . -name \*ref_transcriptome.* -delete", shell=True)
+    #call("find . -name \*.pyc -delete", shell=True)
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
 
 
