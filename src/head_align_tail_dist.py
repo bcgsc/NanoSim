@@ -9,8 +9,6 @@ Updated in Nov 25th
 """
 
 from __future__ import with_statement
-import sys
-import getopt
 import numpy
 import HTSeq
 from sklearn.neighbors import KernelDensity
@@ -21,47 +19,6 @@ try:
     from six.moves import xrange
 except ImportError:
     pass
-
-
-def flex_bins(num_of_bins, ratio_dict, num_of_reads):
-    count_reads = num_of_reads / num_of_bins
-    k_of_bin = 0
-    k_of_ratio = 0
-    ratio_keys = sorted(ratio_dict.keys())
-    num_of_keys = len(ratio_keys)
-
-    ratio_bins = {}
-    while k_of_bin < num_of_bins:
-        if k_of_ratio >= num_of_keys:
-            break
-
-        start = k_of_ratio
-        count = len(ratio_dict[ratio_keys[k_of_ratio]])
-        k_of_ratio += 1
-
-        while k_of_ratio < num_of_keys:
-            tmp_count = count + len(ratio_dict[ratio_keys[k_of_ratio]])
-            if abs(tmp_count - count_reads) >= abs(count - count_reads):
-                break
-            else:
-                count = tmp_count
-                k_of_ratio += 1
-
-        k = (ratio_keys[start] if start else 0,
-             ratio_keys[k_of_ratio] if k_of_ratio < num_of_keys else ratio_keys[k_of_ratio - 1] + 1)
-        ratio_bins[k] = []
-        for i in xrange(start, k_of_ratio):
-            ratio_bins[k].extend(ratio_dict[ratio_keys[i]])
-
-        k_of_bin += 1
-
-    if k_of_ratio < num_of_keys - 1:
-        k = (ratio_keys[k_of_ratio], ratio_keys[num_of_keys - 1] + 1)
-        ratio_bins[k] = []
-        for i in xrange(k_of_ratio, num_of_keys - 1):
-            ratio_bins[k].extend(ratio_dict[ratio_keys[i]])
-
-    return ratio_bins
 
 
 def kde2d(x, y):
