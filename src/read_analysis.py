@@ -111,11 +111,11 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, g_alnm, t_alnm, 
                 call("grep '^s ' " + g_alnm + " > " + processed_maf_g, shell=True)
                 call("grep '^s ' " + t_alnm + " > " + processed_maf_t, shell=True)
 
-                unaligned_length = get_besthit_maf.besthit_and_unaligned(in_fasta, processed_maf_t, prefix)
+                unaligned_length, strandness = get_besthit_maf.besthit_and_unaligned(in_fasta, processed_maf_t, prefix)
 
             elif g_alnm_ext == t_alnm_ext == "sam":
 
-                unaligned_length = get_primary_sam.primary_and_unaligned(t_alnm, prefix)
+                unaligned_length, strandness = get_primary_sam.primary_and_unaligned(t_alnm, prefix)
 
     elif (g_alnm == '' and t_alnm == ''):
         if aligner == "minimap2":
@@ -135,7 +135,7 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, g_alnm, t_alnm, 
             call("minimap2 --cs -ax map-ont " + ref_t + " " + in_fasta + " > " + outsam_t, shell=True)
 
             # [EDIT] I may add a script to remove minimap2/LAST post-alignment files after alignment.
-            unaligned_length = get_primary_sam.primary_and_unaligned(outsam_t, prefix)
+            unaligned_length, strandness = get_primary_sam.primary_and_unaligned(outsam_t, prefix)
 
         elif aligner == "LAST":
             g_alnm_ext = "maf"
@@ -155,14 +155,14 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, g_alnm, t_alnm, 
             call("lastal -a 1 -P " + num_threads + " ref_transcriptome " + in_fasta + " | grep '^s ' > " + outmaf_t,
                  shell=True)
 
-            unaligned_length = get_besthit_maf.besthit_and_unaligned(in_fasta, outmaf_t, prefix)
+            unaligned_length, strandness = get_besthit_maf.besthit_and_unaligned(in_fasta, outmaf_t, prefix)
 
         else:
             print("Please specify an acceptable aligner (minimap2 or LAST)\n")
             usage()
             sys.exit(1)
 
-    return t_alnm_ext, unaligned_length, out_g, out_t
+    return t_alnm_ext, unaligned_length, out_g, out_t, strandness
 
 
 def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g):
@@ -177,11 +177,11 @@ def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g):
             call("grep '^s ' " + g_alnm + " > " + processed_maf, shell=True)
 
             # get best hit and unaligned reads
-            unaligned_length = get_besthit_maf.besthit_and_unaligned(in_fasta, processed_maf, prefix)
+            unaligned_length, strandness = get_besthit_maf.besthit_and_unaligned(in_fasta, processed_maf, prefix)
 
         elif file_extension == "sam":
             # get the primary alignments and define unaligned reads.
-            unaligned_length = get_primary_sam.primary_and_unaligned(g_alnm, prefix)
+            unaligned_length, strandness = get_primary_sam.primary_and_unaligned(g_alnm, prefix)
         else:
             print("Please specify an acceptable alignment format! (.maf or .sam)\n")
             usage()
@@ -196,19 +196,19 @@ def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g):
             call("minimap2 --cs -ax map-ont -t " + num_threads + " " + ref_g + " " + in_fasta + " > " + out_sam,
                  shell=True)
             # get primary alignments and unaligned reads
-            unaligned_length = get_primary_sam.primary_and_unaligned(out_sam, prefix)
+            unaligned_length, strandness = get_primary_sam.primary_and_unaligned(out_sam, prefix)
         elif aligner == "LAST":
             file_extension = "maf"
             out_maf = prefix + "_genome_alnm.maf"
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with LAST\n")
             call("lastdb ref_genome " + ref, shell=True)
             call("lastal -a 1 -P " + num_threads + " ref_genome " + in_fasta + " | grep '^s ' > " + out_maf, shell=True)
-            unaligned_length = get_besthit_maf.besthit_and_unaligned(in_fasta, out_maf, prefix)
+            unaligned_length, strandness = get_besthit_maf.besthit_and_unaligned(in_fasta, out_maf, prefix)
         else:
             print("Please specify an acceptable aligner (minimap2 or LAST)\n")
             usage()
             sys.exit(1)
-    return file_extension, unaligned_length
+    return file_extension, unaligned_length, strandness
 
 
 def main(argv):
@@ -344,7 +344,7 @@ def main(argv):
                 processed_fasta.write('>' + chr_name + '\n' + seqS + '\n')
         processed_fasta.close()
 
-        alnm_ext, unaligned_length = align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g)
+        alnm_ext, unaligned_length, strandness = align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g)
 
         # Aligned reads analysis
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
@@ -398,7 +398,7 @@ def main(argv):
                 processed_fasta.write('>' + chr_name + '\n' + seqS + '\n')
         processed_fasta.close()
 
-        alnm_ext, unaligned_length, out_g, out_t = align_transcriptome(in_fasta, prefix, aligner, num_threads, g_alnm, t_alnm, ref_t, ref_g)
+        alnm_ext, unaligned_length, out_g, out_t, strandness = align_transcriptome(in_fasta, prefix, aligner, num_threads, g_alnm, t_alnm, ref_t, ref_g)
 
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read the length of reference transcripts \n")
         # Read the length of reference transcripts from the reference transcriptome
@@ -427,6 +427,11 @@ def main(argv):
         # Aligned reads analysis
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
         num_aligned = align.head_align_tail(prefix, alnm_ext, args.mode, dict_ref_len)
+
+    # strandness of the aligned reads
+    strandness_rate = open(prefix + "_strandness_rate", 'w')
+    strandness_rate.write("strandness:\t" + str(round(strandness, 3)))
+    strandness_rate.close()
 
     # Length distribution of unaligned reads
     alignment_rate = open(prefix + "_reads_alignment_rate", 'w')

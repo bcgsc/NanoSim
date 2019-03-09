@@ -265,11 +265,12 @@ def get_length_kde(kde, num, log=False, flatten=True):
         return length_list
 
 
-def read_profile(ref_g, ref_t, number, model_prefix, per, mode, exp = None, model_ir = None):
+def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp = None, model_ir = None):
     global number_aligned, number_unaligned
     global match_ht_list, error_par, trans_error_pr, match_markov_model
     global kde_aligned, kde_ht, kde_ht_ratio, kde_unaligned, kde_aligned_2d
     global seq_dict, seq_len
+    global strandness_rate
 
     if mode == "genome":
         global genome_len
@@ -277,6 +278,12 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, exp = None, mode
     else:
         global dict_ref_structure, dict_exp, ecdf_dict_ref_exp, genome_fai
         ref = ref_t
+
+    if strandness == None:
+        with open(model_prefix + "_strandness_rate", 'r') as strand_profile:
+            strandness_rate = float(strand_profile.readline().split("\t")[1])
+    else:
+        strandness_rate = strandness
 
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read in reference \n")
     sys.stdout.flush()
@@ -302,7 +309,7 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, exp = None, mode
         # create and read the .fai file of the reference genome
         genome_fai = pysam.Fastafile(ref_g)
 
-        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read in expression genome\n")
+        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read in expression profile\n")
         sys.stdout.flush()
         dict_exp = {}
         with open (exp, 'r') as exp_file:
@@ -554,7 +561,7 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias):
 
         # Reverse complement half of the reads
         p = random.random()
-        if p < 0.5:
+        if p < strandness_rate:
             read_mutated = reverse_complement(read_mutated)
             new_read_name += "_R"
         else:
@@ -621,7 +628,7 @@ def simulation_aligned_genome(out_reads, out_error, kmer_bias):
 
             # Reverse complement half of the reads
             p = random.random()
-            if p < 0.5:
+            if p < strandness_rate:
                 read_mutated = reverse_complement(read_mutated)
                 new_read_name += "_R"
             else:
@@ -680,7 +687,7 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, median_l=None,
 
         # Reverse complement half of the reads
         p = random.random()
-        if p < 0.5:
+        if p < strandness_rate:
             read_mutated = reverse_complement(read_mutated)
             new_read_name += "_R"
         else:
@@ -710,7 +717,7 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, median_l=None,
 
             # Reverse complement half of the reads
             p = random.random()
-            if p < 0.5:
+            if p < strandness_rate:
                 new_read = reverse_complement(new_read)
                 new_read_name += "_R"
             else:
@@ -1007,6 +1014,7 @@ def main():
     parser_g.add_argument('--sd_len', help='The standard deviation of read length in log scale', type=int, default=None)
     parser_g.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
     parser_g.add_argument('-k', '--KmerBias', help='Determine whether to considert Kmer Bias or not', type = int, default= 0)
+    parser_t.add_argument('-s', '--strandness', help='Determine the strandness of the simulated reads. Overrides the value profiled in characterization phase.', type=float, default=None)
     parser_g.add_argument('--perfect', help='Ignore profiles and simulate perfect reads', action='store_true')
     parser_g.add_argument('--dna_type', help='Specify the dna type: circular OR linear, default = linear', type=str, default="linear")
 
@@ -1023,6 +1031,7 @@ def main():
     parser_t.add_argument('-max', '--max_len', help='The maximum length for simulated reads', type=int, default= float("inf"))
     parser_t.add_argument('-min', '--min_len', help='The minimum length for simulated reads', type=int, default= 50)
     parser_t.add_argument('-k', '--KmerBias', help='Determine whether to considert Kmer Bias or not', type = int, default= 0)
+    parser_t.add_argument('-s', '--strandness', help='Determine the strandness of the simulated reads. Overrides the value profiled in characterization phase.', type=float, default=None)
     parser_t.add_argument('--model_ir', help='Consider Intron Retention model from characterization step when simulating reads', action='store_true')
     parser_t.add_argument('--perfect', help='Ignore profiles and simulate perfect reads', action='store_true')
 
@@ -1059,6 +1068,7 @@ def main():
         if args.perfect:
             perfect = True
         kmer_bias = args.KmerBias
+        strandness = args.strandness
         dna_type = args.dna_type
 
         print("running the code with following parameters:\n")
@@ -1091,15 +1101,15 @@ def main():
             usage()
             sys.exit(1)
 
-        read_profile(ref_g, None, number, model_prefix, perfect, args.mode)
+        read_profile(ref_g, None, number, model_prefix, perfect, args.mode, strandness)
 
         if median_readlength and sd_readlength:
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Simulating read length with log-normal distribution\n")
             sys.stdout.flush()
-            simulation(args.mode, out, dna_type, perfect, kmer_bias, max_readlength, min_readlength, median_readlength,
+            simulation(args.mode, out, dna_type, perfect, kmer_bias, max_readlength, min_readlength, strandness, median_readlength,
                        sd_readlength)
         else:
-            simulation(args.mode, out, dna_type, perfect, kmer_bias, max_readlength, min_readlength)
+            simulation(args.mode, out, dna_type, perfect, kmer_bias, max_readlength, min_readlength, strandness)
 
     elif args.mode == "transcriptome":
         ref_g = args.ref_g
@@ -1114,6 +1124,7 @@ def main():
         max_readlength = args.max_len
         min_readlength = args.min_len
         kmer_bias = args.KmerBias
+        strandness = args.strandness
         if args.perfect:
             perfect = True
         if args.model_ir:
@@ -1131,6 +1142,7 @@ def main():
         print("kmer_bias", kmer_bias)
         print("model_ir", model_ir)
         print("dna_type", dna_type)
+        print("strandness", strandness)
 
         dir_name = os.path.dirname(out)
         basename = os.path.basename(out)
@@ -1142,9 +1154,9 @@ def main():
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ': ' + ' '.join(sys.argv) + '\n')
         sys.stdout.flush()
 
-        read_profile(ref_g, ref_t, number, model_prefix, perfect, args.mode, exp, model_ir)
+        read_profile(ref_g, ref_t, number, model_prefix, perfect, args.mode, strandness, exp, model_ir)
 
-        simulation(args.mode, out, dna_type, perfect, kmer_bias, max_readlength, min_readlength, strandness, None, None, model_ir)
+        simulation(args.mode, out, dna_type, perfect, kmer_bias, max_readlength, min_readlength, None, None, model_ir)
 
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
     sys.stdout.close()
