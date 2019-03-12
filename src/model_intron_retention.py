@@ -26,7 +26,7 @@ def intron_retention(outfile, gff_file, galnm_file, talnm_file):
     features = HTSeq.GenomicArrayOfSets("auto", stranded=False)
     dict_intron_info = {}
     for feature in gff_features:
-        if "Parent" in feature.attr:
+        if "Parent" in feature.attr: #the reason I didnt include "if feature.type == intron" here is that I would like to also consider trxs without intron
             info = feature.name.split(":")
             if len(info) == 1:
                 feature_id = info[0]
@@ -39,6 +39,10 @@ def intron_retention(outfile, gff_file, galnm_file, talnm_file):
             feature_id = feature_id.split(".")[0]
             if feature_id not in dict_intron_info:
                 dict_intron_info[feature_id] = []
+
+            # remove "chr" from chromosome names to be constant
+            if "chr" in feature.iv.chrom:
+                feature.iv = HTSeq.GenomicInterval(feature.iv.chrom.strip("chr"), feature.iv.start, feature.iv.end, feature.iv.strand)
 
             if feature.type == "intron":
                 features[feature.iv] += feature_id
@@ -90,6 +94,8 @@ def intron_retention(outfile, gff_file, galnm_file, talnm_file):
             try:
                 length_IR = 0
                 for iv in iv_seq:
+                    if "chr" in iv.chrom:
+                        iv = HTSeq.GenomicInterval(iv.chrom.strip("chr"), iv.start, iv.end, iv.strand)
                     for iv2, fs2 in features[iv].steps():
                         if fs2.intersection(set([primary_trx])):
                             length_IR += iv2.length
