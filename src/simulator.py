@@ -296,7 +296,7 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp 
             info = re.split(r'[_\s]\s*', seqN)
             chr_name = "-".join(info)
             seq_dict[chr_name] = seqS
-            seq_len[chr_name] = len(seqS)
+            seq_len[chr_name.split(".")[0]] = len(seqS)
 
     if mode == "genome":
         genome_len = sum(seq_len.values())
@@ -316,7 +316,7 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp 
             header = exp_file.readline()
             for line in exp_file:
                 parts = line.split("\t")
-                transcript_id = parts[0]
+                transcript_id = parts[0].split(".")[0]
                 tpm = float(parts[2])
                 if transcript_id.startswith("ENS") and tpm > 0:
                     dict_exp[transcript_id] = tpm
@@ -326,22 +326,24 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp 
         gff_features = HTSeq.GFF_Reader(gff_file, end_included=True)
         features = HTSeq.GenomicArrayOfSets("auto", stranded=False)
         for feature in gff_features:
-            if "Parent" in feature.attr:
+            if feature.type == "exon" or feature.type == "intron":
+
                 info = feature.name.split(":")
-                #info = feature.attr["Parent"].split(':')
                 if len(info) == 1:
                     feature_id = info[0]
                 else:
-                    if info[0] == "transcript":
-                        feature_id = info[1]
-                    else:
-                        continue
+                    feature_id = info[1]
+
+                feature_id = feature_id.split(".")[0]
                 if feature_id not in dict_ref_structure:
                     dict_ref_structure[feature_id] = []
 
-                if feature.type == "exon" or feature.type == "intron":
-                    dict_ref_structure[feature_id].append(
-                        (feature.type, feature.iv.chrom, feature.iv.start, feature.iv.end, feature.iv.length))
+                # remove "chr" from chromosome names to be constant
+                if "chr" in feature.iv.chrom:
+                    feature.iv.chrom = feature.iv.chrom.strip("chr")
+
+                dict_ref_structure[feature_id].append(
+                    (feature.type, feature.iv.chrom, feature.iv.start, feature.iv.end, feature.iv.length))
 
         # create the ecdf dict considering the expression profiles
         ecdf_dict_ref_exp = make_cdf(dict_exp, seq_len)
@@ -499,9 +501,8 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias):
         sleep(0.02)
         while True:
             ref_trx, ref_trx_len = select_ref_transcript(ecdf_dict_ref_exp)
-            ref_trx_temp = ref_trx.split(".")[0]
-            if ref_trx_temp in dict_ref_structure:
-                ref_trx_structure = copy.deepcopy(dict_ref_structure[ref_trx_temp])
+            if ref_trx in dict_ref_structure:
+                ref_trx_structure = copy.deepcopy(dict_ref_structure[ref_trx])
                 ref_trx_len_fromstructure = ref_len_from_structure(ref_trx_structure)
                 if ref_trx_len == ref_trx_len_fromstructure:
                     ref_len_aligned = select_nearest_kde2d(sampled_2d_lengths, ref_trx_len)
@@ -515,13 +516,20 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias):
             #     if item[0] == "retained_intron":
             #         ir_length += item[-1]
         else:
-            ref_trx_structure_new = copy.deepcopy(dict_ref_structure[ref_trx_temp])
+            ref_trx_structure_new = copy.deepcopy(dict_ref_structure[ref_trx])
 
-        # I may update this part. #improvement
+        #check whether chrom names contains "chr" or not.
+        flag_chrom = False
+        for item in genome_fai.references:
+            if "chr" in item:
+                flag_chrom = True
+
         list_iv = extract_read_pos(ref_len_aligned, ref_trx_len, ref_trx_structure_new)
         new_read = ""
         for interval in list_iv:
             chrom = interval.chrom
+            if flag_chrom == True:
+                chrom = "chr" + chrom
             start = interval.start
             end = interval.end
             new_read += genome_fai.fetch(chrom, start, end)
@@ -981,7 +989,7 @@ def main():
     out = "simulated"
     number = 20000
     perfect = False
-    model_ir = False
+    model_ir = True
     # ins, del, mis rate represent the weight tuning in mix model
     ins_rate = 1
     del_rate = 1
@@ -1032,7 +1040,7 @@ def main():
     parser_t.add_argument('-min', '--min_len', help='The minimum length for simulated reads', type=int, default= 50)
     parser_t.add_argument('-k', '--KmerBias', help='Determine whether to considert Kmer Bias or not', type = int, default= 0)
     parser_t.add_argument('-s', '--strandness', help='Determine the strandness of the simulated reads. Overrides the value profiled in characterization phase.', type=float, default=None)
-    parser_t.add_argument('--model_ir', help='Consider Intron Retention model from characterization step when simulating reads', action='store_true')
+    parser_t.add_argument('--no_model_ir', help='Consider Intron Retention model from characterization step when simulating reads', action='store_true')
     parser_t.add_argument('--perfect', help='Ignore profiles and simulate perfect reads', action='store_true')
 
     args = parser.parse_args()
@@ -1127,8 +1135,8 @@ def main():
         strandness = args.strandness
         if args.perfect:
             perfect = True
-        if args.model_ir:
-            model_ir = True
+        if args.no_model_ir:
+            model_ir = False
         dna_type = "transcriptome"
 
         print("\nrunning the code with following parameters:\n")

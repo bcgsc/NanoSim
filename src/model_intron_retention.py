@@ -42,7 +42,7 @@ def intron_retention(outfile, gff_file, galnm_file, talnm_file):
 
             # remove "chr" from chromosome names to be constant
             if "chr" in feature.iv.chrom:
-                feature.iv = HTSeq.GenomicInterval(feature.iv.chrom.strip("chr"), feature.iv.start, feature.iv.end, feature.iv.strand)
+                feature.iv.chrom = feature.iv.chrom.strip("chr")
 
             if feature.type == "intron":
                 features[feature.iv] += feature_id
@@ -95,7 +95,7 @@ def intron_retention(outfile, gff_file, galnm_file, talnm_file):
                 length_IR = 0
                 for iv in iv_seq:
                     if "chr" in iv.chrom:
-                        iv = HTSeq.GenomicInterval(iv.chrom.strip("chr"), iv.start, iv.end, iv.strand)
+                        iv.chrom = iv.chrom.strip("chr")
                     for iv2, fs2 in features[iv].steps():
                         if fs2.intersection(set([primary_trx])):
                             length_IR += iv2.length
