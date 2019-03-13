@@ -187,6 +187,7 @@ def extract_read_pos(length, ref_len, ref_trx_structure):
                 start_pos = 0
                 if (item[2] + length) < item[3]:
                     end = item[2] + length
+                    length = 0
 
                 else:
                     end = item[3]
