@@ -6,7 +6,9 @@ import sys
 from time import strftime
 import HTSeq
 
-stranded = "no" # think about it. Should I input this info for cDNA ONT data or not?
+stranded = "no" # think about it. Should I input this info for cDNA ONT data or not? NO
+#dev
+#iv_seq = (invert_strand(co.ref_iv) for co in galnm_cigar if (co.type in ('M', '=', 'X', 'D') and co.size > 0))
 
 def invert_strand(iv):
     iv2 = iv.copy()
@@ -17,6 +19,15 @@ def invert_strand(iv):
     else:
         raise ValueError("Illegal strand")
     return iv2
+
+
+def parse_cigar(cigar_obj):
+    list_coords = []
+    for co in cigar_obj:
+        if co.type in ('M', '=', 'X', 'D') and co.size > 0:
+            list_coords.append([co.ref_iv.chrom, co.ref_iv.start, co.ref_iv.end, co.ref_iv.strand])
+    return (list_coords)
+
 
 def intron_retention(outfile, gff_file, galnm_file, talnm_file):
 
@@ -56,7 +67,7 @@ def intron_retention(outfile, gff_file, galnm_file, talnm_file):
     for alnm in g_alignments:
         qname = alnm.read.name
         if alnm.aligned and not alnm.not_primary_alignment and not alnm.supplementary:
-            dict_g_alnm[qname] = alnm
+            dict_g_alnm[qname] = parse_cigar(alnm.cigar)
         if alnm.supplementary and qname in dict_g_alnm:
             del dict_g_alnm[qname]  # delete chimeric reads
 
@@ -68,7 +79,7 @@ def intron_retention(outfile, gff_file, galnm_file, talnm_file):
     for alnm in t_alignments:
         qname = alnm.read.name
         if alnm.aligned and not alnm.not_primary_alignment and not alnm.supplementary:
-            dict_t_alnm[qname] = alnm
+            dict_t_alnm[qname] = alnm.iv.chrom.split(".")[0]
         if alnm.supplementary and qname in dict_t_alnm:
             del dict_t_alnm[qname]  # delete chimeric reads
 
@@ -78,22 +89,16 @@ def intron_retention(outfile, gff_file, galnm_file, talnm_file):
     dict_first_intron_state = {False: 0, True: 0}
     dict_states = {(False, False): 0, (False, True): 0, (True, False): 0, (True, True): 0}
     for qname in dict_g_alnm:
-        galnm = dict_g_alnm[qname]
+        iv_seq = dict_g_alnm[qname]
         if qname in dict_t_alnm:
-            talnm = dict_t_alnm[qname]
-            primary_trx = talnm.iv.chrom.split(".")[0]
-            if stranded != "reverse":
-                iv_seq = (co.ref_iv for co in galnm.cigar if (co.type in ('M', '=', 'X', 'D') and co.size > 0))
-                #iv_seq = (co.ref_iv for co in galnm.cigar if co.type in ('M', 'D') and co.size > 0) #tested. test the above cases too to make sure about it.
-            else:
-                iv_seq = (invert_strand(co.ref_iv) for co in galnm.cigar if (co.type in ('M', '=', 'X', 'D') and co.size > 0))
-
+            primary_trx = dict_t_alnm[qname]
             list_IR_positions = []
             pos = []
             ir_info = False
             try:
                 length_IR = 0
-                for iv in iv_seq:
+                for item in iv_seq:
+                    iv = HTSeq.GenomicInterval(item[0], item[1], item[2], item[3])
                     if "chr" in iv.chrom:
                         iv.chrom = iv.chrom.strip("chr")
                     for iv2, fs2 in features[iv].steps():
