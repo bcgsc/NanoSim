@@ -527,13 +527,19 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias):
 
         list_iv = extract_read_pos(ref_len_aligned, ref_trx_len, ref_trx_structure_new)
         new_read = ""
+        flag = False
         for interval in list_iv:
             chrom = interval.chrom
             if flag_chrom == True:
                 chrom = "chr" + chrom
+            if chrom not in genome_fai.references:
+                flag = True
+                break
             start = interval.start
             end = interval.end
             new_read += genome_fai.fetch(chrom, start, end)
+        if flag == True:
+            continue
 
         new_read_length = len(new_read)
         middle_read, middle_ref, error_dict = error_list(new_read_length, match_markov_model, match_ht_list, error_par,
@@ -559,16 +565,13 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias):
         new_read_name = str(ref_trx) + "_" + str(ref_start_pos) + "_aligned_" + str(i + number_unaligned)
         # Mutate read
         new_read = case_convert(new_read)
-        try:
+        try: #because I first extract read and then introduce errors. they are several cases in which the error introduced length is larger than read length. [error in last mis error length] #dev
             read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
         except:
-            sys.stdout.write(str(ref_trx_len) + "\t" + str(ref_len_aligned) + "\t" + str(ir_length) + "\t" + str(new_read_length) + "\n")
-            sys.stdout.flush()
-            sys.stdout.write(str(middle_read) + "\t" + str(middle_ref) + "\n")
-            sys.stdout.flush()
-            break
+            #print (new_read_length, middle_read, middle_ref, sorted(error_dict.keys(), reverse=True)[0], error_dict[sorted(error_dict.keys(), reverse=True)[0]])
+            continue
 
-        # Reverse complement half of the reads
+        # Reverse complement accoding to strandness rate
         p = random.random()
         if p < strandness_rate:
             read_mutated = reverse_complement(read_mutated)
@@ -928,8 +931,8 @@ def mutate_read(read, read_name, error_log, e_dict, k, aligned=True):
                 new_bases = ""
                 for i in xrange(val[1]):
                     tmp_bases = list(BASES)
-                    #tmp_bases.remove(read[key + i]) ##
-                    tmp_bases.remove(read[key]) ## Edited this part for testing
+                    tmp_bases.remove(read[key + i]) ##
+                    #tmp_bases.remove(read[key]) ## Edited this part for testing
                     new_base = random.choice(tmp_bases)
                     new_bases += new_base
                 check_kmer = read[max(key - k + 1, 0): key] + new_bases + read[key + val[1]: key + val[1] + k - 1]
@@ -956,9 +959,9 @@ def mutate_read(read, read_name, error_log, e_dict, k, aligned=True):
 
         read = new_read
 
-        if aligned and val[0] != "match":
-            error_log.write(read_name + "\t" + str(key) + "\t" + val[0] + "\t" + str(val[1]) +
-                            "\t" + ref_base + "\t" + new_bases + "\n")
+        #if aligned and val[0] != "match":
+            #error_log.write(read_name + "\t" + str(key) + "\t" + val[0] + "\t" + str(val[1]) +
+                            #"\t" + ref_base + "\t" + new_bases + "\n")
 
     # If choose to have kmer bias, then need to compress homopolymers to 5-mer
     if k:
