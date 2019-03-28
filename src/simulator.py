@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 """
-Created on Apr 10, 2015
 
-@author: Chen Yang
+@author: Chen Yang & Saber HafezQorani
 
-This script generates simulated Oxford Nanopore 2D reads.
+This script generates simulated Oxford Nanopore 2D reads (genomic and transcriptomic - cDNA/directRNA).
 
 """
 
@@ -40,28 +39,6 @@ AUTHOR = "Chen Yang (UBC & BCGSC)"
 CONTACT = "cheny@bcgsc.ca"
 
 BASES = ['A', 'T', 'C', 'G']
-
-
-# Usage information
-def usage():
-    usage_message = "./simulator.py [command] <options>\n" \
-                    "[command] circular | linear\n" \
-                    "Do not choose 'circular' when there is more than one sequence in the reference\n" \
-                    "<options>: \n" \
-                    "-h : print usage message\n" \
-                    "-r : reference genome in fasta file, specify path and file name, REQUIRED\n" \
-                    "-c : The prefix of training set profiles, same as the output prefix in read_analysis.py, default = training\n" \
-                    "-o : The prefix of output file, default = 'simulated'\n" \
-                    "-n : Number of generated reads, default = 20,000 reads\n" \
-                    "--max_len : Maximum read length, default = Inf\n" \
-                    "--min_len : Minimum read length, default = 50\n" \
-                    "--perfect : Output perfect reads, no mutations, default = False\n" \
-                    "--KmerBias : prohibits homopolymers with length >= n bases in output reads, default = 6\n" \
-                    "--seed : manually seeds the pseudo-random number generator, default = None\n" \
-                    "--median_len : the median read length, default = None\n" \
-                    "--sd_len : the standard deviation of read length in log scale, default = None\n"
-
-    sys.stderr.write(usage_message)
 
 
 def select_ref_transcript(input_dict):
@@ -296,7 +273,7 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp 
         for seqN, seqS, seqQ in readfq(infile):
             info = re.split(r'[_\s]\s*', seqN)
             chr_name = "-".join(info)
-            seq_dict[chr_name] = seqS
+            seq_dict[chr_name.split(".")[0]] = seqS
             seq_len[chr_name.split(".")[0]] = len(seqS)
 
     if mode == "genome":
@@ -1003,6 +980,7 @@ def main():
     median_readlength = None
     sd_readlength = None
     kmer_bias = 0
+    strandness = None
 
     parser = argparse.ArgumentParser(
         description='Given the read profiles from characterization step, ' \
@@ -1026,7 +1004,7 @@ def main():
     parser_g.add_argument('--sd_len', help='The standard deviation of read length in log scale', type=int, default=None)
     parser_g.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
     parser_g.add_argument('-k', '--KmerBias', help='Determine whether to considert Kmer Bias or not', type = int, default= 0)
-    parser_t.add_argument('-s', '--strandness', help='Determine the strandness of the simulated reads. Overrides the value profiled in characterization phase.', type=float, default=None)
+    parser_g.add_argument('-s', '--strandness', help='Determine the strandness of the simulated reads. Overrides the value profiled in characterization phase.', type=float, default=None)
     parser_g.add_argument('--perfect', help='Ignore profiles and simulate perfect reads', action='store_true')
     parser_g.add_argument('--dna_type', help='Specify the dna type: circular OR linear, default = linear', type=str, default="linear")
 
@@ -1083,12 +1061,11 @@ def main():
         strandness = args.strandness
         dna_type = args.dna_type
 
-        print("running the code with following parameters:\n")
+        print("\nrunning the code with following parameters:\n")
         print("ref_g", ref_g)
         print("model_prefix", model_prefix)
         print("out", out)
         print("number", number)
-        print("num_threads", num_threads)
         print("perfect", perfect)
         print("kmer_bias", kmer_bias)
         print("dna_type", dna_type)
@@ -1106,11 +1083,11 @@ def main():
 
         if (median_readlength and not sd_readlength) or (sd_readlength and not median_readlength):
             sys.stderr.write("Please provide both mean and standard deviation of read length!\n\n")
-            usage()
+            parser_g.print_help(sys.stderr)
             sys.exit(1)
         if max_readlength < min_readlength:
             sys.stderr.write("maximum read length must be longer than minimum read length!\n\n")
-            usage()
+            parser_g.print_help(sys.stderr)
             sys.exit(1)
 
         read_profile(ref_g, None, number, model_prefix, perfect, args.mode, strandness)
