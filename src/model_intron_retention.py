@@ -88,10 +88,13 @@ def intron_retention(outfile, gff_file, galnm_file, talnm_file):
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Calculating probabilites for each intron retention event\n")
     dict_first_intron_state = {False: 0, True: 0}
     dict_states = {(False, False): 0, (False, True): 0, (True, False): 0, (True, True): 0}
+    dict_ir_info = {}
     for qname in dict_g_alnm:
         iv_seq = dict_g_alnm[qname]
         if qname in dict_t_alnm:
             primary_trx = dict_t_alnm[qname]
+            if primary_trx not in dict_ir_info:
+                dict_ir_info[primary_trx] = []
             list_IR_positions = []
             pos = []
             ir_info = False
@@ -137,6 +140,7 @@ def intron_retention(outfile, gff_file, galnm_file, talnm_file):
                         flag = True
                         break
                 if flag == True:
+                    dict_ir_info[primary_trx].append((first_intron_spos, first_intron_epos))
                     dict_first_intron_state[True] += 1
                     previous_state = True
                 else:
@@ -152,6 +156,7 @@ def intron_retention(outfile, gff_file, galnm_file, talnm_file):
                     for IR_pos in list_IR_positions:
                         if intron_spos <= IR_pos <= intron_epos:
                             current_state = True
+                            dict_ir_info[primary_trx].append((intron_spos, intron_epos))
                             break
                     #print(intron_spos, intron_epos, previous_state, current_state)
                     dict_states[(previous_state, current_state)] += 1
@@ -186,4 +191,15 @@ def intron_retention(outfile, gff_file, galnm_file, talnm_file):
     else:
         fout.write("IR\t0.0\t0.0\n")
 
+    # output intron coordinates and information to the user:
+    out_ir_info = open(outfile + "_IR_info", 'w')
+    out_ir_info.write("trx_name\tir_intron_spos_epos_pairs\n")
+
+    for trx in dict_ir_info:
+        fstr = trx
+        for item in dict_ir_info[trx]:
+            fstr += "\t" + str(item[0]) + "_" + str(item[1])
+    out_ir_info.write(fstr + "\n")
+
     fout.close()
+    out_ir_info.close()

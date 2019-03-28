@@ -207,7 +207,6 @@ def main(argv):
     parser_t.add_argument('-o', '--output', help='The output name and location for profiles', default = "training")
     parser_t.add_argument('--no_model_fit', help='Disable model fitting step', action='store_true')
     parser_t.add_argument('--no_intron_retention', help='Disable Intron Retention analysis', action='store_true')
-    parser_t.add_argument('--detect_IR', help='Detect Intron Retention events using input reads and exit', action='store_true')
     parser_t.add_argument('-b', '--num_bins', help='Number of bins to be used (Default = 20)', default = 20)
     parser_t.add_argument('-t', '--num_threads', help='Number of threads to be used in alignments and model fitting (Default = 1)', default=1)
 
@@ -218,7 +217,10 @@ def main(argv):
     parser_e.add_argument('-t', '--num_threads', help='Number of threads to be used (Default = 1)', default=1)
 
     parser_ir = subparsers.add_parser('detect_ir', help="Detect Intron Retention events using the input read")
+    parser_ir.add_argument('-annot', '--annot', help='Annotation file in ensemble GTF/GFF formats.', required=True)
     parser_ir.add_argument('-o', '--output', help='The output name and location for profiles', default = "training")
+    parser_ir.add_argument('-ga', '--g_alnm', help='Genome alignment file in sam or maf format (optional)', default= '')
+    parser_ir.add_argument('-ta', '--t_alnm', help='Transcriptome alignment file in sam or maf format (optional)', default= '')
 
     args = parser.parse_args()
 
@@ -231,6 +233,10 @@ def main(argv):
             parser_g.print_help(sys.stderr)
         elif args.mode == "transcriptome":
             parser_t.print_help(sys.stderr)
+        elif args.mode == "detect_ir":
+            parser_ir.print_help(sys.stderr)
+        elif args.mode == "quantify":
+            parser_e.print_help(sys.stderr)
         else:
             parser.print_help(sys.stderr)
         sys.exit(1)
@@ -253,20 +259,34 @@ def main(argv):
     if args.mode == "detect_ir":
         annot = args.annot
         prefix = args.output
+        g_alnm = args.g_alnm
+        t_alnm = args.t_alnm
+
+        if g_alnm != "" or t_alnm != "":
+            print("Please provide both alignments in sam format\n")
+            parser_ir.print_help(sys.stderr)
+            sys.exit(1)
+
+        print("running the code with following parameters:\n")
+        print("annot", annot)
+        print("g_alnm", g_alnm)
+        print("t_alnm", t_alnm)
+        print("prefix", prefix)
+
         # Read the annotation GTF/GFF3 file
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Parse the annotation file (GTF/GFF3)\n")
         # If gtf provided, convert to GFF3 (gt gtf_to_gff3)
         annot_filename, annot_file_extension = os.path.splitext(annot)
         annot_file_extension = annot_file_extension[1:]
         if annot_file_extension.upper() == "GTF":
-            call("gt gtf_to_gff3 -tidy -o " + prefix + ".gff3" + annot, shell=True)
+            call("gt gtf_to_gff3 -tidy -o " + prefix + ".gff3 " + annot, shell=True)
 
         # Next, add intron info into gff3:
-        call(
-            "gt gff3 -tidy -retainids -checkids -addintrons -o " + prefix + "_addedintron.gff3 " + annot_filename + ".gff3",
+        call("gt gff3 -tidy -retainids -checkids -addintrons -force -o " + prefix + "_addedintron.gff3 " + annot_filename + ".gff3",
             shell=True)
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Modeling Intron Retention\n")
-        model_ir.intron_retention(prefix, ref_t)
+        model_ir.intron_retention(prefix, prefix + "_addedintron.gff3", g_alnm, t_alnm)
+
         sys.stdout.write('Finished! \n')
         sys.exit(1)
 
@@ -338,8 +358,6 @@ def main(argv):
             model_fit = False
         if args.no_intron_retention:
             intron_retention = False
-        if args.detect_IR:
-            detect_IR = True
 
         if aligner not in ['minimap2', 'LAST', '']:
             print("Please specify an acceptable aligner (minimap2 or LAST)\n")
@@ -374,7 +392,6 @@ def main(argv):
         print("num_threads", num_threads)
         print("model_fit", model_fit)
         print("intron_retention", intron_retention)
-        print("detect_IR", detect_IR)
 
         dir_name = os.path.dirname(prefix)
         basename = os.path.basename(prefix)
