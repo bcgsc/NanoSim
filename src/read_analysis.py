@@ -100,10 +100,10 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, g_alnm, t_alnm, 
             # Alignment to reference genome
             # [EDIT] I may change the options for minimap2 when dealing with cDNA and dRNA reads.
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with minimap2 to reference genome\n")
-            call("minimap2 -ax splice " + ref_g + " " + in_fasta + " > " + outsam_g, shell=True)
+            call("minimap2 -ax splice -t " + num_threads + " " + ref_g + " " + in_fasta + " > " + outsam_g, shell=True)
             # Alignment to reference transcriptome
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with minimap2 to reference transcriptome\n")
-            call("minimap2 --cs -ax map-ont " + ref_t + " " + in_fasta + " > " + outsam_t, shell=True)
+            call("minimap2 --cs -ax map-ont -t " + num_threads + " " + ref_t + " " + in_fasta + " > " + outsam_t, shell=True)
 
             # [EDIT] I may add a script to remove minimap2/LAST post-alignment files after alignment.
             unaligned_length, strandness = get_primary_sam.primary_and_unaligned(outsam_t, prefix)
@@ -211,7 +211,7 @@ def main(argv):
     parser_t.add_argument('-t', '--num_threads', help='Number of threads to be used in alignments and model fitting (Default = 1)', default=1)
 
     parser_e = subparsers.add_parser('quantify', help="Quantify expression profile of transcripts")
-    parser_e.add_argument('-o', '--output', help='The output name and location', default="training")
+    parser_e.add_argument('-o', '--output', help='The output name and location', default="expression")
     parser_e.add_argument('-i', '--read', help='Input reads to use for quantification.', required=True)
     parser_e.add_argument('-rt', '--ref_t', help='Reference Transcriptome.', required=True)
     parser_e.add_argument('-t', '--num_threads', help='Number of threads to be used (Default = 1)', default=1)
@@ -260,7 +260,7 @@ def main(argv):
         call("minimap2 -t " + str(num_threads) + " -x map-ont -p0 " + ref_t + " " + infile + " > " + prefix + "_mapping.paf", shell=True)
         call("python nanopore_transcript_abundance.py -i " + prefix + "_mapping.paf > " + prefix + "_abundance.tsv",
              shell=True)
-        sys.stdout.write('Finished! \n')
+        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
         sys.exit(1)
 
     if args.mode == "detect_ir":
@@ -303,7 +303,7 @@ def main(argv):
         aligner = args.aligner
         g_alnm = args.g_alnm
         prefix = args.output
-        num_threads = max(args.num_threads, 1)
+        num_threads = str(max(args.num_threads, 1))
         if args.no_model_fit:
             model_fit = False
 
@@ -360,7 +360,7 @@ def main(argv):
         t_alnm = args.t_alnm
         prefix = args.output
         num_bins = max(args.num_bins, 20) #I may remove it because of ecdf > KDE
-        num_threads = max(args.num_threads, 1)
+        num_threads = str(max(args.num_threads, 1))
         if args.no_model_fit:
             model_fit = False
         if args.no_intron_retention:
