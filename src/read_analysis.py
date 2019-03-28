@@ -384,6 +384,11 @@ def main(argv):
                 print("Please provide both alignments in a same format: sam OR maf\n")
                 parser_t.print_help(sys.stderr)
                 sys.exit(1)
+            #development: model IR using MAF alignment formats as well
+            if g_alnm_ext == t_alnm_ext == "maf" and intron_retention:
+                print("The intron retention only works with sam alignment files for now. Thanks\n")
+                parser_t.print_help(sys.stderr)
+                sys.exit(1)
 
 
         print("running the code with following parameters:\n")
