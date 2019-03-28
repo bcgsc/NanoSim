@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 
 """
-Created on Apr 10, 2015
+@author: Chen Yang & Saber HafezQorani
 
-@author: Chen Yang
-
-This script generates read profiles Oxford Nanopore 2D reads.
+This script generates read profiles for Oxford Nanopore 2D reads (genomic and transcriptome).
 
 """
 
@@ -21,9 +19,7 @@ except ImportError:
 import sys
 import os
 import re
-import getopt
 import argparse
-import HTSeq
 import numpy
 from sklearn.neighbors import KernelDensity
 from sklearn.externals import joblib
@@ -33,22 +29,6 @@ import get_primary_sam
 import besthit_to_histogram as error_model
 import model_fitting
 import model_intron_retention as model_ir
-
-
-# Usage information
-def usage():
-    usage_message = "./read_analysis.py <options>\n" \
-                    "<options>: \n" \
-                    "-h : print usage message\n" \
-                    "-i : training ONT real reads, must be fasta files\n" \
-                    "-r : reference genome of the training reads\n" \
-                    "-a : Aligner to be used: minimap2 or LAST, default = 'minimap2'\n" \
-                    "-m : User can provide their own alignment file, with maf or sam extension, can be omitted\n" \
-                    "-t : number of threads for alignment and model fitting, default = 1\n" \
-                    "-o : The prefix of output file, default = 'training'\n" \
-                    "--no_model_fit : Skip the model fitting step\n"
-
-    sys.stderr.write(usage_message)
 
 
 # Taken from https://github.com/lh3/readfq
@@ -88,10 +68,6 @@ def readfq(fp):  # this is a generator function
 
 def align_transcriptome(in_fasta, prefix, aligner, num_threads, g_alnm, t_alnm, ref_t, ref_g):
 
-    if (g_alnm != '' and t_alnm == '') or (g_alnm == '' and t_alnm != ''):
-        print("Please specify either both alignment files (-ga and -ta) OR an aligner to use for alignment (-a)")
-        usage()
-        sys.exit(1)
     if g_alnm != "" and t_alnm != "":
         out_g = g_alnm
         out_t = t_alnm
@@ -99,23 +75,18 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, g_alnm, t_alnm, 
         t_alnm_filename, t_alnm_ext = os.path.splitext(t_alnm)
         g_alnm_ext = g_alnm_ext [1:]
         t_alnm_ext = t_alnm_ext[1:]
-        if g_alnm_ext != t_alnm_ext:
-            print("Please provide both alignments in a same format: sam OR maf\n")
-            usage()
-            sys.exit(1)
-        else:
-            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Processing the alignment files: " + t_alnm_ext + "\n")
-            if g_alnm_ext == t_alnm_ext == "maf":
-                processed_maf_g = prefix + "_genome_alnm_processed.maf"
-                processed_maf_t = prefix + "_transcriptome_alnm_processed.maf"
-                call("grep '^s ' " + g_alnm + " > " + processed_maf_g, shell=True)
-                call("grep '^s ' " + t_alnm + " > " + processed_maf_t, shell=True)
+        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Processing the alignment files: " + t_alnm_ext + "\n")
+        if g_alnm_ext == t_alnm_ext == "maf":
+            processed_maf_g = prefix + "_genome_alnm_processed.maf"
+            processed_maf_t = prefix + "_transcriptome_alnm_processed.maf"
+            call("grep '^s ' " + g_alnm + " > " + processed_maf_g, shell=True)
+            call("grep '^s ' " + t_alnm + " > " + processed_maf_t, shell=True)
 
-                unaligned_length, strandness = get_besthit_maf.besthit_and_unaligned(in_fasta, processed_maf_t, prefix)
+            unaligned_length, strandness = get_besthit_maf.besthit_and_unaligned(in_fasta, processed_maf_t, prefix)
 
-            elif g_alnm_ext == t_alnm_ext == "sam":
+        elif g_alnm_ext == t_alnm_ext == "sam":
 
-                unaligned_length, strandness = get_primary_sam.primary_and_unaligned(t_alnm, prefix)
+            unaligned_length, strandness = get_primary_sam.primary_and_unaligned(t_alnm, prefix)
 
     elif (g_alnm == '' and t_alnm == ''):
         if aligner == "minimap2":
@@ -157,11 +128,6 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, g_alnm, t_alnm, 
 
             unaligned_length, strandness = get_besthit_maf.besthit_and_unaligned(in_fasta, outmaf_t, prefix)
 
-        else:
-            print("Please specify an acceptable aligner (minimap2 or LAST)\n")
-            usage()
-            sys.exit(1)
-
     return t_alnm_ext, unaligned_length, out_g, out_t, strandness
 
 
@@ -182,10 +148,7 @@ def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g):
         elif file_extension == "sam":
             # get the primary alignments and define unaligned reads.
             unaligned_length, strandness = get_primary_sam.primary_and_unaligned(g_alnm, prefix)
-        else:
-            print("Please specify an acceptable alignment format! (.maf or .sam)\n")
-            usage()
-            sys.exit(1)
+
 
     # if alignment file is not provided
     else:
@@ -204,10 +167,7 @@ def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g):
             call("lastdb ref_genome " + ref, shell=True)
             call("lastal -a 1 -P " + num_threads + " ref_genome " + in_fasta + " | grep '^s ' > " + out_maf, shell=True)
             unaligned_length, strandness = get_besthit_maf.besthit_and_unaligned(in_fasta, out_maf, prefix)
-        else:
-            print("Please specify an acceptable aligner (minimap2 or LAST)\n")
-            usage()
-            sys.exit(1)
+
     return file_extension, unaligned_length, strandness
 
 
@@ -320,6 +280,19 @@ def main(argv):
         if args.no_model_fit:
             model_fit = False
 
+        if aligner not in ['minimap2', 'LAST', '']:
+            print("Please specify an acceptable aligner (minimap2 or LAST)\n")
+            parser_g.print_help(sys.stderr)
+            sys.exit(1)
+
+        if g_alnm != '':
+            pre, file_ext = os.path.splitext(g_alnm)
+            file_extension = file_ext[1:]
+            if file_extension not in ['maf', 'sam']:
+                print("Please specify an acceptable alignment format! (.maf or .sam)\n")
+                parser_g.print_help(sys.stderr)
+                sys.exit(1)
+
         print("running the code with following parameters:\n")
         print("infile", infile)
         print("ref_g", ref_g)
@@ -367,6 +340,26 @@ def main(argv):
             intron_retention = False
         if args.detect_IR:
             detect_IR = True
+
+        if aligner not in ['minimap2', 'LAST', '']:
+            print("Please specify an acceptable aligner (minimap2 or LAST)\n")
+            parser_t.print_help(sys.stderr)
+            sys.exit(1)
+
+        if (g_alnm != '' and t_alnm == '') or (g_alnm == '' and t_alnm != ''):
+            print("Please specify either both alignment files (-ga and -ta) OR an aligner to use for alignment (-a)")
+            parser_t.print_help(sys.stderr)
+            sys.exit(1)
+        if g_alnm != "" and t_alnm != "":
+            g_alnm_filename, g_alnm_ext = os.path.splitext(g_alnm)
+            t_alnm_filename, t_alnm_ext = os.path.splitext(t_alnm)
+            g_alnm_ext = g_alnm_ext[1:]
+            t_alnm_ext = t_alnm_ext[1:]
+            if g_alnm_ext != t_alnm_ext:
+                print("Please provide both alignments in a same format: sam OR maf\n")
+                parser_t.print_help(sys.stderr)
+                sys.exit(1)
+
 
         print("running the code with following parameters:\n")
         print("infile", infile)
@@ -456,9 +449,6 @@ def main(argv):
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Model fitting\n")
         model_fitting.model_fitting(prefix, int(num_threads))
 
-    #call("find . -name \*ref_genome.* -delete", shell=True)
-    #call("find . -name \*ref_transcriptome.* -delete", shell=True)
-    #call("find . -name \*.pyc -delete", shell=True)
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
 
 
