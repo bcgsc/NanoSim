@@ -212,15 +212,15 @@ def main(argv):
 
     parser_e = subparsers.add_parser('quantify', help="Quantify expression profile of transcripts")
     parser_e.add_argument('-o', '--output', help='The output name and location', default="training")
-    parser_e.add_argument('-i', '--read', help='Input reads to use to quantification.', required=True)
+    parser_e.add_argument('-i', '--read', help='Input reads to use for quantification.', required=True)
     parser_e.add_argument('-rt', '--ref_t', help='Reference Transcriptome.', required=True)
     parser_e.add_argument('-t', '--num_threads', help='Number of threads to be used (Default = 1)', default=1)
 
-    parser_ir = subparsers.add_parser('detect_ir', help="Detect Intron Retention events using the input read")
+    parser_ir = subparsers.add_parser('detect_ir', help="Detect Intron Retention events using the alignment file")
     parser_ir.add_argument('-annot', '--annot', help='Annotation file in ensemble GTF/GFF formats.', required=True)
-    parser_ir.add_argument('-o', '--output', help='The output name and location for profiles', default = "training")
-    parser_ir.add_argument('-ga', '--g_alnm', help='Genome alignment file in sam or maf format (optional)', default= '')
-    parser_ir.add_argument('-ta', '--t_alnm', help='Transcriptome alignment file in sam or maf format (optional)', default= '')
+    parser_ir.add_argument('-o', '--output', help='The output name and location', default = "ir_info", required=True)
+    parser_ir.add_argument('-ga', '--g_alnm', help='Genome alignment file in sam or maf format', default= '', required=True)
+    parser_ir.add_argument('-ta', '--t_alnm', help='Transcriptome alignment file in sam or maf format', default= '', required=True)
 
     args = parser.parse_args()
 
@@ -248,6 +248,13 @@ def main(argv):
         ref_t = args.ref_t
         prefix = args.output
         num_threads = max(args.num_threads, 1)
+
+        print("running the code with following parameters:\n")
+        print("infile", infile)
+        print("ref_t", ref_t)
+        print("prefix", prefix)
+        print("num_threads", num_threads)
+
         # Quantifying the transcript abundance from input read
         sys.stdout.write('Quantifying transcripts abundance: \n')
         call("minimap2 -t " + str(num_threads) + " -x map-ont -p0 " + ref_t + " " + infile + " > " + prefix + "_mapping.paf", shell=True)
@@ -262,7 +269,7 @@ def main(argv):
         g_alnm = args.g_alnm
         t_alnm = args.t_alnm
 
-        if g_alnm != "" or t_alnm != "":
+        if g_alnm == "" or t_alnm == "":
             print("Please provide both alignments in sam format\n")
             parser_ir.print_help(sys.stderr)
             sys.exit(1)
@@ -287,7 +294,7 @@ def main(argv):
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Modeling Intron Retention\n")
         model_ir.intron_retention(prefix, prefix + "_addedintron.gff3", g_alnm, t_alnm)
 
-        sys.stdout.write('Finished! \n')
+        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
         sys.exit(1)
 
     if args.mode == "genome":

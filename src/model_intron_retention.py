@@ -193,13 +193,14 @@ def intron_retention(outfile, gff_file, galnm_file, talnm_file):
 
     # output intron coordinates and information to the user:
     out_ir_info = open(outfile + "_IR_info", 'w')
-    out_ir_info.write("trx_name\tir_intron_spos_epos_pairs\n")
+    out_ir_info.write("trx_name\tintron_spos\tintron_epos\n")
 
     for trx in dict_ir_info:
-        fstr = trx
-        for item in dict_ir_info[trx]:
-            fstr += "\t" + str(item[0]) + "_" + str(item[1])
-    out_ir_info.write(fstr + "\n")
+        if len(dict_ir_info[trx]) != 0:
+            lst_sorted = sorted(set(dict_ir_info[trx]))
+            fstr_spos = ",".join([str(item[0]) for item in lst_sorted])
+            fstr_epos = ",".join([str(item[1]) for item in lst_sorted])
+            out_ir_info.write(trx + "\t" + fstr_spos + "\t" + fstr_epos + "\n")
 
     fout.close()
     out_ir_info.close()
