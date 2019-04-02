@@ -6,9 +6,7 @@ import sys
 from time import strftime
 import HTSeq
 
-stranded = "no" # think about it. Should I input this info for cDNA ONT data or not? NO
-#dev
-#iv_seq = (invert_strand(co.ref_iv) for co in galnm_cigar if (co.type in ('M', '=', 'X', 'D') and co.size > 0))
+stranded = "no"
 
 def invert_strand(iv):
     iv2 = iv.copy()

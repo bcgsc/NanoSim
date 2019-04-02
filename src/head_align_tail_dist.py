@@ -1,12 +1,4 @@
 #!/usr/bin/env python
-"""
-Written by Chen Yang on Mar 25th, 2015
-To get the length of head, aligned, and tail regions of an alignment.
-
-Major change in Apr 22nd
-
-Updated in Nov 25th
-"""
 
 from __future__ import with_statement
 import numpy
