@@ -303,6 +303,7 @@ def main(argv):
         call("gt gff3 -tidy -retainids -checkids -addintrons -sort -force -o " + prefix + "_addedintron_temp.gff3 " + annot_filename + ".gff3",
             shell=True)
 
+        # Inherit "transcript_id" information for intron features from exon info
         call("gt bequeath.lua transcript_id < " + prefix + "_addedintron_temp.gff3 > " + prefix + "_addedintron_final.gff3",
             shell=True)
 
@@ -457,13 +458,19 @@ def main(argv):
             annot_filename, annot_file_extension = os.path.splitext(annot)
             annot_file_extension = annot_file_extension[1:]
             if annot_file_extension.upper() == "GTF":
-                call("gt gtf_to_gff3 -tidy -o " + prefix + ".gff3 " + annot, shell=True)
+                call("gt gtf_to_gff3 -tidy -force -o " + prefix + ".gff3 " + annot, shell=True)
+                annot_filename = prefix
 
             # Next, add intron info into gff3:
-            call("gt gff3 -tidy -retainids -checkids -addintrons -force -o " + prefix + "_addedintron.gff3 " + annot_filename + ".gff3",
+            call("gt gff3 -tidy -retainids -checkids -addintrons -sort -force -o " + prefix + "_addedintron_temp.gff3 " + annot_filename + ".gff3",
                 shell=True)
+
+            # Inherit "transcript_id" information for intron features from exon info
+            call("gt bequeath.lua transcript_id < " + prefix + "_addedintron_temp.gff3 > " + prefix + "_addedintron_final.gff3",
+                shell=True)
+
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Modeling Intron Retention\n")
-            model_ir.intron_retention(prefix, prefix + "_addedintron.gff3", out_g, out_t)
+            model_ir.intron_retention(prefix, prefix + "_addedintron_final.gff3", out_g, out_t)
 
         else:
             alnm_ext, unaligned_length, out_g, out_t, strandness = align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm=None, ref_g=None)
