@@ -108,7 +108,7 @@ optional arguments:
                         fitting (Default = 1)
 ```
 
-The "transcriptome" mode of the NanoSim is able to model features of the library preparation protocols used, including intron retention (IR) events in cDNA and directRNA reads. Further, it optionally profiles transcript expression patterns. However, if you are interested in only detecting Intron Retention events or quantifying expression patterns of transcripts without running other characterization stage, you may use two modes we introduced for this purpose: "quantify" and "detect_ir". Details are as follows:
+The "transcriptome" mode of the NanoSim is able to model features of the library preparation protocols used, including intron retention (IR) events in cDNA and directRNA reads. Further, it optionally profiles transcript expression patterns. However, if you are interested in only detecting Intron Retention events or quantifying expression patterns of transcripts without running other analysis in the characterization stage, you may use two modes we introduced for this purpose: "quantify" and "detect_ir". Details are as follows:
 
 __quantifty mode usage:__
 ```
@@ -152,7 +152,7 @@ UPDATE: For release v2.2.0 onwards, there's no pre-trained profiles to download 
 ### 2. Simulation stage
 Simulation stage takes reference genome/transcriptome and read profiles as input and outputs simulated reads in FASTA format. Simulation stage runs in two modes: "genome" and "transcriptome" and you may use either of them based on your needs.
 
-__Simulationb stage general usage:__
+__Simulation stage general usage:__
 ```
 usage: simulator.py [-h] {genome,transcriptome} ...
 
