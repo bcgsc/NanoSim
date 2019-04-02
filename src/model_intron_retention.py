@@ -37,7 +37,11 @@ def intron_retention(outfile, gff_file, galnm_file, talnm_file):
     features = HTSeq.GenomicArrayOfSets("auto", stranded=False)
     dict_intron_info = {}
     for feature in gff_features:
-        if "Parent" in feature.attr: #the reason I didnt include "if feature.type == intron" here is that I would like to also consider trxs without intron
+        flag = False
+        if "transcript_id" in feature.attr:
+            feature_id = feature.attr['transcript_id']
+            flag = True
+        elif "Parent" in feature.attr: #the reason I didnt include "if feature.type == intron" here is that I would like to also consider trxs without intron
             info = feature.name.split(":")
             if len(info) == 1:
                 feature_id = info[0]
@@ -46,7 +50,9 @@ def intron_retention(outfile, gff_file, galnm_file, talnm_file):
                     feature_id = info[1]
                 else:
                     continue
+            flag = True
 
+        if flag and "ENS" in feature_id:
             feature_id = feature_id.split(".")[0]
             if feature_id not in dict_intron_info:
                 dict_intron_info[feature_id] = []

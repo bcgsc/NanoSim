@@ -243,7 +243,7 @@ def get_length_kde(kde, num, log=False, flatten=True):
         return length_list
 
 
-def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp = None, model_ir = None):
+def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp=None, model_ir=None):
     global number_aligned, number_unaligned
     global match_ht_list, error_par, trans_error_pr, match_markov_model
     global kde_aligned, kde_ht, kde_ht_ratio, kde_unaligned, kde_aligned_2d
@@ -569,7 +569,7 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias):
         i += 1
 
 
-def simulation_aligned_genome(out_reads, out_error, kmer_bias):
+def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias):
 
     # Simulate aligned reads
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of aligned reads\n")
@@ -633,12 +633,17 @@ def simulation_aligned_genome(out_reads, out_error, kmer_bias):
             out_reads.write(">" + new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" +
                             str(tail) + '\n')
             out_reads.write(read_mutated + '\n')
-            # print("Read ", passed, middle_ref, middle, head, tail, total)
+
+            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " + str(
+                passed + 1 + number_unaligned) + "\r")  # +1 is just to ignore the zero index by python
+            sys.stdout.flush()
+            sleep(0.02)
+
             passed += 1
         i = number_aligned - passed
 
 
-def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, median_l=None, sd_l=None, model_ir = None):
+def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, median_l=None, sd_l=None, model_ir=None):
     global number_aligned, number_unaligned
     global match_ht_list, error_par, trans_error_pr, match_markov_model
     global kde_aligned, kde_ht, kde_ht_ratio, kde_unaligned, kde_aligned_2d
@@ -721,7 +726,7 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, median_l=None,
             sleep(0.02)
 
     if mode == "genome":
-        simulation_aligned_genome(out_reads, out_error, kmer_bias)
+        simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias)
     else:
         simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias)
 
@@ -1001,12 +1006,12 @@ def main():
     parser_g.add_argument('-max', '--max_len', help='The maximum length for simulated reads', type=int, default= float("inf"))
     parser_g.add_argument('-min', '--min_len', help='The minimum length for simulated reads', type=int, default= 50)
     parser_g.add_argument('-med', '--median_len', help='The median read length', type=int, default=None)
-    parser_g.add_argument('--sd_len', help='The standard deviation of read length in log scale', type=int, default=None)
+    parser_g.add_argument('-sd', '--sd_len', help='The standard deviation of read length in log scale', type=float, default=None)
     parser_g.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
     parser_g.add_argument('-k', '--KmerBias', help='Determine whether to considert Kmer Bias or not', type = int, default= 0)
-    parser_g.add_argument('-s', '--strandness', help='Determine the strandness of the simulated reads. Overrides the value profiled in characterization phase.', type=float, default=None)
+    parser_g.add_argument('-s', '--strandness', help='Determine the strandness of the simulated reads. Overrides the value profiled in characterization phase. Should be between 0 and 1.', type=float, default=None)
+    parser_g.add_argument('-dna_type', help='Specify the dna type: circular OR linear, default = linear', type=str, default="linear")
     parser_g.add_argument('--perfect', help='Ignore profiles and simulate perfect reads', action='store_true')
-    parser_g.add_argument('--dna_type', help='Specify the dna type: circular OR linear, default = linear', type=str, default="linear")
 
     parser_t = subparsers.add_parser('transcriptome', help="Run the simulator on transcriptome mode.")
     parser_t.add_argument('-rt', '--ref_t', help='Input reference transcriptome', type = str, required= True)
@@ -1021,7 +1026,7 @@ def main():
     parser_t.add_argument('-max', '--max_len', help='The maximum length for simulated reads', type=int, default= float("inf"))
     parser_t.add_argument('-min', '--min_len', help='The minimum length for simulated reads', type=int, default= 50)
     parser_t.add_argument('-k', '--KmerBias', help='Determine whether to considert Kmer Bias or not', type = int, default= 0)
-    parser_t.add_argument('-s', '--strandness', help='Determine the strandness of the simulated reads. Overrides the value profiled in characterization phase.', type=float, default=None)
+    parser_t.add_argument('-s', '--strandness', help='Determine the strandness of the simulated reads. Overrides the value profiled in characterization phase. Should be between 0 and 1.', type=float, default=None)
     parser_t.add_argument('--no_model_ir', help='Consider Intron Retention model from characterization step when simulating reads', action='store_true')
     parser_t.add_argument('--perfect', help='Ignore profiles and simulate perfect reads', action='store_true')
 
@@ -1061,6 +1066,31 @@ def main():
         strandness = args.strandness
         dna_type = args.dna_type
 
+        if dna_type not in ['circular', 'linear']:
+            print("\nPlease input proper dna type: linear OR circular\n")
+            parser_g.print_help(sys.stderr)
+            sys.exit(1)
+
+        if kmer_bias < 0:
+            print("\nPlease input proper kmer_bias value: k >= 0\n")
+            parser_g.print_help(sys.stderr)
+            sys.exit(1)
+
+        if strandness != None and 0 <= strandness <= 1:
+            print("\nPlease input proper strandness value between 0 and 1\n")
+            parser_g.print_help(sys.stderr)
+            sys.exit(1)
+
+        if (median_readlength and not sd_readlength) or (sd_readlength and not median_readlength):
+            sys.stderr.write("\nPlease provide both mean and standard deviation of read length!\n\n")
+            parser_g.print_help(sys.stderr)
+            sys.exit(1)
+
+        if max_readlength < min_readlength:
+            sys.stderr.write("\nMaximum read length must be longer than Minimum read length!\n\n")
+            parser_g.print_help(sys.stderr)
+            sys.exit(1)
+
         print("\nrunning the code with following parameters:\n")
         print("ref_g", ref_g)
         print("model_prefix", model_prefix)
@@ -1069,36 +1099,26 @@ def main():
         print("perfect", perfect)
         print("kmer_bias", kmer_bias)
         print("dna_type", dna_type)
-        print ("strandness", strandness)
+        print("strandness", strandness)
+        print("sd_readlength", sd_readlength)
+        print("median_readlength", median_readlength)
+
+        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ': ' + ' '.join(sys.argv) + '\n')
+        sys.stdout.flush()
 
         dir_name = os.path.dirname(out)
         basename = os.path.basename(out)
         call("mkdir -p " + dir_name, shell=True)
-
-        # Generate log file
-        # sys.stdout = open(out + ".log", 'w')
-        # Record the command typed to log file
-        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ': ' + ' '.join(sys.argv) + '\n')
-        sys.stdout.flush()
-
-        if (median_readlength and not sd_readlength) or (sd_readlength and not median_readlength):
-            sys.stderr.write("Please provide both mean and standard deviation of read length!\n\n")
-            parser_g.print_help(sys.stderr)
-            sys.exit(1)
-        if max_readlength < min_readlength:
-            sys.stderr.write("maximum read length must be longer than minimum read length!\n\n")
-            parser_g.print_help(sys.stderr)
-            sys.exit(1)
 
         read_profile(ref_g, None, number, model_prefix, perfect, args.mode, strandness)
 
         if median_readlength and sd_readlength:
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Simulating read length with log-normal distribution\n")
             sys.stdout.flush()
-            simulation(args.mode, out, dna_type, perfect, kmer_bias, max_readlength, min_readlength, strandness, median_readlength,
+            simulation(args.mode, out, dna_type, perfect, kmer_bias, max_readlength, min_readlength, median_readlength,
                        sd_readlength)
         else:
-            simulation(args.mode, out, dna_type, perfect, kmer_bias, max_readlength, min_readlength, strandness)
+            simulation(args.mode, out, dna_type, perfect, kmer_bias, max_readlength, min_readlength)
 
     elif args.mode == "transcriptome":
         ref_g = args.ref_g
