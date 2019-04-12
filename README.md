@@ -48,6 +48,7 @@ optional arguments:
 
 
 If you are interested in simulating ONT genomic reads, you need to run the characterization stage in "genome" mode with following options. It takes a reference genome and a training read set in FASTA format as input and aligns these reads to the reference using minimap2 (default) or LAST aligner. User can also provide their own alignment file in SAM or MAF formats. The output of this is a bunch of profiles which you should use in simulation stage.
+
 __genome mode usage:__
 ```
 usage: read_analysis.py genome [-h] -i READ -rg REF_G [-a ALIGNER]
@@ -73,6 +74,7 @@ optional arguments:
 ```
 
 If you are interested in simulating ONT transcriptome reads (cDNA / directRNA), you need to run the characterization stage in "transcriptome" mode with following options. It takes a reference transcriptome and a training read set in FASTA format as input and aligns these reads to the reference using minimap2 (default) or LAST aligner. User can also provide their own alignment file in SAM or MAF formats. The output of this is a bunch of profiles which you should use in simulation stage.
+
 __transcriptome mode usage:__
 ```
 usage: read_analysis.py transcriptome [-h] -i READ [-rg REF_G] -rt REF_T
@@ -170,6 +172,7 @@ optional arguments:
   -h, --help            show this help message and exit
 ```
 If you are interested in simulating ONT genomic reads, you need to run the simulation stage in "genome" mode with following options.
+
 __genome mode usage:__
 ```
 usage: simulator.py genome [-h] -rg REF_G [-c MODEL_PREFIX] [-o OUTPUT]
@@ -218,6 +221,7 @@ optional arguments:
 
 
 If you are interested in simulating ONT transcriptome reads, you need to run the simulation stage in "transcriptome" mode with following options.
+
 __transcriptome mode usage:__
 ```
 usage: simulator.py transcriptome [-h] -rt REF_T -rg REF_G [-e EXP]
