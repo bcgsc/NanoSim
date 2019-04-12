@@ -24,7 +24,7 @@ from time import strftime
 from time import sleep
 import numpy as np
 from sklearn.externals import joblib
-from math import exp
+#from math import exp
 
 try:
     from six.moves import xrange
@@ -299,29 +299,39 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp=
                 if transcript_id.startswith("ENS") and tpm > 0:
                     dict_exp[transcript_id] = tpm
 
+        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read in GFF3 annotation file\n")
+        sys.stdout.flush()
         dict_ref_structure = {}
-        gff_file = model_prefix + "_addedintron.gff3"
+        gff_file = model_prefix + "_addedintron_final.gff3"
         gff_features = HTSeq.GFF_Reader(gff_file, end_included=True)
-        features = HTSeq.GenomicArrayOfSets("auto", stranded=False)
         for feature in gff_features:
             if feature.type == "exon" or feature.type == "intron":
+                flag = False
+                if "transcript_id" in feature.attr:
+                    feature_id = feature.attr['transcript_id']
+                    flag = True
+                elif "Parent" in feature.attr:
+                    info = feature.name.split(":")
+                    if len(info) == 1:
+                        feature_id = info[0]
+                    else:
+                        if info[0] == "transcript":
+                            feature_id = info[1]
+                        else:
+                            continue
+                    flag = True
 
-                info = feature.name.split(":")
-                if len(info) == 1:
-                    feature_id = info[0]
-                else:
-                    feature_id = info[1]
+                if flag and "ENS" in feature_id:
+                    feature_id = feature_id.split(".")[0]
+                    if feature_id not in dict_ref_structure:
+                        dict_ref_structure[feature_id] = []
 
-                feature_id = feature_id.split(".")[0]
-                if feature_id not in dict_ref_structure:
-                    dict_ref_structure[feature_id] = []
+                    # remove "chr" from chromosome names to be constant
+                    if "chr" in feature.iv.chrom:
+                        feature.iv.chrom = feature.iv.chrom.strip("chr")
 
-                # remove "chr" from chromosome names to be constant
-                if "chr" in feature.iv.chrom:
-                    feature.iv.chrom = feature.iv.chrom.strip("chr")
-
-                dict_ref_structure[feature_id].append(
-                    (feature.type, feature.iv.chrom, feature.iv.start, feature.iv.end, feature.iv.length))
+                    dict_ref_structure[feature_id].append(
+                        (feature.type, feature.iv.chrom, feature.iv.start, feature.iv.end, feature.iv.length))
 
         # create the ecdf dict considering the expression profiles
         ecdf_dict_ref_exp = make_cdf(dict_exp, seq_len)

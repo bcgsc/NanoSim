@@ -207,7 +207,7 @@ def main(argv):
     parser_t.add_argument('-i', '--read', help='Input read for training.', required=True)
     parser_t.add_argument('-rg', '--ref_g', help='Reference genome.', required=False, default='')
     parser_t.add_argument('-rt', '--ref_t', help='Reference Transcriptome.', required=True)
-    parser_t.add_argument('-annot', '--annot', help='Annotation file in ensemble GTF/GFF formats.', required=False, default='')
+    parser_t.add_argument('-annot', '--annot', help='Annotation file in ensemble GTF/GFF formats.', required=True, default='')
     parser_t.add_argument('-a', '--aligner', help='The aligner to be used: minimap2 or LAST (Default = minimap2)', default = 'minimap2')
     parser_t.add_argument('-ga', '--g_alnm', help='Genome alignment file in sam or maf format (optional)', default='')
     parser_t.add_argument('-ta', '--t_alnm', help='Transcriptome alignment file in sam or maf format (optional)', default='')
@@ -448,26 +448,28 @@ def main(argv):
                 chr_name = "-".join(info)
                 dict_ref_len[chr_name] = len(seqS)
 
+        # Read the annotation GTF/GFF3 file
+        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Parse the annotation file (GTF/GFF3)\n")
+        # If gtf provided, convert to GFF3 (gt gtf_to_gff3)
+        annot_filename, annot_file_extension = os.path.splitext(annot)
+        annot_file_extension = annot_file_extension[1:]
+        if annot_file_extension.upper() == "GTF":
+            call("gt gtf_to_gff3 -tidy -force -o " + prefix + ".gff3 " + annot, shell=True)
+            annot_filename = prefix
+
+        # Next, add intron info into gff3:
+        call(
+            "gt gff3 -tidy -retainids -checkids -addintrons -sort -force -o " + prefix + "_addedintron_temp.gff3 " + annot_filename + ".gff3",
+            shell=True)
+
+        # Inherit "transcript_id" information for intron features from exon info
+        call(
+            "gt bequeath.lua transcript_id < " + prefix + "_addedintron_temp.gff3 > " + prefix + "_addedintron_final.gff3",
+            shell=True)
+
         if intron_retention:
 
             alnm_ext, unaligned_length, out_g, out_t, strandness = align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm, ref_g)
-
-            # Read the annotation GTF/GFF3 file
-            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Parse the annotation file (GTF/GFF3)\n")
-            # If gtf provided, convert to GFF3 (gt gtf_to_gff3)
-            annot_filename, annot_file_extension = os.path.splitext(annot)
-            annot_file_extension = annot_file_extension[1:]
-            if annot_file_extension.upper() == "GTF":
-                call("gt gtf_to_gff3 -tidy -force -o " + prefix + ".gff3 " + annot, shell=True)
-                annot_filename = prefix
-
-            # Next, add intron info into gff3:
-            call("gt gff3 -tidy -retainids -checkids -addintrons -sort -force -o " + prefix + "_addedintron_temp.gff3 " + annot_filename + ".gff3",
-                shell=True)
-
-            # Inherit "transcript_id" information for intron features from exon info
-            call("gt bequeath.lua transcript_id < " + prefix + "_addedintron_temp.gff3 > " + prefix + "_addedintron_final.gff3",
-                shell=True)
 
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Modeling Intron Retention\n")
             model_ir.intron_retention(prefix, prefix + "_addedintron_final.gff3", out_g, out_t)
