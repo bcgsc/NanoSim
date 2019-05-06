@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="a9f164de-6d2c-42c6-81f8-6eabf80c338b" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/head_align_tail_dist.py" afterPath="$PROJECT_DIR$/src/head_align_tail_dist.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
     </list>
     <ignored path="simulator.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -45,7 +45,7 @@
   </component>
   <component name="ProjectFrameBounds">
     <option name="x" value="943" />
-    <option name="y" value="28" />
+    <option name="y" value="22" />
     <option name="width" value="970" />
     <option name="height" value="1018" />
   </component>
@@ -224,7 +224,7 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="943" y="28" width="970" height="1018" extended-state="1" />
+    <frame x="943" y="22" width="970" height="1018" extended-state="0" />
     <editor active="false" />
     <layout>
       <window_info id="Changes" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
@@ -275,7 +275,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="13248">
           <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -325,7 +324,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.30151337" vertical-offset="5879" max-vertical-offset="13248">
           <caret line="350" column="66" selection-start-line="350" selection-start-column="66" selection-end-line="350" selection-end-column="66" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -333,7 +331,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.25688073" vertical-offset="2620" max-vertical-offset="3492">
           <caret line="165" column="7" selection-start-line="165" selection-start-column="7" selection-end-line="165" selection-end-column="7" />
-          <folding />
         </state>
       </provider>
     </entry>
