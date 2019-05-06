@@ -1,16 +1,6 @@
 #!/usr/bin/env python
-"""
-Written by Chen Yang on Mar 25th, 2015
-To get the length of head, aligned, and tail regions of an alignment.
-
-Major change in Apr 22nd
-
-Updated in Nov 25th
-"""
 
 from __future__ import with_statement
-import sys
-import getopt
 import numpy
 import HTSeq
 from sklearn.neighbors import KernelDensity
@@ -23,45 +13,23 @@ except ImportError:
     pass
 
 
-def flex_bins(num_of_bins, ratio_dict, num_of_reads):
-    count_reads = num_of_reads / num_of_bins
-    k_of_bin = 0
-    k_of_ratio = 0
-    ratio_keys = sorted(ratio_dict.keys())
-    num_of_keys = len(ratio_keys)
+def kde2d(x, y):
+    x = numpy.array(x)
+    y = numpy.array(y)
+    xy = numpy.vstack([x, y])
+    d = xy.shape[0]
+    n = xy.shape[1]
+    bw = (n * (d + 2) / 4.) ** (-1. / (d + 4))  # silverman
+    kde_2d = KernelDensity(bandwidth=bw).fit(xy.T)
+    # xmin = x.min()
+    # xmax = x.max()
+    # ymin = y.min()
+    # ymax = y.max()
+    # X, Y = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
+    # positions = np.vstack([X.ravel(), Y.ravel()])
+    # Z = np.reshape(np.exp(kde_2d.score_samples(positions.T)), X.shape)
 
-    ratio_bins = {}
-    while k_of_bin < num_of_bins:
-        if k_of_ratio >= num_of_keys:
-            break
-
-        start = k_of_ratio
-        count = len(ratio_dict[ratio_keys[k_of_ratio]])
-        k_of_ratio += 1
-
-        while k_of_ratio < num_of_keys:
-            tmp_count = count + len(ratio_dict[ratio_keys[k_of_ratio]])
-            if abs(tmp_count - count_reads) >= abs(count - count_reads):
-                break
-            else:
-                count = tmp_count
-                k_of_ratio += 1
-
-        k = (ratio_keys[start] if start else 0,
-             ratio_keys[k_of_ratio] if k_of_ratio < num_of_keys else ratio_keys[k_of_ratio - 1] + 1)
-        ratio_bins[k] = []
-        for i in xrange(start, k_of_ratio):
-            ratio_bins[k].extend(ratio_dict[ratio_keys[i]])
-
-        k_of_bin += 1
-
-    if k_of_ratio < num_of_keys - 1:
-        k = (ratio_keys[k_of_ratio], ratio_keys[num_of_keys - 1] + 1)
-        ratio_bins[k] = []
-        for i in xrange(k_of_ratio, num_of_keys - 1):
-            ratio_bins[k].extend(ratio_dict[ratio_keys[i]])
-
-    return ratio_bins
+    return kde_2d
 
 
 def get_head_tail(cigar_string):
@@ -82,7 +50,7 @@ def get_head_tail(cigar_string):
     return head, tail
 
 
-def head_align_tail(prefix, alnm_ftype):
+def head_align_tail(*args):
     '''
     out1 = open(prefix + "_total.txt", 'w')
     out2 = open(prefix + "_middle.txt", 'w')
@@ -92,6 +60,16 @@ def head_align_tail(prefix, alnm_ftype):
     out6 = open(prefix + "_ratio.txt", 'w')
     out7 = open(prefix + "_tail.txt", 'w')
     '''
+    prefix = args[0]
+    alnm_ftype = args[1]
+    mode = args[2]
+    if len(args) == 4:
+        dict_ref_len = args[3]
+
+
+    if mode == "transcriptome":
+        x = []  # total length of reference
+        y = []  # aligned length on reference
 
     aligned_length = []
     total_length = []
@@ -104,6 +82,10 @@ def head_align_tail(prefix, alnm_ftype):
             for line in f:
                 ref = line.strip().split()
                 aligned_ref = int(ref[3])
+                if mode == "transcriptome":
+                    total_ref = int(ref[5])
+                    x.append(total_ref)
+                    y.append(aligned_ref)
                 aligned_length.append(aligned_ref)
                 query = next(f).strip().split()
                 head = int(query[2])
@@ -134,6 +116,10 @@ def head_align_tail(prefix, alnm_ftype):
             ref = alnm.iv.chrom
             aligned_ref = alnm.iv.length
             aligned_length.append(aligned_ref)
+            if mode == "transcriptome":
+                total_ref = dict_ref_len[ref]
+                x.append(total_ref)
+                y.append(aligned_ref)
 
             read_len_total = len(alnm.read.seq)
             total_length.append(read_len_total)
@@ -164,6 +150,9 @@ def head_align_tail(prefix, alnm_ftype):
     out6.close()
     out7.close()
     '''
+    if mode == "transcriptome":
+        kde_2d = kde2d(x, y)
+        joblib.dump(kde_2d, prefix + '_aligned_region_2d.pkl')
 
     aligned_length = numpy.array(aligned_length)
     total_length = numpy.array(total_length)
