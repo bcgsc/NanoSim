@@ -4,13 +4,7 @@ from __future__ import with_statement
 import numpy
 import HTSeq
 from sklearn.neighbors import KernelDensity
-from math import log, ceil
 from sklearn.externals import joblib
-
-try:
-    from six.moves import xrange
-except ImportError:
-    pass
 
 
 def kde2d(x, y):
@@ -51,7 +45,19 @@ def get_head_tail(cigar_string):
 
 
 def head_align_tail(*args):
-    '''
+    prefix = args[0]
+    alnm_ext = args[1]
+    mode = args[2]
+    if mode == "transcriptome":
+        total_ref_length = []  # total length of reference
+        dict_ref_len = args[3]
+
+    aligned_ref_length = []  # aligned length of reference
+    total_length = []
+    ht_length = []
+    head_vs_ht_ratio = []
+
+    # For debugging
     out1 = open(prefix + "_total.txt", 'w')
     out2 = open(prefix + "_middle.txt", 'w')
     out3 = open(prefix + "_head.txt", 'w')
@@ -59,47 +65,29 @@ def head_align_tail(*args):
     out5 = open(prefix + "_ht.txt", 'w')
     out6 = open(prefix + "_ratio.txt", 'w')
     out7 = open(prefix + "_tail.txt", 'w')
-    '''
-    prefix = args[0]
-    alnm_ftype = args[1]
-    mode = args[2]
-    if len(args) == 4:
-        dict_ref_len = args[3]
 
-
-    if mode == "transcriptome":
-        x = []  # total length of reference
-        y = []  # aligned length on reference
-
-    aligned_length = []
-    total_length = []
-    ht_length = []
-    head_vs_ht_ratio = []
-
-    if alnm_ftype == "maf":
-        besthit_out = prefix + "_besthit.maf"
-        with open(besthit_out, 'r') as f:
+    if alnm_ext == "maf":
+        alnm_file = prefix + "_besthit.maf"
+        with open(alnm_file, 'r') as f:
             for line in f:
                 ref = line.strip().split()
                 aligned_ref = int(ref[3])
                 if mode == "transcriptome":
-                    total_ref = int(ref[5])
-                    x.append(total_ref)
-                    y.append(aligned_ref)
-                aligned_length.append(aligned_ref)
+                    total_ref = int(ref[5])  # Need further investigation
+                    total_ref_length.append(total_ref)
+                aligned_ref_length.append(aligned_ref)
                 query = next(f).strip().split()
                 head = int(query[2])
-                middle = int(query[3])
-                tail = int(query[5])-int(query[2])-int(query[3])
                 total_length.append(int(query[5]))
                 ht = int(query[5])-int(query[3])
                 ht_length.append(ht)
-                ratio = float(query[3])/float(query[5])
 
                 if ht != 0:
                     r = float(head) / ht
                     head_vs_ht_ratio.append(r)
-                '''
+
+                tail = int(query[5])-int(query[2])-int(query[3])
+                ratio = float(query[3])/float(query[5])
                 out1.write(query[5] + '\n')
                 out2.write(query[3] + '\n')
                 out3.write(query[2] + '\n')
@@ -107,19 +95,17 @@ def head_align_tail(*args):
                 out5.write(str(ht) + '\n')
                 out6.write(str(ratio) + '\n')
                 out7.write(str(tail) + '\n')
-                '''
     else:
         sam_reader = HTSeq.SAM_Reader
-        alnm_file_sam = prefix + "_primary.sam"
-        alignments = sam_reader(alnm_file_sam)
+        alnm_file = prefix + "_primary.sam"
+        alignments = sam_reader(alnm_file)
         for alnm in alignments:
             ref = alnm.iv.chrom
             aligned_ref = alnm.iv.length
-            aligned_length.append(aligned_ref)
             if mode == "transcriptome":
                 total_ref = dict_ref_len[ref]
-                x.append(total_ref)
-                y.append(aligned_ref)
+                total_ref_length.append(total_ref)
+            aligned_ref_length.append(aligned_ref)
 
             read_len_total = len(alnm.read.seq)
             total_length.append(read_len_total)
@@ -133,7 +119,7 @@ def head_align_tail(*args):
             if head != 0:
                 r = float(head) / ht
                 head_vs_ht_ratio.append(r)
-            '''
+
             out1.write(str(read_len_total) + '\n')
             out2.write(str(middle) + '\n')
             out3.write(str(alnm.read.name) + '\t' + str(head) + '\n')
@@ -149,12 +135,12 @@ def head_align_tail(*args):
     out5.close()
     out6.close()
     out7.close()
-    '''
+
     if mode == "transcriptome":
-        kde_2d = kde2d(x, y)
+        kde_2d = kde2d(total_ref_length, aligned_ref_length)
         joblib.dump(kde_2d, prefix + '_aligned_region_2d.pkl')
 
-    aligned_length = numpy.array(aligned_length)
+    aligned_length = numpy.array(aligned_ref_length)  # Aligned length of the reference, which is error-free
     total_length = numpy.array(total_length)
     ht_length = numpy.array(ht_length)
     head_vs_ht_ratio = numpy.array(head_vs_ht_ratio)

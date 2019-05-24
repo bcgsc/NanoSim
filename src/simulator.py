@@ -11,6 +11,7 @@ This script generates simulated Oxford Nanopore 2D reads (genomic and transcript
 from __future__ import print_function
 from __future__ import with_statement
 from subprocess import call
+from textwrap import dedent
 import sys
 import os
 import HTSeq
@@ -24,7 +25,6 @@ from time import strftime
 from time import sleep
 import numpy as np
 from sklearn.externals import joblib
-#from math import exp
 
 try:
     from six.moves import xrange
@@ -33,10 +33,10 @@ except ImportError:
 import mixed_model as mm
 
 PYTHON_VERSION = sys.version_info
-VERSION = "2.1.0"
+VERSION = "2.5.0"
 PRORAM = "NanoSim"
-AUTHOR = "Chen Yang (UBC & BCGSC)"
-CONTACT = "cheny@bcgsc.ca"
+AUTHOR = "Chen Yang, Saber Hafezqorani (UBC & BCGSC)"
+CONTACT = "cheny@bcgsc.ca; shafezqorani@bcgsc.ca"
 
 BASES = ['A', 'T', 'C', 'G']
 
@@ -58,7 +58,7 @@ def list_to_range(input_list, min_l):
     l = [min_l]
     l.extend(input_list)
     output_list = []
-    for i in range (0, len(l) - 1):
+    for i in xrange(0, len(l) - 1):
         r = (l[i], l[i+1])
         output_list.append(r)
     return output_list
@@ -67,7 +67,6 @@ def list_to_range(input_list, min_l):
 def make_cdf(dict_exp, dict_len):
     sum_exp = 0
     list_value = []
-    dict_tpm = {}
     for item in dict_exp:
         if item in dict_len:
             sum_exp += dict_exp[item]
@@ -75,7 +74,6 @@ def make_cdf(dict_exp, dict_len):
         if item in dict_len:
             value = dict_exp[item] / float(sum_exp)
             list_value.append((item, value))
-
 
     sorted_value_list = sorted(list_value, key=lambda x: x[1])
     sorted_only_values = [x[1] for x in sorted_value_list]
@@ -86,7 +84,7 @@ def make_cdf(dict_exp, dict_len):
     for i in xrange(len(ranged_cdf_list)):
         cdf_range = ranged_cdf_list[i]
         ecdf_dict[cdf_range] = (sorted_value_list[i][0], dict_len[sorted_value_list[i][0]])
-        #ecdf_dict[cdf_range] = dict_len[sorted_value_list[i][0]]
+        # ecdf_dict[cdf_range] = dict_len[sorted_value_list[i][0]]
 
     return ecdf_dict
 
@@ -122,7 +120,7 @@ def update_structure(ref_trx_structure, IR_markov_model):
                 prev_state = flag
 
     j = -1
-    for i in range (0, len(ref_trx_structure)):
+    for i in xrange (0, len(ref_trx_structure)):
         if ref_trx_structure[i][0] == "intron":
             j += 1
             if list_states[j] == "IR":
@@ -132,8 +130,8 @@ def update_structure(ref_trx_structure, IR_markov_model):
 
 
 def extract_read_pos(length, ref_len, ref_trx_structure):
-    #The aim is to create a genomic interval object
-    #example: iv = HTSeq.GenomicInterval( "chr3", 123203, 127245, "+" )
+    # The aim is to create a genomic interval object
+    # example: iv = HTSeq.GenomicInterval( "chr3", 123203, 127245, "+" )
     chrom = ""
     start = 0
     end = 0
@@ -144,9 +142,9 @@ def extract_read_pos(length, ref_len, ref_trx_structure):
     for item in ref_trx_structure:
         chrom = item[1]
         if item[0] == "exon":
-            if flag == False: #if it is first exon that I started extracting from
+            if not flag:  # if it is first exon that I started extracting from
                 if start_pos < item[-1]:
-                    #print ("1", item, start_pos, length, start, end)
+                    # print ("1", item, start_pos, length, start, end)
                     flag = True
                     start = start_pos + item[2]
                     if (start + length) < item[3]:
@@ -157,10 +155,10 @@ def extract_read_pos(length, ref_len, ref_trx_structure):
                         length -= (item[3] - start)
                     start_pos = 0
                 else:
-                    #print("2", item, start_pos, length, start, end)
+                    # print("2", item, start_pos, length, start, end)
                     start_pos -= item[-1]
-            else: #if it is NOT the first exon that I start extracting from
-                #print("3", item, start_pos, length, start, end)
+            else:  # if it is NOT the first exon that I start extracting from
+                # print("3", item, start_pos, length, start, end)
                 start_pos = 0
                 if (item[2] + length) < item[3]:
                     end = item[2] + length
@@ -171,11 +169,11 @@ def extract_read_pos(length, ref_len, ref_trx_structure):
                     length -= (item[-1])
 
         elif item[0] == "retained_intron":
-            #print("4", item, start_pos, length, start, end)
+            # print("4", item, start_pos, length, start, end)
             if flag != False:
                 end = item[3]
         elif item[0] == "intron":
-            #print("5", item, start_pos, length, start, end)
+            # print("5", item, start_pos, length, start, end)
             iv = HTSeq.GenomicInterval(chrom, start, end, ".")
             if iv.length != 0:
                 list_intervals.append(iv)
@@ -243,11 +241,11 @@ def get_length_kde(kde, num, log=False, flatten=True):
         return length_list
 
 
-def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp=None, model_ir=None):
+def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp, model_ir, dna_type):
     global number_aligned, number_unaligned
     global match_ht_list, error_par, trans_error_pr, match_markov_model
     global kde_aligned, kde_ht, kde_ht_ratio, kde_unaligned, kde_aligned_2d
-    global seq_dict, seq_len
+    global seq_dict, seq_len, max_chrom
     global strandness_rate
 
     if mode == "genome":
@@ -257,7 +255,7 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp=
         global dict_ref_structure, dict_exp, ecdf_dict_ref_exp, genome_fai
         ref = ref_t
 
-    if strandness == None:
+    if strandness is None:
         with open(model_prefix + "_strandness_rate", 'r') as strand_profile:
             strandness_rate = float(strand_profile.readline().split("\t")[1])
     else:
@@ -276,6 +274,7 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp=
             seq_dict[chr_name.split(".")[0]] = seqS
             seq_len[chr_name.split(".")[0]] = len(seqS)
 
+    max_chrom = max(seq_len.values())
     if mode == "genome":
         genome_len = sum(seq_len.values())
         if len(seq_dict) > 1 and dna_type == "circular":
@@ -290,7 +289,7 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp=
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read in expression profile\n")
         sys.stdout.flush()
         dict_exp = {}
-        with open (exp, 'r') as exp_file:
+        with open(exp, 'r') as exp_file:
             header = exp_file.readline()
             for line in exp_file:
                 parts = line.split("\t")
@@ -298,40 +297,6 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp=
                 tpm = float(parts[2])
                 if transcript_id.startswith("ENS") and tpm > 0:
                     dict_exp[transcript_id] = tpm
-
-        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read in GFF3 annotation file\n")
-        sys.stdout.flush()
-        dict_ref_structure = {}
-        gff_file = model_prefix + "_addedintron_final.gff3"
-        gff_features = HTSeq.GFF_Reader(gff_file, end_included=True)
-        for feature in gff_features:
-            if feature.type == "exon" or feature.type == "intron":
-                flag = False
-                if "transcript_id" in feature.attr:
-                    feature_id = feature.attr['transcript_id']
-                    flag = True
-                elif "Parent" in feature.attr:
-                    info = feature.name.split(":")
-                    if len(info) == 1:
-                        feature_id = info[0]
-                    else:
-                        if info[0] == "transcript":
-                            feature_id = info[1]
-                        else:
-                            continue
-                    flag = True
-
-                if flag and "ENS" in feature_id:
-                    feature_id = feature_id.split(".")[0]
-                    if feature_id not in dict_ref_structure:
-                        dict_ref_structure[feature_id] = []
-
-                    # remove "chr" from chromosome names to be constant
-                    if "chr" in feature.iv.chrom:
-                        feature.iv.chrom = feature.iv.chrom.strip("chr")
-
-                    dict_ref_structure[feature_id].append(
-                        (feature.type, feature.iv.chrom, feature.iv.start, feature.iv.end, feature.iv.length))
 
         # create the ecdf dict considering the expression profiles
         ecdf_dict_ref_exp = make_cdf(dict_exp, seq_len)
@@ -350,6 +315,38 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp=
                     IR_markov_model[k] = {}
                     IR_markov_model[k][(0, float(info[1]))] = "no_IR"
                     IR_markov_model[k][(float(info[1]), float(info[1]) + float(info[2]))] = "IR"
+
+            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read in GFF3 annotation file\n")
+            sys.stdout.flush()
+            dict_ref_structure = {}
+            gff_file = model_prefix + "_added_intron_final.gff3"
+            gff_features = HTSeq.GFF_Reader(gff_file, end_included=True)
+            for feature in gff_features:
+                if feature.type == "exon" or feature.type == "intron":
+                    if "transcript_id" in feature.attr:
+                        feature_id = feature.attr['transcript_id']
+                    elif "Parent" in feature.attr:
+                        info = feature.name.split(":")
+                        if len(info) == 1:
+                            feature_id = info[0]
+                        else:
+                            if info[0] == "transcript":
+                                feature_id = info[1]
+                            else:
+                                continue
+                    else:
+                        continue
+
+                    feature_id = feature_id.split(".")[0]
+                    if feature_id not in dict_ref_structure:
+                        dict_ref_structure[feature_id] = []
+
+                    # remove "chr" from chromosome names to be constant
+                    if "chr" in feature.iv.chrom:
+                        feature.iv.chrom = feature.iv.chrom.strip("chr")
+
+                    dict_ref_structure[feature_id].append(
+                        (feature.type, feature.iv.chrom, feature.iv.start, feature.iv.end, feature.iv.length))
 
     # Read model profile for match, mismatch, insertion and deletions
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read error profile\n")
@@ -388,8 +385,6 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp=
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read KDF of unaligned reads\n")
     sys.stdout.flush()
 
-    kde_unaligned = joblib.load(model_prefix + "_unaligned_length.pkl")
-
     with open(model_prefix + "_reads_alignment_rate", 'r') as u_profile:
         new = u_profile.readline().strip()
         rate = new.split('\t')[1]
@@ -399,6 +394,9 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp=
         else:
             number_aligned = int(round(number * float(rate) / (float(rate) + 1)))
         number_unaligned = number - number_aligned
+
+    if number_unaligned > 0:
+        kde_unaligned = joblib.load(model_prefix + "_unaligned_length.pkl")
 
     # Read profile of aligned reads
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read KDF of aligned reads\n")
@@ -465,8 +463,22 @@ def readfq(fp):  # this is a generator function
                 break
 
 
-def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias):
+def case_convert(seq):
+    base_code = {'Y': ['C', 'T'], 'R': ['A', 'G'], 'W': ['A', 'T'], 'S': ['G', 'C'], 'K': ['T', 'G'], 'M': ['C', 'A'],
+                 'D': ['A', 'G', 'T'], 'V': ['A', 'C', 'G'], 'H': ['A', 'C', 'T'], 'B': ['C', 'G', 'T'],
+                 'N': ['A', 'T', 'C', 'G'], 'X': ['A', 'T', 'C', 'G']}
 
+    up_string = seq.upper()
+    up_list = list(up_string)
+    for i in xrange(len(up_list)):
+        if up_list[i] in base_code:
+            up_list[i] = random.choice(base_code[up_list[i]])
+    out_seq = ''.join(up_list)
+
+    return out_seq
+
+
+def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, per=False):
     # Simulate aligned reads
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of aligned reads\n")
     sys.stdout.flush()
@@ -484,9 +496,11 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias):
             head_vs_ht_ratio_l_new.append(1)
 
     while i < number_aligned:
-        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " + str(i + 1 + number_unaligned) + "\r") #+1 is just to ignore the zero index by python
-        sys.stdout.flush()
-        sleep(0.02)
+        if (i + 1 + number_unaligned) % 100 == 0:
+            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
+                             str(i + 1 + number_unaligned) + "\r")
+            # +1 is just to ignore the zero index by python
+            sys.stdout.flush()
         while True:
             ref_trx, ref_trx_len = select_ref_transcript(ecdf_dict_ref_exp)
             if ref_trx in dict_ref_structure:
@@ -497,7 +511,7 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias):
                     if ref_len_aligned < ref_trx_len:
                         break
 
-        #ir_length = 0
+        # ir_length = 0
         if model_ir:
             ir_info, ref_trx_structure_new = update_structure(ref_trx_structure, IR_markov_model)
             # for item in ref_trx_structure_new:
@@ -506,7 +520,7 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias):
         else:
             ref_trx_structure_new = copy.deepcopy(dict_ref_structure[ref_trx])
 
-        #check whether chrom names contains "chr" or not.
+        # check whether chrom names contains "chr" or not.
         flag_chrom = False
         for item in genome_fai.references:
             if "chr" in item:
@@ -517,7 +531,7 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias):
         flag = False
         for interval in list_iv:
             chrom = interval.chrom
-            if flag_chrom == True:
+            if flag_chrom:
                 chrom = "chr" + chrom
             if chrom not in genome_fai.references:
                 flag = True
@@ -525,13 +539,13 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias):
             start = interval.start
             end = interval.end
             new_read += genome_fai.fetch(chrom, start, end)
-        if flag == True:
+        if flag:
             continue
 
         new_read_length = len(new_read)
         middle_read, middle_ref, error_dict = error_list(new_read_length, match_markov_model, match_ht_list, error_par,
                                                         trans_error_pr)
-        #start HD len simulation
+        # start HD len simulation
         remainder = int(remainder_l[i])
         head_vs_ht_ratio = head_vs_ht_ratio_l_new[i]
 
@@ -546,7 +560,7 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias):
         else:
             head = int(round(remainder * head_vs_ht_ratio))
             tail = remainder - head
-        #end HD len simulation
+        # end HD len simulation
 
         ref_start_pos = list_iv[0].start
         new_read_name = str(ref_trx) + "_" + str(ref_start_pos) + "_aligned_" + str(i + number_unaligned)
@@ -579,51 +593,63 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias):
         i += 1
 
 
-def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias):
-
+def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias, per=False):
     # Simulate aligned reads
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of aligned reads\n")
     sys.stdout.flush()
     i = number_aligned
     passed = 0
     while i > 0:
-        remainder_l = get_length_kde(kde_ht, i, True)
-        head_vs_ht_ratio_l = get_length_kde(kde_ht_ratio, i)
-        if median_l is None:
-            ref_l = get_length_kde(kde_aligned, i)
+        if per:
+            ref_l = get_length_kde(kde_aligned, i) if median_l is None else \
+                np.random.lognormal(np.log(median_l), sd_l, i)
+            ref_l = [x for x in ref_l if min_l <= x <= max_l and x <= max_chrom]
         else:
-            total_l = np.random.lognormal(np.log(median_l), sd_l, i)
-            ref_l = total_l - remainder_l
+            remainder_l = get_length_kde(kde_ht, i, True)
+            head_vs_ht_ratio_l = get_length_kde(kde_ht_ratio, i)
+            if median_l is None:
+                ref_l = get_length_kde(kde_aligned, i)
+            else:
+                total_l = np.random.lognormal(np.log(median_l + sd_l ** 2 / 2), sd_l, i)
+                ref_l = total_l - remainder_l
 
-        ref_l = [x for x in ref_l if x > 0]
+            ref_l = [x for x in ref_l if x > 0]
 
         for j in xrange(len(ref_l)):
             # check if the total length fits the criteria
             ref = int(ref_l[j])
-            middle, middle_ref, error_dict = error_list(ref, match_markov_model, match_ht_list, error_par,
-                                                        trans_error_pr)
-            remainder = int(remainder_l[j])
-            head_vs_ht_ratio = head_vs_ht_ratio_l[j]
 
-            total = remainder + middle
-
-            if total < min_l or total > max_l or head_vs_ht_ratio < 0 or head_vs_ht_ratio > 1:
-                continue
-
-            if remainder == 0:
-                head = 0
-                tail = 0
+            if per:
+                # Extract middle region from reference genome
+                new_read, new_read_name = extract_read(dna_type, ref)
+                new_read_name = new_read_name + "_perfect_" + str(passed + number_unaligned)
+                read_mutated = case_convert(new_read)  # not mutated actually, just to be consistent with per == False
             else:
-                head = int(round(remainder * head_vs_ht_ratio))
-                tail = remainder - head
+                middle, middle_ref, error_dict = error_list(ref, match_markov_model, match_ht_list, error_par,
+                                                            trans_error_pr)
+                remainder = int(remainder_l[j])
+                head_vs_ht_ratio = head_vs_ht_ratio_l[j]
 
-            # Extract middle region from reference genome
-            new_read, new_read_name = extract_read(dna_type, middle_ref)
-            new_read_name = new_read_name + "_aligned_" + str(passed + number_unaligned)
+                total = remainder + middle
 
-            # Mutate read
-            new_read = case_convert(new_read)
-            read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
+                if total < min_l or total > max_l or head_vs_ht_ratio < 0 or head_vs_ht_ratio > 1 or \
+                        middle_ref > max_chrom or total > max_chrom:
+                    continue
+
+                if remainder == 0:
+                    head = 0
+                    tail = 0
+                else:
+                    head = int(round(remainder * head_vs_ht_ratio))
+                    tail = remainder - head
+
+                # Extract middle region from reference genome
+                new_read, new_read_name = extract_read(dna_type, middle_ref)
+                new_read_name = new_read_name + "_aligned_" + str(passed + number_unaligned)
+
+                # Mutate read
+                new_read = case_convert(new_read)
+                read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
 
             # Reverse complement half of the reads
             p = random.random()
@@ -633,36 +659,31 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
             else:
                 new_read_name += "_F"
 
-            # Add head and tail region
-            read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated + \
-                           ''.join(np.random.choice(BASES, tail))
+            if per:
+                out_reads.write(">" + new_read_name + "_0_" + str(ref) + "_0" + '\n')
+            else:
+                # Add head and tail region
+                read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated + \
+                               ''.join(np.random.choice(BASES, tail))
 
-            if kmer_bias:
-                read_mutated = collapse_homo(read_mutated, kmer_bias)
+                if kmer_bias:
+                    read_mutated = collapse_homo(read_mutated, kmer_bias)
 
-            out_reads.write(">" + new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" +
-                            str(tail) + '\n')
+                out_reads.write(">" + new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" +
+                                str(tail) + '\n')
             out_reads.write(read_mutated + '\n')
 
-            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " + str(
-                passed + 1 + number_unaligned) + "\r")  # +1 is just to ignore the zero index by python
-            sys.stdout.flush()
-            sleep(0.02)
+            if (passed + 1 + number_unaligned) % 100 == 0:
+                sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
+                                 str(passed + 1 + number_unaligned) + "\r")
+                # +1 is just to ignore the zero index by python
+                sys.stdout.flush()
 
             passed += 1
         i = number_aligned - passed
 
 
-def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, median_l=None, sd_l=None, model_ir=None):
-    global number_aligned, number_unaligned
-    global match_ht_list, error_par, trans_error_pr, match_markov_model
-    global kde_aligned, kde_ht, kde_ht_ratio, kde_unaligned, kde_aligned_2d
-    global seq_dict, seq_len
-    if mode == "genome":
-        global genome_len
-    else:
-        global dict_ref_structure, IR_markov_model, dict_exp, ecdf_dict_ref_exp
-
+def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, median_l=None, sd_l=None, model_ir=False):
     # Start simulation
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of random reads\n")
     sys.stdout.flush()
@@ -670,75 +691,52 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, median_l=None,
     out_error = open(out + "_error_profile", 'w')
     out_error.write("Seq_name\tSeq_pos\terror_type\terror_length\tref_base\tseq_base\n")
 
-    # Simulate unaligned reads
+    # Simulate unaligned reads, if per, number_unaligned = 0, taken care of in read_ecdf
     i = number_unaligned
-    unaligned_length = []
+    passed = 0
+
     while i > 0:
         # if the median length and sd is set, use log normal distribution for simulation
-        unaligned_tmp = get_length_kde(kde_unaligned, i) if median_l is None else \
+        ref_l = get_length_kde(kde_unaligned, i) if median_l is None else \
             np.random.lognormal(np.log(median_l), sd_l, i)
-        unaligned_length.extend([x for x in unaligned_tmp if min_l <= x <= max_l])
-        i = number_unaligned - len(unaligned_length)
 
-    for i in xrange(number_unaligned):
-        unaligned = int(unaligned_length[i])
-        unaligned, error_dict = unaligned_error_list(unaligned, error_par)
-        new_read, new_read_name = extract_read(dna_type, unaligned)
-        new_read_name = new_read_name + "_unaligned_" + str(i)
-        # Change lowercase to uppercase and replace N with any base
-        new_read = case_convert(new_read)
-        read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias, False)
+        for j in xrange(len(ref_l)):
+            # check if the total length fits the criteria
+            ref = int(ref_l[j])
 
-        # Reverse complement half of the reads
-        p = random.random()
-        if p < strandness_rate:
-            read_mutated = reverse_complement(read_mutated)
-            new_read_name += "_R"
-        else:
-            new_read_name += "_F"
-        out_reads.write(">" + new_read_name + "_0_" + str(unaligned) + "_0" + '\n')
-        out_reads.write(read_mutated + "\n")
-        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " + str(i + 1) + "\r") #+1 is just to ignore the zero index by python
-        sys.stdout.flush()
-        sleep(0.02)
+            unaligned, middle_ref, error_dict = unaligned_error_list(ref, error_par)
+            if unaligned < min_l or unaligned > max_l or middle_ref > max_chrom:
+                continue
 
-    del unaligned_length
+            new_read, new_read_name = extract_read(dna_type, middle_ref)
+            new_read_name = new_read_name + "_unaligned_" + str(passed)
+            # Change lowercase to uppercase and replace N with any base
+            new_read = case_convert(new_read)
+            read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias, False)
 
-
-    if per:
-        i = number_aligned
-        ref_length = []
-        while i > 0:
-            ref_tmp = get_length_kde(kde_aligned, i) if median_l is None else \
-                np.random.lognormal(np.log(median_l), sd_l, i)
-            ref_length.extend([x for x in ref_tmp if min_l <= x <= max_l])
-            i = number_aligned - len(ref_length)
-
-        for i in xrange(number_aligned):
-            read_len = int(ref_length[i])
-            new_read, new_read_name = extract_read(dna_type, read_len)
-            new_read_name = new_read_name + "_perfect_" + str(i)
-
-            # Reverse complement half of the reads
+            # Reverse complement some of the reads based on direction information
             p = random.random()
             if p < strandness_rate:
-                new_read = reverse_complement(new_read)
+                read_mutated = reverse_complement(read_mutated)
                 new_read_name += "_R"
             else:
                 new_read_name += "_F"
-            out_reads.write(">" + new_read_name + "_0_" + str(read_len) + "_0" + '\n')
+            out_reads.write(">" + new_read_name + "_0_" + str(middle_ref) + "_0" + '\n')
+            out_reads.write(read_mutated + "\n")
 
-            # Change lowercase to uppercase and replace N with any base
-            new_read = case_convert(new_read)
-            out_reads.write(new_read + "\n")
-            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " + str(i + 1 + number_unaligned) + "\r") #+1 is just to ignore the zero index by python
-            sys.stdout.flush()
-            sleep(0.02)
+            if (passed + 1) % 100 == 0:
+                sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
+                                 str(passed + 1) + "\r")
+                # +1 is just to ignore the zero index by python
+                sys.stdout.flush()
+            passed += 1
+
+        i = number_unaligned - passed
 
     if mode == "genome":
-        simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias)
+        simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias, per)
     else:
-        simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias)
+        simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, per)
 
     out_reads.close()
     out_error.close()
@@ -753,7 +751,6 @@ def reverse_complement(seq):
 
 
 def extract_read(dna_type, length):
-
     if dna_type == "transcriptome":
         while True:
             new_read = ""
@@ -765,9 +762,6 @@ def extract_read(dna_type, length):
                 break
         return new_read, new_read_name
     else:
-        if length > max(seq_len.values()):
-            length = max(seq_len.values())
-
         # Extract the aligned region from reference
         if dna_type == "circular":
             ref_pos = random.randint(0, genome_len)
@@ -799,12 +793,14 @@ def extract_read(dna_type, length):
         return new_read, new_read_name
 
 
-def unaligned_error_list(length, error_p):
+def unaligned_error_list(m_ref, error_p):
+    l_new = m_ref
     e_dict = {}
     error_rate = {(0, 0.4): "match", (0.4, 0.7): "mis", (0.7, 0.85): "ins", (0.85, 1): "del"}
     pos = 0
+    middle_ref = m_ref
     last_is_ins = False
-    while pos < length:
+    while pos < middle_ref:
         p = random.random()
         for k_error in error_rate.keys():
             if k_error[0] <= p < k_error[1]:
@@ -825,19 +821,22 @@ def unaligned_error_list(length, error_p):
             else:
                 e_dict[pos + 0.1] = ["ins", step]
                 last_is_ins = True
+            l_new += step
 
         else:
             step = mm.wei_geom(error_p["del"][0], error_p["del"][1], error_p["del"][2], error_p["del"][3])
             e_dict[pos] = ["del", step]
+            l_new -= step
 
         if error_type != "ins":
             pos += step
             last_is_ins = False
 
-        if pos > length:
-            length = pos
+        if pos > middle_ref:
+            l_new += pos - middle_ref
+            middle_ref = pos
 
-    return length, e_dict
+    return l_new, middle_ref, e_dict
 
 
 def error_list(m_ref, m_model, m_ht_list, error_p, trans_p):
@@ -923,8 +922,8 @@ def mutate_read(read, read_name, error_log, e_dict, k, aligned=True):
                 new_bases = ""
                 for i in xrange(val[1]):
                     tmp_bases = list(BASES)
-                    tmp_bases.remove(read[key + i]) ##
-                    #tmp_bases.remove(read[key]) ## Edited this part for testing
+                    tmp_bases.remove(read[key + i])
+                    # tmp_bases.remove(read[key]) ## Edited this part for testing
                     new_base = random.choice(tmp_bases)
                     new_bases += new_base
                 check_kmer = read[max(key - k + 1, 0): key] + new_bases + read[key + val[1]: key + val[1] + k - 1]
@@ -951,9 +950,9 @@ def mutate_read(read, read_name, error_log, e_dict, k, aligned=True):
 
         read = new_read
 
-        #if aligned and val[0] != "match":
-            #error_log.write(read_name + "\t" + str(key) + "\t" + val[0] + "\t" + str(val[1]) +
-                            #"\t" + ref_base + "\t" + new_bases + "\n")
+        if aligned and val[0] != "match":
+            error_log.write(read_name + "\t" + str(key) + "\t" + val[0] + "\t" + str(val[1]) +
+                            "\t" + ref_base + "\t" + new_bases + "\n")
 
     # If choose to have kmer bias, then need to compress homopolymers to 5-mer
     if k:
@@ -962,83 +961,77 @@ def mutate_read(read, read_name, error_log, e_dict, k, aligned=True):
     return read
 
 
-def case_convert(seq):
-    base_code = {'Y': ['C', 'T'], 'R': ['A', 'G'], 'W': ['A', 'T'], 'S': ['G', 'C'], 'K': ['T', 'G'], 'M': ['C', 'A'],
-                 'D': ['A', 'G', 'T'], 'V': ['A', 'C', 'G'], 'H': ['A', 'C', 'T'], 'B': ['C', 'G', 'T'],
-                 'N': ['A', 'T', 'C', 'G'], 'X': ['A', 'T', 'C', 'G']}
-
-    up_string = seq.upper()
-    up_list = list(up_string)
-    for i in xrange(len(up_list)):
-        if up_list[i] in base_code:
-            up_list[i] = random.choice(base_code[up_list[i]])
-    out_seq = ''.join(up_list)
-
-    return out_seq
-
-
 def main():
-
-    exp = ""
-    ref = ""
-    model_prefix = "training"
-    out = "simulated"
-    number = 20000
-    perfect = False
-    model_ir = True
-    # ins, del, mis rate represent the weight tuning in mix model
-    ins_rate = 1
-    del_rate = 1
-    mis_rate = 1
-    max_readlength = float("inf")
-    min_readlength = 50
-    median_readlength = None
-    sd_readlength = None
-    kmer_bias = 0
-    strandness = None
-
     parser = argparse.ArgumentParser(
-        description='Given the read profiles from characterization step, ' \
-                    'simulate genomeic/transcriptomic ONT reads and outputs the error profiles.',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
+        description=dedent('''
+        Simulation step
+        -----------------------------------------------------------
+        Given error profiles, reference genome and/or transcriptome,
+        simulate ONT DNA or RNA reads
+        '''),
+        formatter_class=argparse.RawDescriptionHelpFormatter)
 
-    subparsers = parser.add_subparsers(help = "You may run the simulator on transcriptome or genome mode.", dest='mode')
+    parser.add_argument('-v', '--version', action='version', version='NanoSim ' + VERSION)
+    subparsers = parser.add_subparsers(help="You may run the simulator on transcriptome or genome mode.", dest='mode',
+                                       description=dedent('''
+        There are two modes in read_analysis.
+        For detailed usage of each mode:
+            simulator.py mode -h
+        -------------------------------------------------------
+        '''))
 
-    parser_g = subparsers.add_parser('genome', help="Run the simulator on genome mode.")
-    parser_g.add_argument('-rg', '--ref_g', help='Input reference genome', type=str, required=True)
-    parser_g.add_argument('-c', '--model_prefix', help='Address for profiles created in characterization step (model_prefix)', type = str, default= "training")
-    parser_g.add_argument('-o', '--output', help='Output address for simulated reads', type = str, default= "simulated")
-    parser_g.add_argument('-n', '--number', help='Number of reads to be simulated', type = int, default = 20000)
-    parser_g.add_argument('-i', '--insertion_rate', help='Insertion rate (optional)', type = float, default= 1)
-    parser_g.add_argument('-d', '--deletion_rate', help='Deletion rate (optional)', type = float, default= 1)
-    parser_g.add_argument('-m', '--mismatch_rate', help='Mismatch rate (optional)', type = float, default= 1)
-    parser_g.add_argument('-max', '--max_len', help='The maximum length for simulated reads', type=int, default= float("inf"))
-    parser_g.add_argument('-min', '--min_len', help='The minimum length for simulated reads', type=int, default= 50)
-    parser_g.add_argument('-med', '--median_len', help='The median read length', type=int, default=None)
-    parser_g.add_argument('-sd', '--sd_len', help='The standard deviation of read length in log scale', type=float, default=None)
+    parser_g = subparsers.add_parser('genome', help="Run the simulator on genome mode")
+    parser_g.add_argument('-rg', '--ref_g', help='Input reference genome', required=True)
+    parser_g.add_argument('-c', '--model_prefix', help='Location and prefix of error profiles generated from '
+                                                       'characterization step (Default = training)',
+                          default="training")
+    parser_g.add_argument('-o', '--output', help='Output location and prefix for simulated reads (Default = simulated)',
+                          default="simulated")
+    parser_g.add_argument('-n', '--number', help='Number of reads to be simulated (Default = 20000)', type=int,
+                          default=20000)
+    parser_g.add_argument('-max', '--max_len', help='The maximum length for simulated reads (Default = Infinity)',
+                          type=int, default=float("inf"))
+    parser_g.add_argument('-min', '--min_len', help='The minimum length for simulated reads (Default = 50)',
+                          type=int, default=50)
+    parser_g.add_argument('-med', '--median_len', help='The median read length (Default = None)',
+                          type=int, default=None)
+    parser_g.add_argument('-sd', '--sd_len', help='The standard deviation of read length in log scale (Default = None)',
+                          type=float, default=None)
     parser_g.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
-    parser_g.add_argument('-k', '--KmerBias', help='Determine whether to considert Kmer Bias or not', type = int, default= 0)
-    parser_g.add_argument('-s', '--strandness', help='Determine the strandness of the simulated reads. Overrides the value profiled in characterization phase. Should be between 0 and 1.', type=float, default=None)
-    parser_g.add_argument('-dna_type', help='Specify the dna type: circular OR linear, default = linear', type=str, default="linear")
-    parser_g.add_argument('--perfect', help='Ignore profiles and simulate perfect reads', action='store_true')
+    parser_g.add_argument('-k', '--KmerBias', help='Enable k-mer bias simulation', type=int, default=None)
+    parser_g.add_argument('-s', '--strandness', help='Percentage of antisense sequences. Overrides the value profiled '
+                                                     'in characterization stage. Should be between 0 and 1',
+                          type=float, default=None)
+    parser_g.add_argument('-dna_type', help='Specify the dna type: circular OR linear (Default = linear)',
+                          choices=["linear", "circular"], default="linear")
+    parser_g.add_argument('--perfect', help='Ignore error profiles and simulate perfect reads', action='store_true',
+                          default=False)
 
-    parser_t = subparsers.add_parser('transcriptome', help="Run the simulator on transcriptome mode.")
-    parser_t.add_argument('-rt', '--ref_t', help='Input reference transcriptome', type = str, required= True)
-    parser_t.add_argument('-rg', '--ref_g', help='Input reference genome', type=str, required=True)
-    parser_t.add_argument('-e', '--exp', help='Expression profile in the specified format specified in the documentation', type = str)
-    parser_t.add_argument('-c', '--model_prefix', help='Address for profiles created in characterization step (model_prefix)', type = str, default= "training")
-    parser_t.add_argument('-o', '--output', help='Output address for simulated reads', type = str, default= "simulated")
-    parser_t.add_argument('-n', '--number', help='Number of reads to be simulated', type = int, default = 20000)
-    parser_t.add_argument('-i', '--insertion_rate', help='Insertion rate (optional)', type = float, default= 1)
-    parser_t.add_argument('-d', '--deletion_rate', help='Deletion rate (optional)', type = float, default= 1)
-    parser_t.add_argument('-m', '--mismatch_rate', help='Mismatch rate (optional)', type = float, default= 1)
-    parser_t.add_argument('-max', '--max_len', help='The maximum length for simulated reads', type=int, default= float("inf"))
-    parser_t.add_argument('-min', '--min_len', help='The minimum length for simulated reads', type=int, default= 50)
-    parser_t.add_argument('-k', '--KmerBias', help='Determine whether to considert Kmer Bias or not', type = int, default= 0)
-    parser_t.add_argument('-s', '--strandness', help='Determine the strandness of the simulated reads. Overrides the value profiled in characterization phase. Should be between 0 and 1.', type=float, default=None)
-    parser_t.add_argument('--no_model_ir', help='Consider Intron Retention model from characterization step when simulating reads', action='store_true')
-    parser_t.add_argument('--perfect', help='Ignore profiles and simulate perfect reads', action='store_true')
+    parser_t = subparsers.add_parser('transcriptome', help="Run the simulator on transcriptome mode")
+    parser_t.add_argument('-rt', '--ref_t', help='Input reference transcriptome', required=True)
+    parser_t.add_argument('-rg', '--ref_g', help='Input reference genome, required if intron retention simulatin is on',
+                          default='')
+    parser_t.add_argument('-e', '--exp', help='Expression profile in the specified format as described in README',
+                          required=True)
+    parser_t.add_argument('-c', '--model_prefix', help='Location and prefix of error profiles generated from '
+                                                       'characterization step (Default = training)',
+                          default="training")
+    parser_t.add_argument('-o', '--output', help='Output location and prefix for simulated reads (Default = simulated)',
+                          default="simulated")
+    parser_t.add_argument('-n', '--number', help='Number of reads to be simulated (Default = 20000)', type=int,
+                          default=20000)
+    parser_t.add_argument('-max', '--max_len', help='The maximum length for simulated reads (Default = Infinity)',
+                          type=int, default=float("inf"))
+    parser_t.add_argument('-min', '--min_len', help='The minimum length for simulated reads (Default = 50)',
+                          type=int, default=50)
+    parser_t.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
+    parser_t.add_argument('-k', '--KmerBias', help='Enable k-mer bias simulation', type=int, default=None)
+    parser_t.add_argument('-s', '--strandness', help='Percentage of antisense sequences. Overrides the value profiled '
+                                                     'in characterization stage. Should be between 0 and 1',
+                          type=float, default=None)
+    parser_t.add_argument('--no_model_ir', help='Simulate intron retention events', action='store_false', default=True)
+    parser_t.add_argument('--perfect', help='Ignore profiles and simulate perfect reads', action='store_true',
+                          default=False)
 
     args = parser.parse_args()
 
@@ -1046,58 +1039,40 @@ def main():
         parser.print_help(sys.stderr)
         sys.exit(1)
 
-    if len(sys.argv) == 2:
-        if args.mode == "genome":
-            parser_g.print_help(sys.stderr)
-        elif args.mode == "transcriptome":
-            parser_t.print_help(sys.stderr)
-        else:
-            parser.print_help(sys.stderr)
-        sys.exit(1)
-
     if args.mode == "genome":
         ref_g = args.ref_g
         model_prefix = args.model_prefix
         out = args.output
         number = args.number
-        ins_rate = args.insertion_rate
-        del_rate = args.deletion_rate
-        mis_rate = args.mismatch_rate
-        max_readlength = args.max_len
-        min_readlength = args.min_len
-        median_readlength = args.median_len
-        sd_readlength = args.sd_len
+        max_len = args.max_len
+        min_len = args.min_len
+        median_len = args.median_len
+        sd_len = args.sd_len
         if args.seed:
             random.seed(int(args.seed))
             np.random.seed(int(args.seed))
-        if args.perfect:
-            perfect = True
+        perfect = args.perfect
         kmer_bias = args.KmerBias
         strandness = args.strandness
         dna_type = args.dna_type
 
-        if dna_type not in ['circular', 'linear']:
-            print("\nPlease input proper dna type: linear OR circular\n")
+        if kmer_bias and kmer_bias < 0:
+            print("\nPlease input proper kmer bias value >= 0\n")
             parser_g.print_help(sys.stderr)
             sys.exit(1)
 
-        if kmer_bias < 0:
-            print("\nPlease input proper kmer_bias value: k >= 0\n")
-            parser_g.print_help(sys.stderr)
-            sys.exit(1)
-
-        if strandness != None and 0 <= strandness <= 1:
+        if strandness and (strandness < 0 or strandness > 1):
             print("\nPlease input proper strandness value between 0 and 1\n")
             parser_g.print_help(sys.stderr)
             sys.exit(1)
 
-        if (median_readlength and not sd_readlength) or (sd_readlength and not median_readlength):
-            sys.stderr.write("\nPlease provide both mean and standard deviation of read length!\n\n")
+        if (median_len and not sd_len) or (sd_len and not median_len):
+            sys.stderr.write("\nPlease provide both mean and standard deviation of read length!\n")
             parser_g.print_help(sys.stderr)
             sys.exit(1)
 
-        if max_readlength < min_readlength:
-            sys.stderr.write("\nMaximum read length must be longer than Minimum read length!\n\n")
+        if max_len < min_len:
+            sys.stderr.write("\nMaximum read length must be longer than Minimum read length!\n")
             parser_g.print_help(sys.stderr)
             sys.exit(1)
 
@@ -1110,25 +1085,27 @@ def main():
         print("kmer_bias", kmer_bias)
         print("dna_type", dna_type)
         print("strandness", strandness)
-        print("sd_readlength", sd_readlength)
-        print("median_readlength", median_readlength)
+        print("sd_len", sd_len)
+        print("median_len", median_len)
+        print("max_len", max_len)
+        print("min_lne", min_len)
 
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ': ' + ' '.join(sys.argv) + '\n')
         sys.stdout.flush()
 
         dir_name = os.path.dirname(out)
-        basename = os.path.basename(out)
-        call("mkdir -p " + dir_name, shell=True)
+        if dir_name != '':
+            call("mkdir -p " + dir_name, shell=True)
 
-        read_profile(ref_g, None, number, model_prefix, perfect, args.mode, strandness)
+        read_profile(ref_g, None, number, model_prefix, perfect, args.mode, strandness, None, False, dna_type)
 
-        if median_readlength and sd_readlength:
+        if median_len and sd_len:
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Simulating read length with log-normal distribution\n")
             sys.stdout.flush()
-            simulation(args.mode, out, dna_type, perfect, kmer_bias, max_readlength, min_readlength, median_readlength,
-                       sd_readlength)
+            simulation(args.mode, out, dna_type, perfect, kmer_bias, max_len, min_len, median_len,
+                       sd_len)
         else:
-            simulation(args.mode, out, dna_type, perfect, kmer_bias, max_readlength, min_readlength)
+            simulation(args.mode, out, dna_type, perfect, kmer_bias, max_len, min_len)
 
     elif args.mode == "transcriptome":
         ref_g = args.ref_g
@@ -1137,18 +1114,33 @@ def main():
         model_prefix = args.model_prefix
         out = args.output
         number = args.number
-        ins_rate = args.insertion_rate
-        del_rate = args.deletion_rate
-        mis_rate = args.mismatch_rate
-        max_readlength = args.max_len
-        min_readlength = args.min_len
+        max_len = args.max_len
+        min_len = args.min_len
         kmer_bias = args.KmerBias
         strandness = args.strandness
-        if args.perfect:
-            perfect = True
-        if args.no_model_ir:
-            model_ir = False
+        perfect = args.perfect
+        model_ir = args.no_model_ir
         dna_type = "transcriptome"
+
+        if kmer_bias and kmer_bias < 0:
+            print("\nPlease input proper kmer bias value >= 0\n")
+            parser_g.print_help(sys.stderr)
+            sys.exit(1)
+
+        if strandness and (strandness < 0 or strandness > 1):
+            print("\nPlease input proper strandness value between 0 and 1\n")
+            parser_g.print_help(sys.stderr)
+            sys.exit(1)
+
+        if max_len < min_len:
+            sys.stderr.write("\nMaximum read length must be longer than Minimum read length!\n")
+            parser_g.print_help(sys.stderr)
+            sys.exit(1)
+
+        if model_ir and ref_g == '':
+            sys.stderr.write("\nPlease provide a reference genome to simulate intron retention events!\n")
+            parser_g.print_help(sys.stderr)
+            sys.exit(1)
 
         print("\nrunning the code with following parameters:\n")
         print("ref_g", ref_g)
@@ -1162,20 +1154,20 @@ def main():
         print("model_ir", model_ir)
         print("dna_type", dna_type)
         print("strandness", strandness)
-
-        dir_name = os.path.dirname(out)
-        basename = os.path.basename(out)
-        call("mkdir -p " + dir_name, shell=True)
+        print("max_len", max_len)
+        print("min_readlength", min_len)
 
         # Generate log file
-        # sys.stdout = open(out + ".log", 'w')
-        # Record the command typed to log file
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ': ' + ' '.join(sys.argv) + '\n')
         sys.stdout.flush()
 
-        read_profile(ref_g, ref_t, number, model_prefix, perfect, args.mode, strandness, exp, model_ir)
+        dir_name = os.path.dirname(out)
+        if dir_name != '':
+            call("mkdir -p " + dir_name, shell=True)
 
-        simulation(args.mode, out, dna_type, perfect, kmer_bias, max_readlength, min_readlength, None, None, model_ir)
+        read_profile(ref_g, ref_t, number, model_prefix, perfect, args.mode, strandness, exp, model_ir, "linear")
+
+        simulation(args.mode, out, dna_type, perfect, kmer_bias, max_len, min_len, None, None, model_ir)
 
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
     sys.stdout.close()

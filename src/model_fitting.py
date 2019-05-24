@@ -156,7 +156,7 @@ def model_fitting(prefix, threads):
     for res in results:
         params = res[1]
         if params[0] <= 0 or params[1] <= 0 or \
-            params[2] <= 0 or params[2] >= 1 or params[3] <= 0 or params[3] >= 1:
+                params[2] <= 0 or params[2] >= 1 or params[3] <= 0 or params[3] >= 1:
             continue
         else:
             diff = res[2]

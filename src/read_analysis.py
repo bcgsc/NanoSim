@@ -10,12 +10,9 @@ This script generates read profiles for Oxford Nanopore 2D reads (genomic and tr
 
 from __future__ import print_function
 from __future__ import with_statement
+from textwrap import dedent
 from subprocess import call
 from time import strftime
-try:
-    from six.moves import xrange
-except ImportError:
-    pass
 import sys
 import os
 import re
@@ -29,6 +26,13 @@ import get_primary_sam
 import besthit_to_histogram as error_model
 import model_fitting
 import model_intron_retention as model_ir
+
+
+PYTHON_VERSION = sys.version_info
+VERSION = "2.5.0"
+PRORAM = "NanoSim"
+AUTHOR = "Chen Yang, Saber Hafezqorani (UBC & BCGSC)"
+CONTACT = "cheny@bcgsc.ca; shafezqorani@bcgsc.ca"
 
 
 # Taken from https://github.com/lh3/readfq
@@ -66,167 +70,199 @@ def readfq(fp):  # this is a generator function
                 break
 
 
-def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm=None, ref_g=None):
-
-    out_g = None
-    if t_alnm != "":
-        out_t = t_alnm
-        t_alnm_filename, t_alnm_ext = os.path.splitext(t_alnm)
-        t_alnm_ext = t_alnm_ext[1:]
-        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Processing the transcriptome alignment file: " + t_alnm_ext + "\n")
-        if t_alnm_ext == "maf":
-            processed_maf_t = prefix + "_transcriptome_alnm_processed.maf"
-            call("grep '^s ' " + t_alnm + " > " + processed_maf_t, shell=True)
-
-            unaligned_length, strandness = get_besthit_maf.besthit_and_unaligned(in_fasta, processed_maf_t, prefix)
-
-        elif t_alnm_ext == "sam":
-
-            unaligned_length, strandness = get_primary_sam.primary_and_unaligned(t_alnm, prefix)
-    else:
+def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm, ref_g, ir=True, post=True):
+    if t_alnm == '':
         if aligner == "minimap2":
-            t_alnm_ext = "sam"
-            outsam_t = prefix + "_transcriptome_alnm.sam"
-            out_t = outsam_t
+            t_alnm = prefix + "_transcriptome_alnm.sam"
             # Alignment to reference transcriptome
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with minimap2 to reference transcriptome\n")
-            call("minimap2 --cs -ax map-ont -t " + num_threads + " " + ref_t + " " + in_fasta + " > " + outsam_t, shell=True)
-
-            unaligned_length, strandness = get_primary_sam.primary_and_unaligned(outsam_t, prefix)
+            call("minimap2 --cs -ax map-ont -t " + num_threads + " " + ref_t + " " + in_fasta + " > " + t_alnm,
+                 shell=True)
 
         elif aligner == "LAST":
-            t_alnm_ext = "maf"
-            outmaf_t = prefix + "_transcriptome_alnm.maf"
-            out_t = outmaf_t
+            t_alnm = prefix + "_transcriptome_alnm.maf"
             # Alignment to reference transcriptome
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with LAST to reference transcriptome\n")
             call("lastdb ref_transcriptome " + ref_t, shell=True)
-            call("lastal -a 1 -P " + num_threads + " ref_transcriptome " + in_fasta + " | grep '^s ' > " + outmaf_t,
-                 shell=True)
+            call("lastal -a 1 -P " + num_threads + " ref_transcriptome " + in_fasta + " > " + t_alnm, shell=True)
 
-            unaligned_length, strandness = get_besthit_maf.besthit_and_unaligned(in_fasta, outmaf_t, prefix)
-
-    if g_alnm or ref_g:
-        if g_alnm:
-            out_g = g_alnm
-            g_alnm_filename, g_alnm_ext = os.path.splitext(g_alnm)
-            g_alnm_ext = g_alnm_ext [1:]
-            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Processing the genome alignment file: " + g_alnm_ext + "\n")
-            if g_alnm_ext == "maf":
-                processed_maf_g = prefix + "_genome_alnm_processed.maf"
-                call("grep '^s ' " + g_alnm + " > " + processed_maf_g, shell=True)
-        else:
+    if ir:
+        if g_alnm == '':
             if aligner == "minimap2":
-                g_alnm_ext = "sam"
-                outsam_g = prefix + "_genome_alnm.sam"
-                out_g = outsam_g
+                g_alnm = prefix + "_genome_alnm.sam"
                 # Alignment to reference genome
                 # [EDIT] I may change the options for minimap2 when dealing with cDNA and dRNA reads.
                 sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with minimap2 to reference genome\n")
-                call("minimap2 -ax splice -t " + num_threads + " " + ref_g + " " + in_fasta + " > " + outsam_g, shell=True)
+                call("minimap2 -ax splice -t " + num_threads + " " + ref_g + " " + in_fasta + " > " + g_alnm, shell=True)
 
             elif aligner == "LAST":
-                g_alnm_ext = "maf"
-                outmaf_g = prefix + "_genome_alnm.maf"
-                out_g = outmaf_g
+                g_alnm = prefix + "_genome_alnm.maf"
                 # Alignment to reference genome
                 sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with LAST to reference genome\n")
                 call("lastdb ref_genome " + ref_g, shell=True)
-                call("lastal -a 1 -P " + num_threads + " ref_genome " + in_fasta + " | grep '^s ' > " + outmaf_g,
-                     shell=True)
+                call("lastal -a 1 -P " + num_threads + " ref_genome " + in_fasta + " > " + g_alnm, shell=True)
 
-    return t_alnm_ext, unaligned_length, out_g, out_t, strandness
+    if not post:
+        return t_alnm, g_alnm
 
+    # post-process
+    t_alnm_filename, t_alnm_ext = os.path.splitext(t_alnm)
+    t_alnm_ext = t_alnm_ext[1:]
+    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Processing transcriptome alignment file: " + t_alnm_ext + '\n')
+    if t_alnm_ext == "maf":
+        processed_maf_t = prefix + "_transcriptome_alnm_processed.maf"
+        call("grep '^s ' " + t_alnm + " > " + processed_maf_t, shell=True)
+        unaligned_length, strandness = get_besthit_maf.besthit_and_unaligned(in_fasta, processed_maf_t, prefix)
+    elif t_alnm_ext == "sam":
+        unaligned_length, strandness = get_primary_sam.primary_and_unaligned(t_alnm, prefix)
 
-def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g):
-    # if an alignment file is provided
-    if g_alnm != '':
-        pre, file_ext = os.path.splitext(g_alnm)
-        file_extension = file_ext[1:]
-        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Processing alignment file: " + file_extension + "\n")
-        if file_extension == "maf":
+    if ir:
+        g_alnm_filename, g_alnm_ext = os.path.splitext(g_alnm)
+        g_alnm_ext = g_alnm_ext[1:]
+        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Processing genome alignment file: " + g_alnm_ext + '\n')
+        if g_alnm_ext == "maf":
             processed_maf = prefix + "_processed.maf"
-
             call("grep '^s ' " + g_alnm + " > " + processed_maf, shell=True)
 
-            # get best hit and unaligned reads
-            unaligned_length, strandness = get_besthit_maf.besthit_and_unaligned(in_fasta, processed_maf, prefix)
-
-        elif file_extension == "sam":
-            # get the primary alignments and define unaligned reads.
-            unaligned_length, strandness = get_primary_sam.primary_and_unaligned(g_alnm, prefix)
+    return t_alnm_ext, unaligned_length, g_alnm, t_alnm, strandness
 
 
-    # if alignment file is not provided
-    else:
-        if aligner == "minimap2" or aligner == "":  # Align with minimap2 by default
-            file_extension = "sam"
-            out_sam = prefix + "_genome_alnm.sam"
+def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, post=True):
+    # if an alignment file is not provided
+    if g_alnm == '':
+        if aligner == "minimap2":  # Align with minimap2 by default
+            g_alnm = prefix + "_genome_alnm.sam"
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with minimap2\n")
-            call("minimap2 --cs -ax map-ont -t " + num_threads + " " + ref_g + " " + in_fasta + " > " + out_sam,
+            call("minimap2 --cs -ax map-ont -t " + num_threads + " " + ref_g + " " + in_fasta + " > " + g_alnm,
                  shell=True)
-            # get primary alignments and unaligned reads
-            unaligned_length, strandness = get_primary_sam.primary_and_unaligned(out_sam, prefix)
+
         elif aligner == "LAST":
-            file_extension = "maf"
-            out_maf = prefix + "_genome_alnm.maf"
+            g_alnm = prefix + "_genome_alnm.maf"
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with LAST\n")
-            call("lastdb ref_genome " + ref, shell=True)
-            call("lastal -a 1 -P " + num_threads + " ref_genome " + in_fasta + " | grep '^s ' > " + out_maf, shell=True)
-            unaligned_length, strandness = get_besthit_maf.besthit_and_unaligned(in_fasta, out_maf, prefix)
+            call("lastdb ref_genome " + ref_g, shell=True)
+            call("lastal -a 1 -P " + num_threads + " ref_genome " + in_fasta + " " + g_alnm, shell=True)
+
+    if not post:
+        return
+
+    # post-process
+    pre, file_ext = os.path.splitext(g_alnm)
+    file_extension = file_ext[1:]
+    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Processing alignment file: " + file_extension + "\n")
+    if file_extension == "maf":
+        processed_maf = prefix + "_processed.maf"
+        call("grep '^s ' " + g_alnm + " > " + processed_maf, shell=True)
+
+        # get best hit and unaligned reads
+        unaligned_length, strandness = get_besthit_maf.besthit_and_unaligned(in_fasta, processed_maf, prefix)
+
+    elif file_extension == "sam":
+        # get the primary alignments and define unaligned reads.
+        unaligned_length, strandness = get_primary_sam.primary_and_unaligned(g_alnm, prefix)
 
     return file_extension, unaligned_length, strandness
 
 
-def main(argv):
-    # Parse input and output files
+def add_intron(annot, prefix):
+    # Read the annotation GTF/GFF3 file
+    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Parse the annotation file (GTF/GFF3)\n")
+    # If gtf provided, convert to GFF3 (gt gtf_to_gff3)
+    annot_filename, annot_file_extension = os.path.splitext(annot)
+    annot_file_extension = annot_file_extension[1:]
+    if annot_file_extension.upper() == "GTF":
+        call("gt gtf_to_gff3 -tidy -force -o " + prefix + ".gff3 " + annot, shell=True)
+    else:
+        call("cp " + annot + ' ' + prefix + '.gff3', shell=True)
 
-    prefix = 'training'
-    model_fit = True
-    intron_retention = True
-    detect_IR = False
-    quantify = False
+    # TODO Check whether the gff3 file already has intron infomation
 
+    # Next, add intron info into gff3:
+    call("gt gff3 -tidy -retainids -checkids -addintrons -sort -force -o " + prefix + "_added_intron_temp.gff3 " +
+         prefix + ".gff3", shell=True)
+
+    # Inherit "transcript_id" information for intron features from exon info
+    script_path = os.path.realpath(__file__)
+    script_dir = os.path.dirname(script_path)
+
+    call("gt " + script_dir + "/bequeath.lua transcript_id < " + prefix + "_added_intron_temp.gff3 > " + prefix +
+         "_added_intron_final.gff3", shell=True)
+    call("rm " + prefix + "_added_intron_temp.gff3", shell=True)
+
+
+def main():
     parser = argparse.ArgumentParser(
-        description='Given the read profiles from characterization step, ' \
-                    'simulate genomic/transcriptic ONT reads and output error profiles',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    subparsers = parser.add_subparsers(help = "You may run the simulator on transcriptome or genome mode. You may also only quanity expression profiles.", dest='mode')
+        description=dedent('''
+        Read characterization step
+        -----------------------------------------------------------
+        Given raw ONT reads, reference genome and/or transcriptome,
+        learn read features and output error profiles
+        '''),
+        formatter_class=argparse.RawDescriptionHelpFormatter)
 
-    parser_g = subparsers.add_parser('genome', help="Run the simulator on genome mode.")
-    parser_g.add_argument('-i', '--read', help='Input read for training.', required=True)
-    parser_g.add_argument('-rg', '--ref_g', help='Reference genome.', required=True)
-    parser_g.add_argument('-a', '--aligner', help='The aligner to be used minimap2 or LAST (Default = minimap2)', default = 'minimap2')
-    parser_g.add_argument('-ga', '--g_alnm', help='Genome alignment file in sam or maf format (optional)', default= '')
-    parser_g.add_argument('-o', '--output', help='The output name and location for profiles', default = "training")
-    parser_g.add_argument('--no_model_fit', help='Disable model fitting step', action='store_true')
-    parser_g.add_argument('-t', '--num_threads', help='Number of threads to be used in alignments and model fitting (Default = 1)', default=1)
+    parser.add_argument('-v', '--version', action='version', version='NanoSim ' + VERSION)
+    subparsers = parser.add_subparsers(dest='mode', description=dedent('''
+        There are four modes in read_analysis.
+        For detailed usage of each mode:
+            read_analysis.py mode -h
+        -------------------------------------------------------
+        '''))
 
-    parser_t = subparsers.add_parser('transcriptome', help="Run the simulator on transcriptome mode.")
-    parser_t.add_argument('-i', '--read', help='Input read for training.', required=True)
-    parser_t.add_argument('-rg', '--ref_g', help='Reference genome.', required=False, default='')
-    parser_t.add_argument('-rt', '--ref_t', help='Reference Transcriptome.', required=True)
-    parser_t.add_argument('-annot', '--annot', help='Annotation file in ensemble GTF/GFF formats.', required=True, default='')
-    parser_t.add_argument('-a', '--aligner', help='The aligner to be used: minimap2 or LAST (Default = minimap2)', default = 'minimap2')
+    parser_g = subparsers.add_parser('genome', help="Run the simulator on genome mode")
+    parser_g.add_argument('-i', '--read', help='Input read for training', required=True)
+    parser_g.add_argument('-rg', '--ref_g', help='Reference genome, not required if genome alignment file is provided',
+                          default='')
+    parser_g.add_argument('-a', '--aligner', help='The aligner to be used, minimap2 or LAST (Default = minimap2)',
+                          choices=['minimap2', 'LAST'], default='minimap2')
+    parser_g.add_argument('-ga', '--g_alnm', help='Genome alignment file in sam or maf format (optional)', default='')
+    parser_g.add_argument('-o', '--output', help='The location and prefix of outputting profiles (Default = training)',
+                          default='training')
+    parser_g.add_argument('--no_model_fit', help='Disable model fitting step', action='store_false', default=True)
+    parser_g.add_argument('-t', '--num_threads', help='Number of threads for alignment and model fitting (Default = 1)',
+                          type=int, default=1)
+
+    parser_t = subparsers.add_parser('transcriptome', help="Run the simulator on transcriptome mode")
+    parser_t.add_argument('-i', '--read', help='Input read for training', required=True)
+    parser_t.add_argument('-rg', '--ref_g', help='Reference genome', default='')
+    parser_t.add_argument('-rt', '--ref_t', help='Reference Transcriptome', required=True)  # ?
+    parser_t.add_argument('-annot', '--annotation', help='Annotation file in ensemble GTF/GFF formats, '
+                                                         'required for intron retention detection', default='')
+    parser_t.add_argument('-a', '--aligner', help='The aligner to be used: minimap2 or LAST (Default = minimap2)',
+                          choices=['minimap2', 'LAST'], default='minimap2')
     parser_t.add_argument('-ga', '--g_alnm', help='Genome alignment file in sam or maf format (optional)', default='')
-    parser_t.add_argument('-ta', '--t_alnm', help='Transcriptome alignment file in sam or maf format (optional)', default='')
-    parser_t.add_argument('-o', '--output', help='The output name and location for profiles', default="training")
-    parser_t.add_argument('--no_model_fit', help='Disable model fitting step', action='store_true')
-    parser_t.add_argument('--no_intron_retention', help='Disable Intron Retention analysis', action='store_true')
-    parser_t.add_argument('-t', '--num_threads', help='Number of threads to be used in alignments and model fitting (Default = 1)', default=1)
+    parser_t.add_argument('-ta', '--t_alnm', help='Transcriptome alignment file in sam or maf format (optional)',
+                          default='')
+    parser_t.add_argument('-o', '--output', help='The location and prefix of outputting profiles (Default = training)',
+                          default='training')
+    parser_t.add_argument('--no_model_fit', help='Disable model fitting step', action='store_false', default=True)
+    parser_t.add_argument('--no_intron_retention', help='Disable Intron Retention analysis', action='store_false',
+                          default=True)
+    parser_t.add_argument('-t', '--num_threads', help='Number of threads for alignment and model fitting (Default = 1)',
+                          type=int, default=1)
 
     parser_e = subparsers.add_parser('quantify', help="Quantify expression profile of transcripts")
-    parser_e.add_argument('-o', '--output', help='The output name and location', default="expression")
-    parser_e.add_argument('-i', '--read', help='Input reads to use for quantification.', required=True)
-    parser_e.add_argument('-rt', '--ref_t', help='Reference Transcriptome.', required=True)
-    parser_e.add_argument('-t', '--num_threads', help='Number of threads to be used (Default = 1)', default=1)
+    parser_e.add_argument('-i', '--read', help='Input reads for quantification', required=True)
+    parser_e.add_argument('-rt', '--ref_t', help='Reference Transcriptome', required=True)
+    parser_e.add_argument('-o', '--output', help='The location and prefix of outputting profile (Default = expression)',
+                          default='expression')
+    parser_e.add_argument('-t', '--num_threads', help='Number of threads for alignment (Default = 1)', type=int,
+                          default=1)
 
     parser_ir = subparsers.add_parser('detect_ir', help="Detect Intron Retention events using the alignment file")
-    parser_ir.add_argument('-annot', '--annot', help='Annotation file in ensemble GTF/GFF formats.', required=True)
-    parser_ir.add_argument('-o', '--output', help='The output name and location', default = "ir_info")
-    parser_ir.add_argument('-ga', '--g_alnm', help='Genome alignment file in sam or maf format', default='', required=True)
-    parser_ir.add_argument('-ta', '--t_alnm', help='Transcriptome alignment file in sam or maf format', default='', required=True)
+    parser_ir.add_argument('-annot', '--annotation', help='Annotation file in ensemble GTF/GFF formats', required=True)
+    parser_ir.add_argument('-i', '--read', help='Input read for training, not required if alignment files are provided',
+                           default='')
+    parser_ir.add_argument('-rg', '--ref_g', help='Reference genome, not required if genome alignment file is provided',
+                           default='')
+    parser_ir.add_argument('-rt', '--ref_t', help='Reference Transcriptome, not required if transcriptome alignment '
+                                                  'file is provided', default='')
+    parser_ir.add_argument('-a', '--aligner', help='The aligner to be used: minimap2 or LAST (Default = minimap2)',
+                           choices=['minimap2', 'LAST'], default='minimap2')
+    parser_ir.add_argument('-o', '--output', help='The output name and location', required=False, default='ir_info')
+    parser_ir.add_argument('-ga', '--g_alnm', help='Genome alignment file in sam or maf format (optional)', default='')
+    parser_ir.add_argument('-ta', '--t_alnm', help='Transcriptome alignment file in sam or maf format (optional)',
+                           default='')
+    parser_ir.add_argument('-t', '--num_threads', help='Number of threads for alignment (Default = 1)', type=int,
+                           default=1)
 
     args = parser.parse_args()
 
@@ -234,30 +270,12 @@ def main(argv):
         parser.print_help(sys.stderr)
         sys.exit(1)
 
-    if len(sys.argv) == 2:
-        if args.mode == "genome":
-            parser_g.print_help(sys.stderr)
-
-        elif args.mode == "transcriptome":
-            parser_t.print_help(sys.stderr)
-
-        elif args.mode == "detect_ir":
-            parser_ir.print_help(sys.stderr)
-
-        elif args.mode == "quantify":
-            parser_e.print_help(sys.stderr)
-
-        else:
-            parser.print_help(sys.stderr)
-        sys.exit(1)
-
-
-    #parse quanity mode arguments
+    # parse quantify mode arguments
     if args.mode == "quantify":
         infile = args.read
         ref_t = args.ref_t
         prefix = args.output
-        num_threads = max(args.num_threads, 1)
+        num_threads = str(max(args.num_threads, 1))
 
         print("\nrunning the code with following parameters:\n")
         print("infile", infile)
@@ -265,53 +283,87 @@ def main(argv):
         print("prefix", prefix)
         print("num_threads", num_threads)
 
+        dir_name = os.path.dirname(prefix)
+        if dir_name != '':
+            call("mkdir -p " + dir_name, shell=True)
+
         # Quantifying the transcript abundance from input read
         sys.stdout.write('Quantifying transcripts abundance: \n')
-        call("minimap2 -t " + str(num_threads) + " -x map-ont -p0 " + ref_t + " " + infile + " > " + prefix + "_mapping.paf", shell=True)
-        call("python nanopore_transcript_abundance.py -i " + prefix + "_mapping.paf > " + prefix + "_abundance.tsv",
+        map_file = prefix + '_mapping.paf'
+        call("minimap2 -t " + str(num_threads) + " -x map-ont -p0 " + ref_t + " " + infile + " > " + map_file,
              shell=True)
-        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
-        sys.exit(1)
 
+        # Get the script path
+        script_path = os.path.realpath(__file__)
+        script_dir = os.path.dirname(script_path)
+        out_file = prefix + '_abundance.tsv'
+        call("python " + script_dir + "/nanopore_transcript_abundance.py -i " + map_file + " > " + out_file, shell=True)
+        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
+        return
+
+    # parse detect_ir mode arguments
     if args.mode == "detect_ir":
-        annot = args.annot
+        annot = args.annotation
+        infile = args.read
         prefix = args.output
+        aligner = args.aligner
+        ref_g = args.ref_g
+        ref_t = args.ref_t
         g_alnm = args.g_alnm
         t_alnm = args.t_alnm
+        num_threads = str(max(args.num_threads, 1))
 
-        if g_alnm == "" or t_alnm == "":
-            print("Please provide both alignments in sam format\n")
+        if g_alnm == '' and ref_g == '':
+            print("Please supply a reference genome or genome alignment file\n")
             parser_ir.print_help(sys.stderr)
             sys.exit(1)
 
+        if t_alnm == '' and ref_t == '':
+            print("Please supply a reference transcriptome or transcriptome alignment file\n")
+            parser_ir.print_help(sys.stderr)
+            sys.exit(1)
+
+        # check validity of parameters
+        if g_alnm != '':
+            pre, file_ext = os.path.splitext(g_alnm)
+            file_extension = file_ext[1:]
+            if file_extension not in ['maf', 'sam']:
+                print("Please specify an acceptable alignment format! (.maf or .sam)\n")
+                parser_ir.print_help(sys.stderr)
+                sys.exit(1)
+        if t_alnm != '':
+            pre, file_ext = os.path.splitext(t_alnm)
+            file_extension = file_ext[1:]
+            if file_extension not in ['maf', 'sam']:
+                print("Please specify an acceptable alignment format! (.maf or .sam)\n")
+                parser_ir.print_help(sys.stderr)
+                sys.exit(1)
+
         print("\nrunning the code with following parameters:\n")
         print("annot", annot)
+        print("infile", infile)
+        print("aligner", aligner)
+        print("ref_g", ref_g)
+        print("ref_t", ref_t)
         print("g_alnm", g_alnm)
         print("t_alnm", t_alnm)
         print("prefix", prefix)
 
-        # Read the annotation GTF/GFF3 file
-        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Parse the annotation file (GTF/GFF3)\n")
-        # If gtf provided, convert to GFF3 (gt gtf_to_gff3)
-        annot_filename, annot_file_extension = os.path.splitext(annot)
-        annot_file_extension = annot_file_extension[1:]
-        if annot_file_extension.upper() == "GTF":
-            call("gt gtf_to_gff3 -tidy -force -o " + prefix + ".gff3 " + annot, shell=True)
-            annot_filename = prefix
+        dir_name = os.path.dirname(prefix)
+        if dir_name != '':
+            call("mkdir -p " + dir_name, shell=True)
 
-        # Next, add intron info into gff3:
-        call("gt gff3 -tidy -retainids -checkids -addintrons -sort -force -o " + prefix + "_addedintron_temp.gff3 " + annot_filename + ".gff3",
-            shell=True)
+        # Alignment if maf/sam file not provided, and post process them to include only primary alignments
+        t_alnm, g_alnm = align_transcriptome(infile, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm, ref_g)
 
-        # Inherit "transcript_id" information for intron features from exon info
-        call("gt bequeath.lua transcript_id < " + prefix + "_addedintron_temp.gff3 > " + prefix + "_addedintron_final.gff3",
-            shell=True)
+        # Add introns to annotation file
+        add_intron(annot, prefix)
 
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Modeling Intron Retention\n")
-        model_ir.intron_retention(prefix, prefix + "_addedintron_final.gff3", g_alnm, t_alnm)
+        model_ir.intron_retention(prefix, prefix + "_added_intron_final.gff3", g_alnm, t_alnm)
 
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
-        sys.exit(1)
+        return
 
     if args.mode == "genome":
         infile = args.read
@@ -320,14 +372,9 @@ def main(argv):
         g_alnm = args.g_alnm
         prefix = args.output
         num_threads = str(max(args.num_threads, 1))
-        if args.no_model_fit:
-            model_fit = False
+        model_fit = args.no_model_fit
 
-        if aligner not in ['minimap2', 'LAST', '']:
-            print("Please specify an acceptable aligner (minimap2 or LAST)\n")
-            parser_g.print_help(sys.stderr)
-            sys.exit(1)
-
+        # check validity of parameters
         if g_alnm != '':
             pre, file_ext = os.path.splitext(g_alnm)
             file_extension = file_ext[1:]
@@ -335,8 +382,12 @@ def main(argv):
                 print("Please specify an acceptable alignment format! (.maf or .sam)\n")
                 parser_g.print_help(sys.stderr)
                 sys.exit(1)
+        if g_alnm == '' and ref_g == '':
+            print("Please supply a reference genome or genome alignment file\n")
+            parser_g.print_help(sys.stderr)
+            sys.exit(1)
 
-        print("\nrunning the code with following parameters:\n")
+        print("\nRunning the code with following parameters:\n")
         print("infile", infile)
         print("ref_g", ref_g)
         print("aligner", aligner)
@@ -346,13 +397,15 @@ def main(argv):
         print("model_fit", model_fit)
 
         dir_name = os.path.dirname(prefix)
-        basename = os.path.basename(prefix)
-        call("mkdir -p " + dir_name, shell=True)
+        if dir_name != '':
+            call("mkdir -p " + dir_name, shell=True)
 
         # READ PRE-PROCESS AND ALIGNMENT ANALYSIS
-        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process and unaligned reads analysis\n")
+        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process\n")
         in_fasta = prefix + "_processed.fasta"
         processed_fasta = open(in_fasta, 'w')
+
+        # Replace spaces in sequence headers with dashes to create unique header for each read
         with open(infile, 'r') as f:
             for seqN, seqS, seqQ in readfq(f):
                 info = re.split(r'[_\s]\s*', seqN)
@@ -370,43 +423,41 @@ def main(argv):
         infile = args.read
         ref_g = args.ref_g
         ref_t = args.ref_t
-        annot = args.annot
+        annot = args.annotation
         aligner = args.aligner
         g_alnm = args.g_alnm
         t_alnm = args.t_alnm
         prefix = args.output
         num_threads = str(max(args.num_threads, 1))
-        if args.no_model_fit:
-            model_fit = False
-        if args.no_intron_retention:
-            intron_retention = False
+        model_fit = args.no_model_fit
+        ir = args.no_intron_retention
 
-        if aligner not in ['minimap2', 'LAST', '']:
-            print("\nPlease specify an acceptable aligner (minimap2 or LAST)\n")
-            parser_t.print_help(sys.stderr)
+        if ir and g_alnm == '' and ref_g == '':
+            print("For intron retention function, please supply a reference genome or genome alignment file\n")
+            parser_ir.print_help(sys.stderr)
             sys.exit(1)
 
-        if (g_alnm != '' and t_alnm == '') or (g_alnm == '' and t_alnm != ''):
-            print("\nPlease specify either both alignment files (-ga and -ta) OR an aligner to use for alignment (-a)")
-            parser_t.print_help(sys.stderr)
+        if t_alnm == '' and ref_t == '':
+            print("Please supply a reference transcriptome or transcriptome alignment file\n")
+            parser_ir.print_help(sys.stderr)
             sys.exit(1)
 
-        if g_alnm != "" and t_alnm != "":
+        if g_alnm != '' and t_alnm != '':
             g_alnm_filename, g_alnm_ext = os.path.splitext(g_alnm)
             t_alnm_filename, t_alnm_ext = os.path.splitext(t_alnm)
             g_alnm_ext = g_alnm_ext[1:]
             t_alnm_ext = t_alnm_ext[1:]
-            if g_alnm_ext != t_alnm_ext:
+            if g_alnm_ext != t_alnm_ext or g_alnm_ext not in ['maf', 'sam']:
                 print("\nPlease provide both alignments in a same format: sam OR maf\n")
                 parser_t.print_help(sys.stderr)
                 sys.exit(1)
-            #development: model IR using MAF alignment formats as well
-            if g_alnm_ext == t_alnm_ext == "maf" and intron_retention:
+            # Development: model IR using MAF alignment formats as well
+            if g_alnm_ext == t_alnm_ext == "maf" and ir:
                 print("\nThe intron retention only works with sam alignment files for now. Thanks\n")
                 parser_t.print_help(sys.stderr)
                 sys.exit(1)
 
-        if intron_retention and (ref_g == '' or annot == ''):
+        if ir and (ref_g == '' or annot == ''):
             print("\nPlease also input reference genome and annotation file for Intron Retention modeling\n")
             parser_t.print_help(sys.stderr)
             sys.exit(1)
@@ -422,11 +473,11 @@ def main(argv):
         print("prefix", prefix)
         print("num_threads", num_threads)
         print("model_fit", model_fit)
-        print("intron_retention", intron_retention)
+        print("intron_retention", ir)
 
         dir_name = os.path.dirname(prefix)
-        basename = os.path.basename(prefix)
-        call("mkdir -p " + dir_name, shell=True)
+        if dir_name != '':
+            call("mkdir -p " + dir_name, shell=True)
 
         # READ PRE-PROCESS AND ALIGNMENT ANALYSIS
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process and unaligned reads analysis\n")
@@ -448,35 +499,15 @@ def main(argv):
                 chr_name = "-".join(info)
                 dict_ref_len[chr_name] = len(seqS)
 
-        # Read the annotation GTF/GFF3 file
-        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Parse the annotation file (GTF/GFF3)\n")
-        # If gtf provided, convert to GFF3 (gt gtf_to_gff3)
-        annot_filename, annot_file_extension = os.path.splitext(annot)
-        annot_file_extension = annot_file_extension[1:]
-        if annot_file_extension.upper() == "GTF":
-            call("gt gtf_to_gff3 -tidy -force -o " + prefix + ".gff3 " + annot, shell=True)
-            annot_filename = prefix
+        alnm_ext, unaligned_length, g_alnm, t_alnm, strandness = \
+            align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm, ref_g, ir)
 
-        # Next, add intron info into gff3:
-        call(
-            "gt gff3 -tidy -retainids -checkids -addintrons -sort -force -o " + prefix + "_addedintron_temp.gff3 " + annot_filename + ".gff3",
-            shell=True)
-
-        # Inherit "transcript_id" information for intron features from exon info
-        call(
-            "gt bequeath.lua transcript_id < " + prefix + "_addedintron_temp.gff3 > " + prefix + "_addedintron_final.gff3",
-            shell=True)
-
-        if intron_retention:
-
-            alnm_ext, unaligned_length, out_g, out_t, strandness = align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm, ref_g)
+        if ir:
+            # Add introns to annotation file
+            add_intron(annot, prefix)
 
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Modeling Intron Retention\n")
-            model_ir.intron_retention(prefix, prefix + "_addedintron_final.gff3", out_g, out_t)
-
-        else:
-            alnm_ext, unaligned_length, out_g, out_t, strandness = align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm=None, ref_g=None)
-
+            model_ir.intron_retention(prefix, prefix + "_added_intron_final.gff3", g_alnm, t_alnm)
 
         # Aligned reads analysis
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
@@ -488,6 +519,7 @@ def main(argv):
     strandness_rate.close()
 
     # Length distribution of unaligned reads
+    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Unaligned reads analysis\n")
     alignment_rate = open(prefix + "_reads_alignment_rate", 'w')
 
     num_unaligned = len(unaligned_length)
@@ -514,5 +546,5 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()
 
