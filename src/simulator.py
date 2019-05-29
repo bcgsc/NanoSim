@@ -482,115 +482,126 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
     # Simulate aligned reads
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of aligned reads\n")
     sys.stdout.flush()
-    i = 0
-    sampled_2d_lengths = get_length_kde(kde_aligned_2d, number_aligned, False, False)
-    remainder_l = get_length_kde(kde_ht, number_aligned, True)
-    head_vs_ht_ratio_l = get_length_kde(kde_ht_ratio, number_aligned)
-    head_vs_ht_ratio_l_new = []
-    for x in head_vs_ht_ratio_l:
-        if 0 < x < 1:
-            head_vs_ht_ratio_l_new.append(x)
-        elif x < 0:
-            head_vs_ht_ratio_l_new.append(0)
-        elif x > 1:
-            head_vs_ht_ratio_l_new.append(1)
+    i = number_aligned
+    passed = 0
+    if not per:
+        sampled_2d_lengths = get_length_kde(kde_aligned_2d, number_aligned * 10, False, False)
+    while i > 0:
+        if per:
+            ref_l = get_length_kde(kde_aligned, i)
+        else:
+            k = i
+            ref_l = []
+            remainder_l = get_length_kde(kde_ht, i, True)
+            head_vs_ht_ratio_l = get_length_kde(kde_ht_ratio, i)
+            while k > 0:
+                ref_trx, ref_trx_len = select_ref_transcript(ecdf_dict_ref_exp)
+                if ref_trx in dict_ref_structure:
+                    ref_trx_structure = copy.deepcopy(dict_ref_structure[ref_trx])
+                    ref_trx_len_fromstructure = ref_len_from_structure(ref_trx_structure)
+                    if ref_trx_len == ref_trx_len_fromstructure:
+                        ref_len_aligned = select_nearest_kde2d(sampled_2d_lengths, ref_trx_len)
+                        if ref_len_aligned < ref_trx_len:
+                            ref_l.append((ref_trx, ref_trx_structure, ref_len_aligned, ref_trx_len))
+                            k -= 1
 
-    while i < number_aligned:
-        if (i + 1 + number_unaligned) % 100 == 0:
-            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
-                             str(i + 1 + number_unaligned) + "\r")
-            # +1 is just to ignore the zero index by python
-            sys.stdout.flush()
-        while True:
-            ref_trx, ref_trx_len = select_ref_transcript(ecdf_dict_ref_exp)
-            if ref_trx in dict_ref_structure:
-                ref_trx_structure = copy.deepcopy(dict_ref_structure[ref_trx])
-                ref_trx_len_fromstructure = ref_len_from_structure(ref_trx_structure)
-                if ref_trx_len == ref_trx_len_fromstructure:
-                    ref_len_aligned = select_nearest_kde2d(sampled_2d_lengths, ref_trx_len)
-                    if ref_len_aligned < ref_trx_len:
+        for j in xrange(len(ref_l)):
+            if per:
+                ref = int(ref_l[j])
+                # Extract middle region length from reference transcriptome
+                new_read, new_read_name = extract_read("transcriptome", ref)
+                new_read_name = new_read_name + "_perfect_" + str(passed + number_unaligned)
+                read_mutated = case_convert(new_read)  # not mutated actually, just to be consistent with per == False
+            else:
+                ref_trx = ref_l[j][0]
+                ref_trx_structure = ref_l[j][1]
+                ref_len_aligned = ref_l[j][2]
+                ref_trx_len = ref_l[j][3]
+                if model_ir:
+                    ir_info, ref_trx_structure_new = update_structure(ref_trx_structure, IR_markov_model)
+                else:
+                    ref_trx_structure_new = copy.deepcopy(dict_ref_structure[ref_trx])
+
+                # check whether chrom names contains "chr" or not.
+                flag_chrom = False
+                for item in genome_fai.references:
+                    if "chr" in item:
+                        flag_chrom = True
+
+                list_iv = extract_read_pos(ref_len_aligned, ref_trx_len, ref_trx_structure_new)
+                new_read = ""
+                flag = False
+                for interval in list_iv:
+                    chrom = interval.chrom
+                    if flag_chrom:
+                        chrom = "chr" + chrom
+                    if chrom not in genome_fai.references:
+                        flag = True
                         break
+                    start = interval.start
+                    end = interval.end
+                    new_read += genome_fai.fetch(chrom, start, end)
+                if flag:
+                    continue
 
-        # ir_length = 0
-        if model_ir:
-            ir_info, ref_trx_structure_new = update_structure(ref_trx_structure, IR_markov_model)
-            # for item in ref_trx_structure_new:
-            #     if item[0] == "retained_intron":
-            #         ir_length += item[-1]
-        else:
-            ref_trx_structure_new = copy.deepcopy(dict_ref_structure[ref_trx])
+                new_read_length = len(new_read)
+                middle_read, middle_ref, error_dict = error_list(new_read_length, match_markov_model, match_ht_list, error_par,
+                                                                trans_error_pr)
+                if middle_ref > new_read_length:
+                    continue
 
-        # check whether chrom names contains "chr" or not.
-        flag_chrom = False
-        for item in genome_fai.references:
-            if "chr" in item:
-                flag_chrom = True
+                # start HD len simulation
+                remainder = int(remainder_l[j])
+                head_vs_ht_ratio = head_vs_ht_ratio_l[j]
 
-        list_iv = extract_read_pos(ref_len_aligned, ref_trx_len, ref_trx_structure_new)
-        new_read = ""
-        flag = False
-        for interval in list_iv:
-            chrom = interval.chrom
-            if flag_chrom:
-                chrom = "chr" + chrom
-            if chrom not in genome_fai.references:
-                flag = True
-                break
-            start = interval.start
-            end = interval.end
-            new_read += genome_fai.fetch(chrom, start, end)
-        if flag:
-            continue
+                if head_vs_ht_ratio < 0 or head_vs_ht_ratio > 1:
+                    continue
 
-        new_read_length = len(new_read)
-        middle_read, middle_ref, error_dict = error_list(new_read_length, match_markov_model, match_ht_list, error_par,
-                                                        trans_error_pr)
-        # start HD len simulation
-        remainder = int(remainder_l[i])
-        head_vs_ht_ratio = head_vs_ht_ratio_l_new[i]
+                if remainder == 0:
+                    head = 0
+                    tail = 0
+                else:
+                    head = int(round(remainder * head_vs_ht_ratio))
+                    tail = remainder - head
+                # end HD len simulation
 
-        total = remainder + middle_read
+                ref_start_pos = list_iv[0].start
+                new_read_name = str(ref_trx) + "_" + str(ref_start_pos) + "_aligned_" + str(passed + number_unaligned)
+                # Mutate read
+                new_read = case_convert(new_read)
 
-        if head_vs_ht_ratio < 0 or head_vs_ht_ratio > 1:
-            continue
+                read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
 
-        if remainder == 0:
-            head = 0
-            tail = 0
-        else:
-            head = int(round(remainder * head_vs_ht_ratio))
-            tail = remainder - head
-        # end HD len simulation
+            # Reverse complement accoding to strandness rate
+            p = random.random()
+            if p < strandness_rate:
+                read_mutated = reverse_complement(read_mutated)
+                new_read_name += "_R"
+            else:
+                new_read_name += "_F"
 
-        ref_start_pos = list_iv[0].start
-        new_read_name = str(ref_trx) + "_" + str(ref_start_pos) + "_aligned_" + str(i + number_unaligned)
-        # Mutate read
-        new_read = case_convert(new_read)
-        try: #because I first extract read and then introduce errors. they are several cases in which the error introduced length is larger than read length. [error in last mis error length] #dev
-            read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
-        except:
-            #print (new_read_length, middle_read, middle_ref, sorted(error_dict.keys(), reverse=True)[0], error_dict[sorted(error_dict.keys(), reverse=True)[0]])
-            continue
+            if per:
+                out_reads.write(">" + new_read_name + "_0_" + str(ref) + "_0" + '\n')
+            else:
+                read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated + \
+                           ''.join(np.random.choice(BASES, tail))
 
-        # Reverse complement accoding to strandness rate
-        p = random.random()
-        if p < strandness_rate:
-            read_mutated = reverse_complement(read_mutated)
-            new_read_name += "_R"
-        else:
-            new_read_name += "_F"
+                if kmer_bias:
+                    read_mutated = collapse_homo(read_mutated, kmer_bias)
 
-        # Add head and tail region
-        read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated + \
-                       ''.join(np.random.choice(BASES, tail))
+                out_reads.write(">" + new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" + str(tail) + '\n')
 
-        if kmer_bias:
-            read_mutated = collapse_homo(read_mutated, kmer_bias)
+            out_reads.write(read_mutated + '\n')
 
-        out_reads.write(">" + new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" + str(tail) + '\n')
-        out_reads.write(read_mutated + '\n')
+            if (passed + 1 + number_unaligned) % 100 == 0:
+                sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " + \
+                                     str(passed + 1 + number_unaligned) + "\r")
+                # +1 is just to ignore the zero index by python
+                sys.stdout.flush()
 
-        i += 1
+            passed += 1
+
+        i = number_aligned - passed
 
 
 def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias, per=False):
@@ -911,7 +922,8 @@ def error_list(m_ref, m_model, m_ht_list, error_p, trans_p):
 
 
 def mutate_read(read, read_name, error_log, e_dict, k, aligned=True):
-    search_pattern = "A" * k + "+|" + "T" * k + "+|" + "C" * k + "+|" + "G" * k
+    if k:
+        search_pattern = "A" * k + "+|" + "T" * k + "+|" + "C" * k + "+|" + "G" * k
     for key in sorted(e_dict.keys(), reverse=True):
         val = e_dict[key]
         key = int(round(key))
@@ -926,9 +938,12 @@ def mutate_read(read, read_name, error_log, e_dict, k, aligned=True):
                     # tmp_bases.remove(read[key]) ## Edited this part for testing
                     new_base = random.choice(tmp_bases)
                     new_bases += new_base
-                check_kmer = read[max(key - k + 1, 0): key] + new_bases + read[key + val[1]: key + val[1] + k - 1]
-                if not k or not re.search(search_pattern, check_kmer):
+                if not k:
                     break
+                else:
+                    check_kmer = read[max(key - k + 1, 0): key] + new_bases + read[key + val[1]: key + val[1] + k - 1]
+                    if not re.search(search_pattern, check_kmer):
+                        break
             new_read = read[:key] + new_bases + read[key + val[1]:]
 
         elif val[0] == "del":
@@ -943,9 +958,12 @@ def mutate_read(read, read_name, error_log, e_dict, k, aligned=True):
                 for i in xrange(val[1]):
                     new_base = random.choice(BASES)
                     new_bases += new_base
-                check_kmer = read[max(key - k + 1, 0): key] + new_bases + read[key: key + k - 1]
-                if not k or not re.search(search_pattern, check_kmer):
+                if not k:
                     break
+                else:
+                    check_kmer = read[max(key - k + 1, 0): key] + new_bases + read[key: key + k - 1]
+                    if not re.search(search_pattern, check_kmer):
+                        break
             new_read = read[:key] + new_bases + read[key:]
 
         read = new_read
