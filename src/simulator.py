@@ -1110,7 +1110,7 @@ def main():
         print("sd_len", sd_len)
         print("median_len", median_len)
         print("max_len", max_len)
-        print("min_lne", min_len)
+        print("min_len", min_len)
 
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ': ' + ' '.join(sys.argv) + '\n')
         sys.stdout.flush()
