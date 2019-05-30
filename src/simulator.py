@@ -545,8 +545,8 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
                     continue
 
                 new_read_length = len(new_read)
-                middle_read, middle_ref, error_dict = error_list(new_read_length, match_markov_model, match_ht_list, error_par,
-                                                                trans_error_pr)
+                middle_read, middle_ref, error_dict = error_list(new_read_length, match_markov_model, match_ht_list,
+                                                                 error_par, trans_error_pr)
                 if middle_ref > new_read_length:
                     continue
 
@@ -572,7 +572,7 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
 
                 read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
 
-            # Reverse complement accoding to strandness rate
+            # Reverse complement according to strandness rate
             p = random.random()
             if p < strandness_rate:
                 read_mutated = reverse_complement(read_mutated)
@@ -584,7 +584,7 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
                 out_reads.write(">" + new_read_name + "_0_" + str(ref) + "_0" + '\n')
             else:
                 read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated + \
-                           ''.join(np.random.choice(BASES, tail))
+                               ''.join(np.random.choice(BASES, tail))
 
                 if kmer_bias:
                     read_mutated = collapse_homo(read_mutated, kmer_bias)
@@ -594,8 +594,8 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
             out_reads.write(read_mutated + '\n')
 
             if (passed + 1 + number_unaligned) % 100 == 0:
-                sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " + \
-                                     str(passed + 1 + number_unaligned) + "\r")
+                sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
+                                 str(passed + 1 + number_unaligned) + "\r")
                 # +1 is just to ignore the zero index by python
                 sys.stdout.flush()
 
@@ -732,6 +732,10 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, median_l=None,
                 new_read_name += "_R"
             else:
                 new_read_name += "_F"
+
+            if kmer_bias:
+                read_mutated = collapse_homo(read_mutated, kmer_bias)
+
             out_reads.write(">" + new_read_name + "_0_" + str(middle_ref) + "_0" + '\n')
             out_reads.write(read_mutated + "\n")
 
@@ -972,7 +976,7 @@ def mutate_read(read, read_name, error_log, e_dict, k, aligned=True):
             error_log.write(read_name + "\t" + str(key) + "\t" + val[0] + "\t" + str(val[1]) +
                             "\t" + ref_base + "\t" + new_bases + "\n")
 
-    # If choose to have kmer bias, then need to compress homopolymers to 5-mer
+    # If choose to have kmer bias, then need to compress homopolymers to k-mer
     if k:
         read = collapse_homo(read, k)
 
