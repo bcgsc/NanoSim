@@ -4,7 +4,7 @@ NanoSim is a fast and scalable read simulator that captures the technology-speci
 
 The second version of NanoSim (v2.0) uses minimap2 as default aligner to align long genomic ONT reads to reference genome. It leads to much faster alignment step and reduces the overall runtime of NanoSim. We also utilize HTSeq, a python package, to read SAM alignment files efficiently.
 
-The latest version of NanoSim (v2.5) is able to simulate ONT transcriptome reads (cDNA / directRNA) as well as genomic reads. It also models features of the library preparation protocols used, including intron retention (IR) events in cDNA and directRNA reads. Further, it optionally profiles transcript expression patterns.
+The latest version of NanoSim (v2.5) is able to simulate ONT transcriptome reads (cDNA / directRNA) as well as genomic reads. It also models features of the library preparation protocols used, including intron retention (IR) events in cDNA and directRNA reads. Further, it has stand-alone modes which profiles transcript expression patterns and detects IR events in custom datasets.
 
 __Citation__: Chen Yang, Justin Chu, René L Warren, Inanç Birol; NanoSim: nanopore sequence read simulator based on statistical characterization. Gigascience 2017 gix010. doi: 10.1093/gigascience/gix010
 
@@ -27,72 +27,86 @@ Characterization stage runs in four mode: genome, transcriptome, quantify, and d
 
 __Characterization step general usage:__
 ```
-usage: read_analysis.py [-h] {genome,transcriptome,quantify,detect_ir} ...
+usage: read_analysis.py [-h] [-v]
+                        {genome,transcriptome,quantify,detect_ir} ...
 
-Given the read profiles from characterization step, simulate
-genomic/transcriptic ONT reads and output error profiles
+Read characterization step
+-----------------------------------------------------------
+Given raw ONT reads, reference genome and/or transcriptome,
+learn read features and output error profiles
 
-positional arguments:
+optional arguments:
+  -h, --help            show this help message and exit
+  -v, --version         show program's version number and exit
+
+subcommands:
+  
+  There are four modes in read_analysis.
+  For detailed usage of each mode:
+      read_analysis.py mode -h
+  -------------------------------------------------------
+
   {genome,transcriptome,quantify,detect_ir}
-                        You may run the simulator on transcriptome or genome
-                        mode. You may also only quanity expression profiles.
-    genome              Run the simulator on genome mode.
-    transcriptome       Run the simulator on transcriptome mode.
+    genome              Run the simulator on genome mode
+    transcriptome       Run the simulator on transcriptome mode
     quantify            Quantify expression profile of transcripts
     detect_ir           Detect Intron Retention events using the alignment
                         file
 
-optional arguments:
-  -h, --help            show this help message and exit
 ```
 
-
-If you are interested in simulating ONT genomic reads, you need to run the characterization stage in "genome" mode with following options. It takes a reference genome and a training read set in FASTA format as input and aligns these reads to the reference using minimap2 (default) or LAST aligner. User can also provide their own alignment file in SAM or MAF formats. The output of this is a bunch of profiles which you should use in simulation stage.
+**genome mode**  
+If you are interested in simulating ONT genomic reads, you need to run the characterization stage in "genome" mode with following options. It takes a reference genome and a training read set in FASTA or FASTQ format as input and aligns these reads to the reference using minimap2 (default) or LAST aligner. User can also provide their own alignment file in SAM or MAF formats. The output of this is a bunch of profiles which you should use in simulation stage.
 
 __genome mode usage:__
 ```
-usage: read_analysis.py genome [-h] -i READ -rg REF_G [-a ALIGNER]
+usage: read_analysis.py genome [-h] -i READ [-rg REF_G] [-a {minimap2,LAST}]
                                [-ga G_ALNM] [-o OUTPUT] [--no_model_fit]
                                [-t NUM_THREADS]
 
 optional arguments:
   -h, --help            show this help message and exit
-  -i READ, --read READ  Input read for training.
+  -i READ, --read READ  Input read for training
   -rg REF_G, --ref_g REF_G
-                        Reference genome.
-  -a ALIGNER, --aligner ALIGNER
-                        The aligner to be used minimap2 or LAST (Default =
+                        Reference genome, not required if genome alignment
+                        file is provided
+  -a {minimap2,LAST}, --aligner {minimap2,LAST}
+                        The aligner to be used, minimap2 or LAST (Default =
                         minimap2)
   -ga G_ALNM, --g_alnm G_ALNM
                         Genome alignment file in sam or maf format (optional)
   -o OUTPUT, --output OUTPUT
-                        The output name and location for profiles
+                        The location and prefix of outputting profiles
+                        (Default = training)
   --no_model_fit        Disable model fitting step
   -t NUM_THREADS, --num_threads NUM_THREADS
-                        Number of threads to be used in alignments and model
-                        fitting (Default = 1)
+                        Number of threads for alignment and model fitting
+                        (Default = 1)
+
 ```
 
-If you are interested in simulating ONT transcriptome reads (cDNA / directRNA), you need to run the characterization stage in "transcriptome" mode with following options. It takes a reference transcriptome and a training read set in FASTA format as input and aligns these reads to the reference using minimap2 (default) or LAST aligner. User can also provide their own alignment file in SAM or MAF formats. The output of this is a bunch of profiles which you should use in simulation stage.
+**transcriptome mode**  
+If you are interested in simulating ONT transcriptome reads (cDNA / directRNA), you need to run the characterization stage in "transcriptome" mode with following options. It takes a reference transcriptome and a training read set in FASTA or FASTQ format as input and aligns these reads to the reference using minimap2 (default) or LAST aligner. User can also provide their own alignment file in SAM or MAF formats. The output of this is a bunch of profiles which you should use in simulation stage.
 
 __transcriptome mode usage:__
 ```
 usage: read_analysis.py transcriptome [-h] -i READ [-rg REF_G] -rt REF_T
-                                      [-annot ANNOT] [-a ALIGNER] [-ga G_ALNM]
-                                      [-ta T_ALNM] [-o OUTPUT]
+                                      [-annot ANNOTATION] [-a {minimap2,LAST}]
+                                      [-ga G_ALNM] [-ta T_ALNM] [-o OUTPUT]
                                       [--no_model_fit] [--no_intron_retention]
                                       [-t NUM_THREADS]
 
 optional arguments:
   -h, --help            show this help message and exit
-  -i READ, --read READ  Input read for training.
+  -i READ, --read READ  Input read for training
   -rg REF_G, --ref_g REF_G
-                        Reference genome.
+                        Reference genome
   -rt REF_T, --ref_t REF_T
-                        Reference Transcriptome.
-  -annot ANNOT, --annot ANNOT
-                        Annotation file in ensemble GTF/GFF formats.
-  -a ALIGNER, --aligner ALIGNER
+                        Reference Transcriptome
+  -annot ANNOTATION, --annotation ANNOTATION
+                        Annotation file in ensemble GTF/GFF formats, required
+                        for intron retention detection
+  -a {minimap2,LAST}, --aligner {minimap2,LAST}
                         The aligner to be used: minimap2 or LAST (Default =
                         minimap2)
   -ga G_ALNM, --g_alnm G_ALNM
@@ -101,48 +115,69 @@ optional arguments:
                         Transcriptome alignment file in sam or maf format
                         (optional)
   -o OUTPUT, --output OUTPUT
-                        The output name and location for profiles
+                        The location and prefix of outputting profiles
+                        (Default = training)
   --no_model_fit        Disable model fitting step
   --no_intron_retention
                         Disable Intron Retention analysis
   -t NUM_THREADS, --num_threads NUM_THREADS
-                        Number of threads to be used in alignments and model
-                        fitting (Default = 1)
+                        Number of threads for alignment and model fitting
+                        (Default = 1)
+
 ```
 
+**quantify mode and detect_ir mode**  
 The "transcriptome" mode of the NanoSim is able to model features of the library preparation protocols used, including intron retention (IR) events in cDNA and directRNA reads. Further, it optionally profiles transcript expression patterns. However, if you are interested in only detecting Intron Retention events or quantifying expression patterns of transcripts without running other analysis in the characterization stage, you may use two modes we introduced for this purpose: "quantify" and "detect_ir". Details are as follows:
 
 __quantifty mode usage:__
 ```
-usage: read_analysis.py quantify [-h] [-o OUTPUT] -i READ -rt REF_T
+usage: read_analysis.py quantify [-h] -i READ -rt REF_T [-o OUTPUT]
                                  [-t NUM_THREADS]
 
 optional arguments:
   -h, --help            show this help message and exit
-  -o OUTPUT, --output OUTPUT
-                        The output name and location
-  -i READ, --read READ  Input reads to use for quantification.
+  -i READ, --read READ  Input reads for quantification
   -rt REF_T, --ref_t REF_T
-                        Reference Transcriptome.
+                        Reference Transcriptome
+  -o OUTPUT, --output OUTPUT
+                        The location and prefix of outputting profile (Default
+                        = expression)
   -t NUM_THREADS, --num_threads NUM_THREADS
-                        Number of threads to be used (Default = 1)
+                        Number of threads for alignment (Default = 1)
+
 ```
 
 __detect_ir mode usage:__
 ```
-usage: read_analysis.py detect_ir [-h] -annot ANNOT [-o OUTPUT] -ga G_ALNM -ta
-                                  T_ALNM
+usage: read_analysis.py detect_ir [-h] -annot ANNOTATION [-i READ] [-rg REF_G]
+                                  [-rt REF_T] [-a {minimap2,LAST}] [-o OUTPUT]
+                                  [-ga G_ALNM] [-ta T_ALNM] [-t NUM_THREADS]
 
 optional arguments:
   -h, --help            show this help message and exit
-  -annot ANNOT, --annot ANNOT
-                        Annotation file in ensemble GTF/GFF formats.
+  -annot ANNOTATION, --annotation ANNOTATION
+                        Annotation file in ensemble GTF/GFF formats
+  -i READ, --read READ  Input read for training, not required if alignment
+                        files are provided
+  -rg REF_G, --ref_g REF_G
+                        Reference genome, not required if genome alignment
+                        file is provided
+  -rt REF_T, --ref_t REF_T
+                        Reference Transcriptome, not required if transcriptome
+                        alignment file is provided
+  -a {minimap2,LAST}, --aligner {minimap2,LAST}
+                        The aligner to be used: minimap2 or LAST (Default =
+                        minimap2)
   -o OUTPUT, --output OUTPUT
                         The output name and location
   -ga G_ALNM, --g_alnm G_ALNM
-                        Genome alignment file in sam or maf format
+                        Genome alignment file in sam or maf format (optional)
   -ta T_ALNM, --t_alnm T_ALNM
                         Transcriptome alignment file in sam or maf format
+                        (optional)
+  -t NUM_THREADS, --num_threads NUM_THREADS
+                        Number of threads for alignment (Default = 1)
+
 ```
 
 
@@ -156,79 +191,88 @@ Simulation stage takes reference genome/transcriptome and read profiles as input
 
 __Simulation stage general usage:__
 ```
-usage: simulator.py [-h] {genome,transcriptome} ...
+usage: simulator.py [-h] [-v] {genome,transcriptome} ...
 
-Given the read profiles from characterization step, simulate
-genomeic/transcriptomic ONT reads and outputs the error profiles.
-
-positional arguments:
-  {genome,transcriptome}
-                        You may run the simulator on transcriptome or genome
-                        mode.
-    genome              Run the simulator on genome mode.
-    transcriptome       Run the simulator on transcriptome mode.
+Simulation step
+-----------------------------------------------------------
+Given error profiles, reference genome and/or transcriptome,
+simulate ONT DNA or RNA reads
 
 optional arguments:
   -h, --help            show this help message and exit
+  -v, --version         show program's version number and exit
+
+subcommands:
+  
+  There are two modes in read_analysis.
+  For detailed usage of each mode:
+      simulator.py mode -h
+  -------------------------------------------------------
+
+  {genome,transcriptome}
+                        You may run the simulator on transcriptome or genome
+                        mode.
+    genome              Run the simulator on genome mode
+    transcriptome       Run the simulator on transcriptome mode
+
 ```
+
+**genome mode**  
 If you are interested in simulating ONT genomic reads, you need to run the simulation stage in "genome" mode with following options.
 
 __genome mode usage:__
 ```
 usage: simulator.py genome [-h] -rg REF_G [-c MODEL_PREFIX] [-o OUTPUT]
-                           [-n NUMBER] [-i INSERTION_RATE] [-d DELETION_RATE]
-                           [-m MISMATCH_RATE] [-max MAX_LEN] [-min MIN_LEN]
+                           [-n NUMBER] [-max MAX_LEN] [-min MIN_LEN]
                            [-med MEDIAN_LEN] [-sd SD_LEN] [--seed SEED]
-                           [-k KMERBIAS] [-s STRANDNESS] [-dna_type DNA_TYPE]
-                           [--perfect]
+                           [-k KMERBIAS] [-s STRANDNESS]
+                           [-dna_type {linear,circular}] [--perfect]
 
 optional arguments:
   -h, --help            show this help message and exit
   -rg REF_G, --ref_g REF_G
                         Input reference genome
   -c MODEL_PREFIX, --model_prefix MODEL_PREFIX
-                        Address for profiles created in characterization step
-                        (model_prefix)
+                        Location and prefix of error profiles generated from
+                        characterization step (Default = training)
   -o OUTPUT, --output OUTPUT
-                        Output address for simulated reads
+                        Output location and prefix for simulated reads
+                        (Default = simulated)
   -n NUMBER, --number NUMBER
-                        Number of reads to be simulated
-  -i INSERTION_RATE, --insertion_rate INSERTION_RATE
-                        Insertion rate (optional)
-  -d DELETION_RATE, --deletion_rate DELETION_RATE
-                        Deletion rate (optional)
-  -m MISMATCH_RATE, --mismatch_rate MISMATCH_RATE
-                        Mismatch rate (optional)
+                        Number of reads to be simulated (Default = 20000)
   -max MAX_LEN, --max_len MAX_LEN
-                        The maximum length for simulated reads
+                        The maximum length for simulated reads (Default =
+                        Infinity)
   -min MIN_LEN, --min_len MIN_LEN
-                        The minimum length for simulated reads
+                        The minimum length for simulated reads (Default = 50)
   -med MEDIAN_LEN, --median_len MEDIAN_LEN
-                        The median read length
+                        The median read length (Default = None)
   -sd SD_LEN, --sd_len SD_LEN
                         The standard deviation of read length in log scale
+                        (Default = None)
   --seed SEED           Manually seeds the pseudo-random number generator
   -k KMERBIAS, --KmerBias KMERBIAS
-                        Determine whether to considert Kmer Bias or not
+                        Enable k-mer bias simulation
   -s STRANDNESS, --strandness STRANDNESS
-                        Determine the strandness of the simulated reads.
-                        Overrides the value profiled in characterization
-                        phase. Should be between 0 and 1.
-  -dna_type DNA_TYPE    Specify the dna type: circular OR linear, default =
-                        linear
-  --perfect             Ignore profiles and simulate perfect reads
+                        Percentage of antisense sequences. Overrides the value
+                        profiled in characterization stage. Should be between
+                        0 and 1
+  -dna_type {linear,circular}
+                        Specify the dna type: circular OR linear (Default =
+                        linear)
+  --perfect             Ignore error profiles and simulate perfect reads
+
 ```
 
-
+**transcriptome mode**  
 If you are interested in simulating ONT transcriptome reads, you need to run the simulation stage in "transcriptome" mode with following options.
 
 __transcriptome mode usage:__
 ```
-usage: simulator.py transcriptome [-h] -rt REF_T -rg REF_G [-e EXP]
+usage: simulator.py transcriptome [-h] -rt REF_T [-rg REF_G] -e EXP
                                   [-c MODEL_PREFIX] [-o OUTPUT] [-n NUMBER]
-                                  [-i INSERTION_RATE] [-d DELETION_RATE]
-                                  [-m MISMATCH_RATE] [-max MAX_LEN]
-                                  [-min MIN_LEN] [-k KMERBIAS] [-s STRANDNESS]
+                                  [-max MAX_LEN] [-min MIN_LEN] [--seed SEED]
+                                  [-k KMERBIAS] [-s STRANDNESS]
                                   [--no_model_ir] [--perfect]
 
 optional arguments:
@@ -236,34 +280,31 @@ optional arguments:
   -rt REF_T, --ref_t REF_T
                         Input reference transcriptome
   -rg REF_G, --ref_g REF_G
-                        Input reference genome
-  -e EXP, --exp EXP     Expression profile in the specified format specified
-                        in the documentation
+                        Input reference genome, required if intron retention
+                        simulatin is on
+  -e EXP, --exp EXP     Expression profile in the specified format as
+                        described in README
   -c MODEL_PREFIX, --model_prefix MODEL_PREFIX
-                        Address for profiles created in characterization step
-                        (model_prefix)
+                        Location and prefix of error profiles generated from
+                        characterization step (Default = training)
   -o OUTPUT, --output OUTPUT
-                        Output address for simulated reads
+                        Output location and prefix for simulated reads
+                        (Default = simulated)
   -n NUMBER, --number NUMBER
-                        Number of reads to be simulated
-  -i INSERTION_RATE, --insertion_rate INSERTION_RATE
-                        Insertion rate (optional)
-  -d DELETION_RATE, --deletion_rate DELETION_RATE
-                        Deletion rate (optional)
-  -m MISMATCH_RATE, --mismatch_rate MISMATCH_RATE
-                        Mismatch rate (optional)
+                        Number of reads to be simulated (Default = 20000)
   -max MAX_LEN, --max_len MAX_LEN
-                        The maximum length for simulated reads
+                        The maximum length for simulated reads (Default =
+                        Infinity)
   -min MIN_LEN, --min_len MIN_LEN
-                        The minimum length for simulated reads
+                        The minimum length for simulated reads (Default = 50)
+  --seed SEED           Manually seeds the pseudo-random number generator
   -k KMERBIAS, --KmerBias KMERBIAS
-                        Determine whether to considert Kmer Bias or not
+                        Enable k-mer bias simulation
   -s STRANDNESS, --strandness STRANDNESS
-                        Determine the strandness of the simulated reads.
-                        Overrides the value profiled in characterization
-                        phase. Should be between 0 and 1.
-  --no_model_ir         Consider Intron Retention model from characterization
-                        step when simulating reads
+                        Percentage of antisense sequences. Overrides the value
+                        profiled in characterization stage. Should be between
+                        0 and 1
+  --no_model_ir         Simulate intron retention events
   --perfect             Ignore profiles and simulate perfect reads
 ```
 
