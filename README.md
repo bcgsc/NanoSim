@@ -309,9 +309,9 @@ optional arguments:
 ```
 
 
-\* Notice: the use of `max_len` and `min_len` will affect the read length distributions. If the range between `max_len` and `min_len` is too small, the program will run slowlier accordingly.
+\* Notice: the use of `max_len` and `min_len` in genome mode will affect the read length distributions. If the range between `max_len` and `min_len` is too small, the program will run slowlier accordingly.
 
-__For example:__  
+__Example runs:__  
 1 If you want to simulate _E. coli_ genome, then circular command must be chosen because it's a circular genome  
 `./simulator.py genome -dna_type circular -rg Ecoli_ref.fasta -c ecoli`
 
@@ -321,7 +321,11 @@ __For example:__
 3 If you want to simulate _S. cerevisiae_ genome with kmer bias, then linear command must be chosen because it's a linear genome  
 `./simulator.py genome -dna_type linear -rg yeast_ref.fasta -c yeast --KmerBias`
 
-_See more detailed example in example.sh_  
+4 If you want to simulate ten thousands cDNA/directRNA reads from mouse reference transcriptome  
+`./simulator.py transcriptome -rt Mus_musculus.GRCm38.cdna.all.fa -rg Mus_musculus.GRCm38.dna.primary_assembly.fa -c mouse_cdna -e abundance.tsv -n 10000`
+
+4 If you want to simulate five thousands cDNA/directRNA reads from mouse reference transcriptome without modeling intron retention  
+`./simulator.py transcriptome -rt Mus_musculus.GRCm38.cdna.all.fa -c mouse_cdna -e abundance.tsv -n 5000 --no_model_ir`
 
 ## Explanation of output files
 ### 1. Characterization stage
