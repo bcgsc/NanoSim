@@ -324,7 +324,7 @@ __Example runs:__
 4 If you want to simulate ten thousands cDNA/directRNA reads from mouse reference transcriptome  
 `./simulator.py transcriptome -rt Mus_musculus.GRCm38.cdna.all.fa -rg Mus_musculus.GRCm38.dna.primary_assembly.fa -c mouse_cdna -e abundance.tsv -n 10000`
 
-4 If you want to simulate five thousands cDNA/directRNA reads from mouse reference transcriptome without modeling intron retention  
+5 If you want to simulate five thousands cDNA/directRNA reads from mouse reference transcriptome without modeling intron retention  
 `./simulator.py transcriptome -rt Mus_musculus.GRCm38.cdna.all.fa -c mouse_cdna -e abundance.tsv -n 5000 --no_model_ir`
 
 ## Explanation of output files
