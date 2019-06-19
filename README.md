@@ -4,7 +4,7 @@ NanoSim is a fast and scalable read simulator that captures the technology-speci
 
 The second version of NanoSim (v2.0) uses minimap2 as default aligner to align long genomic ONT reads to reference genome. It leads to much faster alignment step and reduces the overall runtime of NanoSim. We also utilize HTSeq, a python package, to read SAM alignment files efficiently.
 
-The latest version of NanoSim (v2.5) is able to simulate ONT transcriptome reads (cDNA / directRNA) as well as genomic reads. It also models features of the library preparation protocols used, including intron retention (IR) events in cDNA and directRNA reads. Further, it has stand-alone modes which profiles transcript expression patterns and detects IR events in custom datasets.
+The latest version of NanoSim (v2.3) is able to simulate ONT transcriptome reads (cDNA / directRNA) as well as genomic reads. It also models features of the library preparation protocols used, including intron retention (IR) events in cDNA and directRNA reads. Further, it has stand-alone modes which profiles transcript expression patterns and detects IR events in custom datasets.
 
 __Citation__: Chen Yang, Justin Chu, René L Warren, Inanç Birol; NanoSim: nanopore sequence read simulator based on statistical characterization. Gigascience 2017 gix010. doi: 10.1093/gigascience/gix010
 
@@ -319,12 +319,18 @@ __Example runs:__
 `./simulator.py genome -dna_type circular -rg Ecoli_ref.fasta -c ecoli --perfect`
 
 3 If you want to simulate _S. cerevisiae_ genome with kmer bias, then linear command must be chosen because it's a linear genome  
-`./simulator.py genome -dna_type linear -rg yeast_ref.fasta -c yeast --KmerBias`
+`./simulator.py genome -dna_type linear -rg yeast_ref.fasta -c yeast --KmerBias`  
 
-4 If you want to simulate ten thousands cDNA/directRNA reads from mouse reference transcriptome  
+4 If you want to simulate human genome with length limits between 1000nt to 10000nt  
+`./simulator.py genome -dna_type linear -rg human_ref.fasta -c human -max 10000 -min 1000`  
+
+5 If you want to simulate human genome with controlled median read length and standard deviation, NanoSim will use log-normal distribution to approximate the read length distribution 
+`./simulator.py genome -dna_type linear -rg human_ref.fasta -c human -med 5000 -sd 1.05`
+
+6 If you want to simulate ten thousands cDNA/directRNA reads from mouse reference transcriptome  
 `./simulator.py transcriptome -rt Mus_musculus.GRCm38.cdna.all.fa -rg Mus_musculus.GRCm38.dna.primary_assembly.fa -c mouse_cdna -e abundance.tsv -n 10000`
 
-5 If you want to simulate five thousands cDNA/directRNA reads from mouse reference transcriptome without modeling intron retention  
+7 If you want to simulate five thousands cDNA/directRNA reads from mouse reference transcriptome without modeling intron retention  
 `./simulator.py transcriptome -rt Mus_musculus.GRCm38.cdna.all.fa -c mouse_cdna -e abundance.tsv -n 5000 --no_model_ir`
 
 ## Explanation of output files
