@@ -93,7 +93,7 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g
                 # Alignment to reference genome
                 # [EDIT] I may change the options for minimap2 when dealing with cDNA and dRNA reads.
                 sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with minimap2 to reference genome\n")
-                call("minimap2 -ax splice -t " + num_threads + " " + ref_g + " " + in_fasta + " > " + g_alnm, shell=True)
+                call("minimap2 --cs --MD -ax splice -t " + num_threads + " " + ref_g + " " + in_fasta + " > " + g_alnm, shell=True)
 
             elif aligner == "LAST":
                 g_alnm = prefix + "_genome_alnm.maf"
@@ -133,7 +133,7 @@ def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, post=Tru
         if aligner == "minimap2":  # Align with minimap2 by default
             g_alnm = prefix + "_genome_alnm.sam"
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with minimap2\n")
-            call("minimap2 --cs -ax map-ont -t " + num_threads + " " + ref_g + " " + in_fasta + " > " + g_alnm,
+            call("minimap2 --cs --MD -ax map-ont -t " + num_threads + " " + ref_g + " " + in_fasta + " > " + g_alnm,
                  shell=True)
 
         elif aligner == "LAST":
