@@ -482,19 +482,30 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
     # Simulate aligned reads
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of aligned reads\n")
     sys.stdout.flush()
-    i = number_aligned
-    passed = 0
+
+    # check whether chrom names contains "chr" or not.
+    flag_chrom = False
+    for item in genome_fai.references:
+        if "chr" in item:
+            flag_chrom = True
+            break
+
     if not per:
         sampled_2d_lengths = get_length_kde(kde_aligned_2d, number_aligned * 10, False, False)
-    while i > 0:
+    remainder_l = get_length_kde(kde_ht, number_aligned, True)
+    head_vs_ht_ratio_temp = get_length_kde(kde_ht_ratio, number_aligned)
+    head_vs_ht_ratio_l = [1 if x > 1 else x for x in head_vs_ht_ratio_temp]
+    head_vs_ht_ratio_l = [0 if x < 0 else x for x in head_vs_ht_ratio_l]
+
+    i = 0
+    while i < number_aligned:
         if per:
-            ref_l = get_length_kde(kde_aligned, i)
+            ref = get_length_kde(kde_aligned, 1)
+            new_read, new_read_name = extract_read("transcriptome", ref)
+            new_read_name = new_read_name + "_perfect_" + str(i + number_unaligned)
+            read_mutated = case_convert(new_read)  # not mutated actually, just to be consistent with per == False
         else:
-            k = i
-            ref_l = []
-            remainder_l = get_length_kde(kde_ht, i, True)
-            head_vs_ht_ratio_l = get_length_kde(kde_ht_ratio, i)
-            while k > 0:
+            while True:
                 ref_trx, ref_trx_len = select_ref_transcript(ecdf_dict_ref_exp)
                 if ref_trx in dict_ref_structure:
                     ref_trx_structure = copy.deepcopy(dict_ref_structure[ref_trx])
@@ -502,106 +513,84 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
                     if ref_trx_len == ref_trx_len_fromstructure:
                         ref_len_aligned = select_nearest_kde2d(sampled_2d_lengths, ref_trx_len)
                         if ref_len_aligned < ref_trx_len:
-                            ref_l.append((ref_trx, ref_trx_structure, ref_len_aligned, ref_trx_len))
-                            k -= 1
+                            break
 
-        for j in xrange(len(ref_l)):
-            if per:
-                ref = int(ref_l[j])
-                # Extract middle region length from reference transcriptome
-                new_read, new_read_name = extract_read("transcriptome", ref)
-                new_read_name = new_read_name + "_perfect_" + str(passed + number_unaligned)
-                read_mutated = case_convert(new_read)  # not mutated actually, just to be consistent with per == False
+            if model_ir:
+                ir_info, ref_trx_structure_new = update_structure(ref_trx_structure, IR_markov_model)
             else:
-                ref_trx = ref_l[j][0]
-                ref_trx_structure = ref_l[j][1]
-                ref_len_aligned = ref_l[j][2]
-                ref_trx_len = ref_l[j][3]
-                if model_ir:
-                    ir_info, ref_trx_structure_new = update_structure(ref_trx_structure, IR_markov_model)
-                else:
-                    ref_trx_structure_new = copy.deepcopy(dict_ref_structure[ref_trx])
+                ref_trx_structure_new = copy.deepcopy(dict_ref_structure[ref_trx])
 
-                # check whether chrom names contains "chr" or not.
-                flag_chrom = False
-                for item in genome_fai.references:
-                    if "chr" in item:
-                        flag_chrom = True
+            list_iv = extract_read_pos(ref_len_aligned, ref_trx_len, ref_trx_structure_new)
+            new_read = ""
+            flag = False
+            for interval in list_iv:
+                chrom = interval.chrom
+                if flag_chrom:
+                    chrom = "chr" + chrom
+                if chrom not in genome_fai.references:
+                    flag = True
+                    break
+                start = interval.start
+                end = interval.end
+                new_read += genome_fai.fetch(chrom, start, end)
+            if flag:
+                continue
 
-                list_iv = extract_read_pos(ref_len_aligned, ref_trx_len, ref_trx_structure_new)
-                new_read = ""
-                flag = False
-                for interval in list_iv:
-                    chrom = interval.chrom
-                    if flag_chrom:
-                        chrom = "chr" + chrom
-                    if chrom not in genome_fai.references:
-                        flag = True
-                        break
-                    start = interval.start
-                    end = interval.end
-                    new_read += genome_fai.fetch(chrom, start, end)
-                if flag:
-                    continue
+            new_read_length = len(new_read)
+            middle_read, middle_ref, error_dict = error_list(new_read_length, match_markov_model, match_ht_list,
+                                                             error_par, trans_error_pr)
+            #if middle_ref > new_read_length:
+                #continue
 
-                new_read_length = len(new_read)
-                middle_read, middle_ref, error_dict = error_list(new_read_length, match_markov_model, match_ht_list,
-                                                                 error_par, trans_error_pr)
-                if middle_ref > new_read_length:
-                    continue
+            # start HD len simulation
+            remainder = int(remainder_l[i])
+            head_vs_ht_ratio = head_vs_ht_ratio_l[i]
 
-                # start HD len simulation
-                remainder = int(remainder_l[j])
-                head_vs_ht_ratio = head_vs_ht_ratio_l[j]
+            if remainder == 0:
+                head = 0
+                tail = 0
+            else:
+                head = int(round(remainder * head_vs_ht_ratio))
+                tail = remainder - head
+            # end HD len simulation
 
-                if head_vs_ht_ratio < 0 or head_vs_ht_ratio > 1:
-                    continue
-
-                if remainder == 0:
-                    head = 0
-                    tail = 0
-                else:
-                    head = int(round(remainder * head_vs_ht_ratio))
-                    tail = remainder - head
-                # end HD len simulation
-
-                ref_start_pos = list_iv[0].start
-                new_read_name = str(ref_trx) + "_" + str(ref_start_pos) + "_aligned_" + str(passed + number_unaligned)
-                # Mutate read
-                new_read = case_convert(new_read)
-
+            ref_start_pos = list_iv[0].start
+            new_read_name = str(ref_trx) + "_" + str(ref_start_pos) + "_aligned_" + str(i + number_unaligned)
+            # Mutate read
+            new_read = case_convert(new_read)
+            try:
                 read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
+            except:
+                continue
 
-            # Reverse complement according to strandness rate
-            p = random.random()
-            if p < strandness_rate:
-                read_mutated = reverse_complement(read_mutated)
-                new_read_name += "_R"
-            else:
-                new_read_name += "_F"
+        # Reverse complement according to strandness rate
+        p = random.random()
+        if p < strandness_rate:
+            read_mutated = reverse_complement(read_mutated)
+            new_read_name += "_R"
+        else:
+            new_read_name += "_F"
 
-            if per:
-                out_reads.write(">" + new_read_name + "_0_" + str(ref) + "_0" + '\n')
-            else:
-                read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated + \
-                               ''.join(np.random.choice(BASES, tail))
+        if per:
+            out_reads.write(">" + new_read_name + "_0_" + str(ref) + "_0" + '\n')
+        else:
+            read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated + \
+                           ''.join(np.random.choice(BASES, tail))
 
-                if kmer_bias:
-                    read_mutated = collapse_homo(read_mutated, kmer_bias)
+            if kmer_bias:
+                read_mutated = collapse_homo(read_mutated, kmer_bias)
 
-                out_reads.write(">" + new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" + str(tail) + '\n')
+            out_reads.write(">" + new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" + str(tail) + '\n')
 
-            out_reads.write(read_mutated + '\n')
+        out_reads.write(read_mutated + '\n')
 
-            if (passed + 1 + number_unaligned) % 100 == 0:
-                sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
-                                 str(passed + 1 + number_unaligned) + "\r")
-                # +1 is just to ignore the zero index by python
-                sys.stdout.flush()
+        if (i + 1 + number_unaligned) % 100 == 0:
+            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
+                             str(i + 1 + number_unaligned) + "\r")
+            # +1 is just to ignore the zero index by python
+            sys.stdout.flush()
 
-            passed += 1
-
-        i = number_aligned - passed
+        i += 1
 
 
 def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias, per=False):
