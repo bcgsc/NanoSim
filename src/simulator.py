@@ -24,6 +24,7 @@ import argparse
 from time import strftime
 from time import sleep
 import numpy as np
+from string import maketrans
 from sklearn.externals import joblib
 
 try:
@@ -39,6 +40,7 @@ AUTHOR = "Chen Yang, Saber Hafezqorani (UBC & BCGSC)"
 CONTACT = "cheny@bcgsc.ca; shafezqorani@bcgsc.ca"
 
 BASES = ['A', 'T', 'C', 'G']
+trantab = maketrans("T", "U")
 
 
 def select_ref_transcript(input_dict):
@@ -110,23 +112,30 @@ def update_structure(ref_trx_structure, IR_markov_model):
             count += 1
 
     list_states = []
+    flag_ir = False
     prev_state = "start"
     for i in range (0, count):
         p = random.random()
         for key in IR_markov_model[prev_state]:
             if key[0] <= p < key[1]:
                 flag = IR_markov_model[prev_state][key]
+                if flag == "IR":
+                    flag_ir = True
                 list_states.append(flag)
                 prev_state = flag
 
-    j = -1
-    for i in xrange (0, len(ref_trx_structure)):
-        if ref_trx_structure[i][0] == "intron":
-            j += 1
-            if list_states[j] == "IR":
-                ref_trx_structure[i] = ("retained_intron",) + ref_trx_structure[i][1:]
+    if flag_ir:
+        ref_trx_structure_temp = copy.deepcopy(ref_trx_structure)
+        j = -1
+        for i in xrange (0, len(ref_trx_structure_temp)):
+            if ref_trx_structure_temp[i][0] == "intron":
+                j += 1
+                if list_states[j] == "IR":
+                    ref_trx_structure_temp[i] = ("retained_intron",) + ref_trx_structure_temp[i][1:]
+    else:
+        ref_trx_structure_temp = ref_trx_structure
 
-    return list_states, ref_trx_structure
+    return ref_trx_structure_temp
 
 
 def extract_read_pos(length, ref_len, ref_trx_structure):
@@ -281,10 +290,11 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp,
             sys.stderr.write("Do not choose circular if there is more than one chromosome in the genome!")
             sys.exit(1)
     else:
-        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read in reference genome and create .fai index file\n")
-        sys.stdout.flush()
-        # create and read the .fai file of the reference genome
-        genome_fai = pysam.Fastafile(ref_g)
+        if model_ir:
+            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read in reference genome and create .fai index file\n")
+            sys.stdout.flush()
+            # create and read the .fai file of the reference genome
+            genome_fai = pysam.Fastafile(ref_g)
 
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read in expression profile\n")
         sys.stdout.flush()
@@ -478,20 +488,22 @@ def case_convert(seq):
     return out_seq
 
 
-def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, per=False):
+def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, per=False, uracil=False):
     # Simulate aligned reads
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of aligned reads\n")
     sys.stdout.flush()
 
-    # check whether chrom names contains "chr" or not.
-    flag_chrom = False
-    for item in genome_fai.references:
-        if "chr" in item:
-            flag_chrom = True
-            break
+    if model_ir:
+        # check whether chrom names contains "chr" or not.
+        flag_chrom = False
+        for item in genome_fai.references:
+            if "chr" in item:
+                flag_chrom = True
+                break
 
-    if not per:
-        sampled_2d_lengths = get_length_kde(kde_aligned_2d, number_aligned * 10, False, False)
+    #if not per:
+    sampled_2d_lengths = get_length_kde(kde_aligned_2d, number_aligned, False, False)
+
     remainder_l = get_length_kde(kde_ht, number_aligned, True)
     head_vs_ht_ratio_temp = get_length_kde(kde_ht_ratio, number_aligned)
     head_vs_ht_ratio_l = [1 if x > 1 else x for x in head_vs_ht_ratio_temp]
@@ -499,48 +511,54 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
 
     i = 0
     while i < number_aligned:
-        if per:
-            ref = get_length_kde(kde_aligned, 1)
-            new_read, new_read_name = extract_read("transcriptome", ref)
-            new_read_name = new_read_name + "_perfect_" + str(i + number_unaligned)
-            read_mutated = case_convert(new_read)  # not mutated actually, just to be consistent with per == False
-        else:
-            while True:
-                ref_trx, ref_trx_len = select_ref_transcript(ecdf_dict_ref_exp)
+        while True:
+            ref_trx, ref_trx_len = select_ref_transcript(ecdf_dict_ref_exp)
+            if model_ir:
                 if ref_trx in dict_ref_structure:
-                    ref_trx_structure = copy.deepcopy(dict_ref_structure[ref_trx])
-                    ref_trx_len_fromstructure = ref_len_from_structure(ref_trx_structure)
+                    ref_trx_len_fromstructure = ref_len_from_structure(dict_ref_structure[ref_trx])
                     if ref_trx_len == ref_trx_len_fromstructure:
                         ref_len_aligned = select_nearest_kde2d(sampled_2d_lengths, ref_trx_len)
                         if ref_len_aligned < ref_trx_len:
                             break
-
-            if model_ir:
-                ir_info, ref_trx_structure_new = update_structure(ref_trx_structure, IR_markov_model)
             else:
-                ref_trx_structure_new = copy.deepcopy(dict_ref_structure[ref_trx])
-
-            list_iv = extract_read_pos(ref_len_aligned, ref_trx_len, ref_trx_structure_new)
-            new_read = ""
-            flag = False
-            for interval in list_iv:
-                chrom = interval.chrom
-                if flag_chrom:
-                    chrom = "chr" + chrom
-                if chrom not in genome_fai.references:
-                    flag = True
+                ref_len_aligned = select_nearest_kde2d(sampled_2d_lengths, ref_trx_len)
+                if ref_len_aligned < ref_trx_len:
                     break
-                start = interval.start
-                end = interval.end
-                new_read += genome_fai.fetch(chrom, start, end)
-            if flag:
-                continue
+        if per:
+            # ref = get_length_kde(kde_aligned, 1)
+            #new_read, new_read_name = extract_read("transcriptome", ref)
+            new_read, ref_start_pos = extract_read_trx(ref_trx, ref_len_aligned)
+            new_read_name = ref_trx + "_" + str(ref_start_pos) + "_perfect_" + str(i + number_unaligned)
+            read_mutated = case_convert(new_read)  # not mutated actually, just to be consistent with per == False
+        else:
+            if model_ir:
+                ref_trx_structure_new = update_structure(dict_ref_structure[ref_trx], IR_markov_model)
+                list_iv = extract_read_pos(ref_len_aligned, ref_trx_len, ref_trx_structure_new)
+                new_read = ""
+                flag = False
+                for interval in list_iv:
+                    chrom = interval.chrom
+                    if flag_chrom:
+                        chrom = "chr" + chrom
+                    if chrom not in genome_fai.references:
+                        flag = True
+                        break
+                    start = interval.start
+                    end = interval.end
+                    new_read += genome_fai.fetch(chrom, start, end)
+                if flag:
+                    continue
+                ref_start_pos = list_iv[0].start
+
+            else:
+                new_read, ref_start_pos = extract_read_trx(ref_trx, ref_len_aligned)
+
+            new_read_name = str(ref_trx) + "_" + str(ref_start_pos) + "_aligned_" + str(i + number_unaligned)
+
 
             new_read_length = len(new_read)
             middle_read, middle_ref, error_dict = error_list(new_read_length, match_markov_model, match_ht_list,
                                                              error_par, trans_error_pr)
-            #if middle_ref > new_read_length:
-                #continue
 
             # start HD len simulation
             remainder = int(remainder_l[i])
@@ -554,8 +572,6 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
                 tail = remainder - head
             # end HD len simulation
 
-            ref_start_pos = list_iv[0].start
-            new_read_name = str(ref_trx) + "_" + str(ref_start_pos) + "_aligned_" + str(i + number_unaligned)
             # Mutate read
             new_read = case_convert(new_read)
             try:
@@ -582,6 +598,8 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
 
             out_reads.write(">" + new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" + str(tail) + '\n')
 
+        if uracil:
+            read_mutated = read_mutated.translate(trantab)
         out_reads.write(read_mutated + '\n')
 
         if (i + 1 + number_unaligned) % 100 == 0:
@@ -683,7 +701,7 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
         i = number_aligned - passed
 
 
-def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, median_l=None, sd_l=None, model_ir=False):
+def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, median_l=None, sd_l=None, model_ir=False, uracil=False):
     # Start simulation
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of random reads\n")
     sys.stdout.flush()
@@ -726,6 +744,8 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, median_l=None,
                 read_mutated = collapse_homo(read_mutated, kmer_bias)
 
             out_reads.write(">" + new_read_name + "_0_" + str(middle_ref) + "_0" + '\n')
+            if uracil:
+                read_mutated = read_mutated.traslate(transtap)
             out_reads.write(read_mutated + "\n")
 
             if (passed + 1) % 100 == 0:
@@ -740,7 +760,7 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, median_l=None,
     if mode == "genome":
         simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias, per)
     else:
-        simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, per)
+        simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, per, uracil)
 
     out_reads.close()
     out_error.close()
@@ -754,11 +774,18 @@ def reverse_complement(seq):
     return reverse_seq
 
 
+def extract_read_trx(key, length):
+    new_read = ""
+    ref_pos = random.randint(0, seq_len[key] - length)
+    new_read = seq_dict[key][ref_pos: ref_pos + length]
+    return new_read, ref_pos
+
+
 def extract_read(dna_type, length):
     if dna_type == "transcriptome":
         while True:
             new_read = ""
-            key = random.choice(seq_len.keys())
+            key = random.choice(list(seq_len.keys())) #added "list" thing to be compatible with Python v3
             if length < seq_len[key]:
                 ref_pos = random.randint(0, seq_len[key] - length)
                 new_read = seq_dict[key][ref_pos: ref_pos + length]
@@ -1040,9 +1067,10 @@ def main():
     parser_t.add_argument('-s', '--strandness', help='Percentage of antisense sequences. Overrides the value profiled '
                                                      'in characterization stage. Should be between 0 and 1',
                           type=float, default=None)
-    parser_t.add_argument('--no_model_ir', help='Simulate intron retention events', action='store_false', default=True)
+    parser_t.add_argument('--no_model_ir', help='Ignore simulating intron retention events', action='store_false', default=True)
     parser_t.add_argument('--perfect', help='Ignore profiles and simulate perfect reads', action='store_true',
                           default=False)
+    parser_t.add_argument('--uracil', help='Converts the thymine (T) bases to uracil (U) in the output fasta format', action='store_true', default=False)
 
     args = parser.parse_args()
 
@@ -1132,6 +1160,7 @@ def main():
         perfect = args.perfect
         model_ir = args.no_model_ir
         dna_type = "transcriptome"
+        uracil = args.uracil
 
         if kmer_bias and kmer_bias < 0:
             print("\nPlease input proper kmer bias value >= 0\n")
@@ -1167,8 +1196,9 @@ def main():
         print("strandness", strandness)
         print("max_len", max_len)
         print("min_readlength", min_len)
+        print("uracil", uracil)
 
-        # Generate log file
+
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ': ' + ' '.join(sys.argv) + '\n')
         sys.stdout.flush()
 
@@ -1178,7 +1208,7 @@ def main():
 
         read_profile(ref_g, ref_t, number, model_prefix, perfect, args.mode, strandness, exp, model_ir, "linear")
 
-        simulation(args.mode, out, dna_type, perfect, kmer_bias, max_len, min_len, None, None, model_ir)
+        simulation(args.mode, out, dna_type, perfect, kmer_bias, max_len, min_len, None, None, model_ir, uracil)
 
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
     sys.stdout.close()
