@@ -135,7 +135,7 @@ def update_structure(ref_trx_structure, IR_markov_model):
     else:
         ref_trx_structure_temp = ref_trx_structure
 
-    return ref_trx_structure_temp
+    return flag_ir, ref_trx_structure_temp
 
 
 def extract_read_pos(length, ref_len, ref_trx_structure):
@@ -525,30 +525,31 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
                 if ref_len_aligned < ref_trx_len:
                     break
         if per:
-            # ref = get_length_kde(kde_aligned, 1)
-            #new_read, new_read_name = extract_read("transcriptome", ref)
             new_read, ref_start_pos = extract_read_trx(ref_trx, ref_len_aligned)
             new_read_name = ref_trx + "_" + str(ref_start_pos) + "_perfect_" + str(i + number_unaligned)
             read_mutated = case_convert(new_read)  # not mutated actually, just to be consistent with per == False
         else:
             if model_ir:
-                ref_trx_structure_new = update_structure(dict_ref_structure[ref_trx], IR_markov_model)
-                list_iv = extract_read_pos(ref_len_aligned, ref_trx_len, ref_trx_structure_new)
-                new_read = ""
-                flag = False
-                for interval in list_iv:
-                    chrom = interval.chrom
-                    if flag_chrom:
-                        chrom = "chr" + chrom
-                    if chrom not in genome_fai.references:
-                        flag = True
-                        break
-                    start = interval.start
-                    end = interval.end
-                    new_read += genome_fai.fetch(chrom, start, end)
-                if flag:
-                    continue
-                ref_start_pos = list_iv[0].start
+                ir_flag, ref_trx_structure_new = update_structure(dict_ref_structure[ref_trx], IR_markov_model)
+                if ir_flag:
+                    list_iv = extract_read_pos(ref_len_aligned, ref_trx_len, ref_trx_structure_new)
+                    new_read = ""
+                    flag = False
+                    for interval in list_iv:
+                        chrom = interval.chrom
+                        if flag_chrom:
+                            chrom = "chr" + chrom
+                        if chrom not in genome_fai.references:
+                            flag = True
+                            break
+                        start = interval.start
+                        end = interval.end
+                        new_read += genome_fai.fetch(chrom, start, end)
+                    if flag:
+                        continue
+                    ref_start_pos = list_iv[0].start
+                else:
+                    new_read, ref_start_pos = extract_read_trx(ref_trx, ref_len_aligned)
 
             else:
                 new_read, ref_start_pos = extract_read_trx(ref_trx, ref_len_aligned)
