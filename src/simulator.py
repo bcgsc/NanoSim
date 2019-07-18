@@ -24,7 +24,13 @@ import argparse
 from time import strftime
 from time import sleep
 import numpy as np
-from string import maketrans
+
+if sys.version_info[0] < 3:
+    from string import maketrans
+    trantab = maketrans("T", "U")
+else:
+    trantab = str.maketrans("T", "U")
+
 from sklearn.externals import joblib
 
 try:
@@ -40,7 +46,6 @@ AUTHOR = "Chen Yang, Saber Hafezqorani (UBC & BCGSC)"
 CONTACT = "cheny@bcgsc.ca; shafezqorani@bcgsc.ca"
 
 BASES = ['A', 'T', 'C', 'G']
-trantab = maketrans("T", "U")
 
 
 def select_ref_transcript(input_dict):
