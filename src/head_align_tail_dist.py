@@ -48,9 +48,11 @@ def head_align_tail(*args):
     prefix = args[0]
     alnm_ext = args[1]
     mode = args[2]
+    alnm_file_prefix = prefix
     if mode == "transcriptome":
         total_ref_length = []  # total length of reference
         dict_ref_len = args[3]
+        prefix = prefix[:-14]
 
     aligned_ref_length = []  # aligned length of reference
     total_length = []
@@ -67,7 +69,7 @@ def head_align_tail(*args):
     out7 = open(prefix + "_tail.txt", 'w')
 
     if alnm_ext == "maf":
-        alnm_file = prefix + "_besthit.maf"
+        alnm_file = alnm_file_prefix + "_besthit.maf"
         with open(alnm_file, 'r') as f:
             for line in f:
                 ref = line.strip().split()
@@ -97,7 +99,7 @@ def head_align_tail(*args):
                 out7.write(str(tail) + '\n')
     else:
         sam_reader = HTSeq.SAM_Reader
-        alnm_file = prefix + "_primary.sam"
+        alnm_file = alnm_file_prefix + "_primary.sam"
         alignments = sam_reader(alnm_file)
         for alnm in alignments:
             ref = alnm.iv.chrom

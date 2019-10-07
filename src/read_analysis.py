@@ -2,9 +2,7 @@
 
 """
 @author: Chen Yang & Saber HafezQorani
-
 This script generates read profiles for Oxford Nanopore 2D reads (genomic and transcriptome).
-
 """
 
 
@@ -70,7 +68,7 @@ def readfq(fp):  # this is a generator function
                 break
 
 
-def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm, ref_g, ir=True, post=True):
+def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm, ref_g, post=True):
     if t_alnm == '':
         if aligner == "minimap2":
             t_alnm = prefix + "_transcriptome_alnm.sam"
@@ -86,21 +84,20 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g
             call("lastdb ref_transcriptome " + ref_t, shell=True)
             call("lastal -a 1 -P " + num_threads + " ref_transcriptome " + in_fasta + " > " + t_alnm, shell=True)
 
-    if ir:
-        if g_alnm == '':
-            if aligner == "minimap2":
-                g_alnm = prefix + "_genome_alnm.sam"
-                # Alignment to reference genome
-                # [EDIT] I may change the options for minimap2 when dealing with cDNA and dRNA reads.
-                sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with minimap2 to reference genome\n")
-                call("minimap2 --cs --MD -ax splice -t " + num_threads + " " + ref_g + " " + in_fasta + " > " + g_alnm, shell=True)
+    if g_alnm == '':
+        if aligner == "minimap2":
+            g_alnm = prefix + "_genome_alnm.sam"
+            # Alignment to reference genome
+            # [EDIT] I may change the options for minimap2 when dealing with cDNA and dRNA reads.
+            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with minimap2 to reference genome\n")
+            call("minimap2 --cs -ax splice -t " + num_threads + " " + ref_g + " " + in_fasta + " > " + g_alnm, shell=True)
 
-            elif aligner == "LAST":
-                g_alnm = prefix + "_genome_alnm.maf"
-                # Alignment to reference genome
-                sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with LAST to reference genome\n")
-                call("lastdb ref_genome " + ref_g, shell=True)
-                call("lastal -a 1 -P " + num_threads + " ref_genome " + in_fasta + " > " + g_alnm, shell=True)
+        elif aligner == "LAST":
+            g_alnm = prefix + "_genome_alnm.maf"
+            # Alignment to reference genome
+            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with LAST to reference genome\n")
+            call("lastdb ref_genome " + ref_g, shell=True)
+            call("lastal -a 1 -P " + num_threads + " ref_genome " + in_fasta + " > " + g_alnm, shell=True)
 
     if not post:
         return t_alnm, g_alnm
@@ -112,17 +109,19 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g
     if t_alnm_ext == "maf":
         processed_maf_t = prefix + "_transcriptome_alnm_processed.maf"
         call("grep '^s ' " + t_alnm + " > " + processed_maf_t, shell=True)
-        unaligned_length, strandness = get_besthit_maf.besthit_and_unaligned(in_fasta, processed_maf_t, prefix)
+        unaligned_length, strandness = get_besthit_maf.besthit_and_unaligned(in_fasta, processed_maf_t, prefix + "_transcriptome")
     elif t_alnm_ext == "sam":
-        unaligned_length, strandness = get_primary_sam.primary_and_unaligned(t_alnm, prefix)
+        unaligned_length, strandness = get_primary_sam.primary_and_unaligned(t_alnm, prefix + "_transcriptome")
 
-    if ir:
-        g_alnm_filename, g_alnm_ext = os.path.splitext(g_alnm)
-        g_alnm_ext = g_alnm_ext[1:]
-        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Processing genome alignment file: " + g_alnm_ext + '\n')
-        if g_alnm_ext == "maf":
-            processed_maf = prefix + "_processed.maf"
-            call("grep '^s ' " + g_alnm + " > " + processed_maf, shell=True)
+    g_alnm_filename, g_alnm_ext = os.path.splitext(g_alnm)
+    g_alnm_ext = g_alnm_ext[1:]
+    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Processing genome alignment file: " + g_alnm_ext + '\n')
+    if g_alnm_ext == "maf":
+        processed_maf = prefix + "_processed.maf"
+        call("grep '^s ' " + g_alnm + " > " + processed_maf, shell=True)
+        get_besthit_maf.besthit_and_unaligned(in_fasta, processed_maf, prefix + "_genome")
+    elif g_alnm_ext == "sam":
+        get_primary_sam.primary_and_unaligned(g_alnm, prefix + "_genome")
 
     return t_alnm_ext, unaligned_length, g_alnm, t_alnm, strandness
 
@@ -222,7 +221,7 @@ def main():
 
     parser_t = subparsers.add_parser('transcriptome', help="Run the simulator on transcriptome mode")
     parser_t.add_argument('-i', '--read', help='Input read for training', required=True)
-    parser_t.add_argument('-rg', '--ref_g', help='Reference genome', default='')
+    parser_t.add_argument('-rg', '--ref_g', help='Reference genome', required=True)
     parser_t.add_argument('-rt', '--ref_t', help='Reference Transcriptome', required=True)  # ?
     parser_t.add_argument('-annot', '--annotation', help='Annotation file in ensemble GTF/GFF formats, '
                                                          'required for intron retention detection', default='')
@@ -500,7 +499,7 @@ def main():
                 dict_ref_len[chr_name] = len(seqS)
 
         alnm_ext, unaligned_length, g_alnm, t_alnm, strandness = \
-            align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm, ref_g, ir)
+            align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm, ref_g)
 
         if ir:
             # Add introns to annotation file
@@ -511,7 +510,7 @@ def main():
 
         # Aligned reads analysis
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
-        num_aligned = align.head_align_tail(prefix, alnm_ext, args.mode, dict_ref_len)
+        num_aligned = align.head_align_tail(prefix + "_transcriptome", alnm_ext, args.mode, dict_ref_len)
 
     # strandness of the aligned reads
     strandness_rate = open(prefix + "_strandness_rate", 'w')
@@ -536,7 +535,10 @@ def main():
 
     # MATCH AND ERROR MODELS
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": match and error models\n")
-    error_model.hist(prefix, alnm_ext)
+    if args.mode == "transcriptome":
+        error_model.hist(prefix + "_genome", alnm_ext)  # Use primary genome alignment for error profiling
+    else:
+        error_model.hist(prefix, alnm_ext)
 
     if model_fit:
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Model fitting\n")
@@ -547,4 +549,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

@@ -40,10 +40,15 @@ def parse_cs(cs_string):
     mis = 0
     list_op = []
     list_hist = []
+    prev_op = "start"
     for item in re.findall('(:[0-9]+|\*[a-z][a-z]|[=\+\-][A-Za-z]+)', cs_string):
         op = item[0]
         op_name = conv_op_to_word(op)
-        list_op.append(op)
+        if op_name != "mis":
+            list_op.append(op)
+        elif prev_op != "mis":
+            list_op.append(op)
+        prev_op = op_name
         if op_name == "ins" or op_name == "del":
             if mis != 0:
                 list_hist.append(mis)
@@ -56,8 +61,10 @@ def parse_cs(cs_string):
             list_hist.append(int(item[1:]))
         elif op_name == "mis":
             mis += 1
-    list_op_unique = [key for key, grp in itertools.groupby(list_op)]
-    return list_hist, list_op_unique
+
+    if mis != 0:  # Deals with the case where mis is the last error in cs string
+        list_hist.append(mis)
+    return list_hist, list_op
 
 
 def get_cs(cigar_str, md_str):
@@ -68,7 +75,7 @@ def get_cs(cigar_str, md_str):
     mx = 0
     my = 0
     md = re.findall('(\\d+)|(\\^[A-Za-z]+)|([A-Za-z])', md_str)
-    cigar = re.findall('(\d+)([MIDSHNX=])', cigar_str)
+    cigar = re.findall('(\d+)([MIDSHX=])', cigar_str)  # Don't find (\d+)N since those are introns
     for m in md:
         if m[1] != "":
             l = len(m[1]) - 1
@@ -133,6 +140,9 @@ def conv_op_to_word(op):
 
 
 def hist(outfile, alnm_ftype):
+    infile = outfile
+    if "_genome" in outfile:
+        outfile = outfile[:-7]
 
     out_match = open(outfile + "_match.hist", 'w')
     out_mis = open(outfile + "_mis.hist", 'w')
@@ -170,7 +180,7 @@ def hist(outfile, alnm_ftype):
         dic_del[x] = 0
 
     if alnm_ftype == "maf":
-        with open(outfile + "_besthit.maf", 'r') as f:
+        with open(infile + "_besthit.maf", 'r') as f:
             for line in f:
                 prev_match = 0
                 prev_error = ""
@@ -299,10 +309,10 @@ def hist(outfile, alnm_ftype):
                         mismatch += 1
     else:
         sam_reader = HTSeq.SAM_Reader
-        alnm_file_sam = outfile + "_primary.sam"
+        alnm_file_sam = infile + "_primary.sam"
         alignments = sam_reader(alnm_file_sam)
-        for alnm in alignments:
 
+        for alnm in alignments:
             # if cs tag is provided, continue, else calculate it from MD and cigar first.
             try:
                 list_hist, list_op_unique = parse_cs(alnm.optional_field('cs'))
@@ -383,9 +393,10 @@ def hist(outfile, alnm_ftype):
     out_error_rate.write("Mismatch rate:\t" + str(total_mis * 1.0 / (total_mis + total_match + total_del)) + '\n')
     out_error_rate.write("Insertion rate:\t" + str(total_ins * 1.0 / (total_mis + total_match + total_del)) + '\n')
     out_error_rate.write("Deletion rate:\t" + str(total_del * 1.0 / (total_mis + total_match + total_del)) + '\n')
-    out_error_rate.write("Total error rate:\t" + str((total_mis + total_ins + total_del) * 1.0 / (total_mis + total_match + total_del)) + '\n')
+    out_error_rate.write("Total error rate:\t" + str(
+        (total_mis + total_ins + total_del) * 1.0 / (total_mis + total_match + total_del)) + '\n')
     out_error_rate.close()
-    
+
     predecessor = {"mis": error_list["mis/mis"] + error_list["mis/ins"] + error_list["mis/del"],
                    "ins": error_list["ins/mis"] + error_list["ins/ins"] + error_list["ins/del"],
                    "del": error_list["del/mis"] + error_list["del/ins"] + error_list["del/del"],
@@ -395,8 +406,9 @@ def hist(outfile, alnm_ftype):
     out1.write("succedent \tmis\tins\tdel\n")
 
     num_of_first = sum(first_error.values())
-    out1.write("start\t" + str(first_error["mis"] * 1.0 / num_of_first) + "\t" + str(first_error["ins"] * 1.0 / num_of_first) +
-               "\t" + str(first_error["del"] * 1.0 / num_of_first))
+    out1.write(
+        "start\t" + str(first_error["mis"] * 1.0 / num_of_first) + "\t" + str(first_error["ins"] * 1.0 / num_of_first) +
+        "\t" + str(first_error["del"] * 1.0 / num_of_first))
     for x in ["mis", "ins", "del", "mis0", "ins0", "del0"]:
         out1.write("\n" + x)
         for y in ["mis", "ins", "del"]:
