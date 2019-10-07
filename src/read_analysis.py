@@ -2,9 +2,7 @@
 
 """
 @author: Chen Yang & Saber HafezQorani
-
 This script generates read profiles for Oxford Nanopore 2D reads (genomic and transcriptome).
-
 """
 
 
@@ -70,7 +68,7 @@ def readfq(fp):  # this is a generator function
                 break
 
 
-def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm, ref_g, ir=True, post=True):
+def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm, ref_g, post=True):
     if t_alnm == '':
         if aligner == "minimap2":
             t_alnm = prefix + "_transcriptome_alnm.sam"
@@ -223,7 +221,7 @@ def main():
 
     parser_t = subparsers.add_parser('transcriptome', help="Run the simulator on transcriptome mode")
     parser_t.add_argument('-i', '--read', help='Input read for training', required=True)
-    parser_t.add_argument('-rg', '--ref_g', help='Reference genome', default='', required=True)
+    parser_t.add_argument('-rg', '--ref_g', help='Reference genome', required=True)
     parser_t.add_argument('-rt', '--ref_t', help='Reference Transcriptome', required=True)  # ?
     parser_t.add_argument('-annot', '--annotation', help='Annotation file in ensemble GTF/GFF formats, '
                                                          'required for intron retention detection', default='')
@@ -501,7 +499,7 @@ def main():
                 dict_ref_len[chr_name] = len(seqS)
 
         alnm_ext, unaligned_length, g_alnm, t_alnm, strandness = \
-            align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm, ref_g, ir)
+            align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm, ref_g)
 
         if ir:
             # Add introns to annotation file
