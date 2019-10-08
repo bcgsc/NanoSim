@@ -11,7 +11,6 @@ This script generates simulated Oxford Nanopore 2D reads (genomic and transcript
 from __future__ import print_function
 from __future__ import with_statement
 
-import traceback
 from subprocess import call
 from textwrap import dedent
 import sys
@@ -365,7 +364,9 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp,
                     dict_ref_structure[feature_id].append(
                         (feature.type, feature.iv.chrom, feature.iv.start, feature.iv.end, feature.iv.length))
 
-    if not per:
+    if per:  # if parameter perfect is used, all reads should be aligned, number_aligned equals total number of reads
+        number_aligned = number
+    else:
         # Read model profile for match, mismatch, insertion and deletions
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read error profile\n")
         sys.stdout.flush()
@@ -403,9 +404,6 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp,
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read KDF of unaligned reads\n")
         sys.stdout.flush()
 
-    if per:  # if parameter perfect is used, all reads should be aligned, number_aligned equals total number of reads
-        number_aligned = number
-    else:
         with open(model_prefix + "_reads_alignment_rate", 'r') as u_profile:
             new = u_profile.readline().strip()
             rate = new.split('\t')[1]
