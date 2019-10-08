@@ -10,6 +10,7 @@ This script generates simulated Oxford Nanopore 2D reads (genomic and transcript
 
 from __future__ import print_function
 from __future__ import with_statement
+
 from subprocess import call
 from textwrap import dedent
 import sys
@@ -363,55 +364,57 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp,
                     dict_ref_structure[feature_id].append(
                         (feature.type, feature.iv.chrom, feature.iv.start, feature.iv.end, feature.iv.length))
 
-    # Read model profile for match, mismatch, insertion and deletions
-    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read error profile\n")
-    sys.stdout.flush()
-    error_par = {}
-    model_profile = model_prefix + "_model_profile"
-    with open(model_profile, 'r') as mod_profile:
-        mod_profile.readline()
-        for line in mod_profile:
-            new_line = line.strip().split("\t")
-            if "mismatch" in line:
-                error_par["mis"] = [float(x) for x in new_line[1:]]
-            elif "insertion" in line:
-                error_par["ins"] = [float(x) for x in new_line[1:]]
+    if per:  # if parameter perfect is used, all reads should be aligned, number_aligned equals total number of reads
+        number_aligned = number
+    else:
+        # Read model profile for match, mismatch, insertion and deletions
+        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read error profile\n")
+        sys.stdout.flush()
+        error_par = {}
+        model_profile = model_prefix + "_model_profile"
+        with open(model_profile, 'r') as mod_profile:
+            mod_profile.readline()
+            for line in mod_profile:
+                new_line = line.strip().split("\t")
+                if "mismatch" in line:
+                    error_par["mis"] = [float(x) for x in new_line[1:]]
+                elif "insertion" in line:
+                    error_par["ins"] = [float(x) for x in new_line[1:]]
+                else:
+                    error_par["del"] = [float(x) for x in new_line[1:]]
+
+        trans_error_pr = {}
+        with open(model_prefix + "_error_markov_model", "r") as error_markov:
+            error_markov.readline()
+            for line in error_markov:
+                info = line.strip().split()
+                k = info[0]
+                trans_error_pr[k] = {}
+                trans_error_pr[k][(0, float(info[1]))] = "mis"
+                trans_error_pr[k][(float(info[1]), float(info[1]) + float(info[2]))] = "ins"
+                trans_error_pr[k][(1 - float(info[3]), 1)] = "del"
+
+        with open(model_prefix + "_first_match.hist", 'r') as fm_profile:
+            match_ht_list = read_ecdf(fm_profile)
+
+        with open(model_prefix + "_match_markov_model", 'r') as mm_profile:
+            match_markov_model = read_ecdf(mm_profile)
+
+        # Read length of unaligned reads
+        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read KDF of unaligned reads\n")
+        sys.stdout.flush()
+
+        with open(model_prefix + "_reads_alignment_rate", 'r') as u_profile:
+            new = u_profile.readline().strip()
+            rate = new.split('\t')[1]
+            if rate == "100%":
+                number_aligned = number
             else:
-                error_par["del"] = [float(x) for x in new_line[1:]]
+                number_aligned = int(round(number * float(rate) / (float(rate) + 1)))
+            number_unaligned = number - number_aligned
 
-    trans_error_pr = {}
-    with open(model_prefix + "_error_markov_model", "r") as error_markov:
-        error_markov.readline()
-        for line in error_markov:
-            info = line.strip().split()
-            k = info[0]
-            trans_error_pr[k] = {}
-            trans_error_pr[k][(0, float(info[1]))] = "mis"
-            trans_error_pr[k][(float(info[1]), float(info[1]) + float(info[2]))] = "ins"
-            trans_error_pr[k][(1 - float(info[3]), 1)] = "del"
-
-    with open(model_prefix + "_first_match.hist", 'r') as fm_profile:
-        match_ht_list = read_ecdf(fm_profile)
-
-    with open(model_prefix + "_match_markov_model", 'r') as mm_profile:
-        match_markov_model = read_ecdf(mm_profile)
-
-    # Read length of unaligned reads
-    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read KDF of unaligned reads\n")
-    sys.stdout.flush()
-
-    with open(model_prefix + "_reads_alignment_rate", 'r') as u_profile:
-        new = u_profile.readline().strip()
-        rate = new.split('\t')[1]
-        # if parameter perfect is used, all reads should be aligned, number_aligned equals total number of reads.
-        if per or rate == "100%":
-            number_aligned = number
-        else:
-            number_aligned = int(round(number * float(rate) / (float(rate) + 1)))
-        number_unaligned = number - number_aligned
-
-    if number_unaligned > 0:
-        kde_unaligned = joblib.load(model_prefix + "_unaligned_length.pkl")
+        if number_unaligned > 0:
+            kde_unaligned = joblib.load(model_prefix + "_unaligned_length.pkl")
 
     # Read profile of aligned reads
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read KDF of aligned reads\n")
@@ -534,10 +537,16 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
             new_read_name = ref_trx + "_" + str(ref_start_pos) + "_perfect_" + str(i + number_unaligned)
             read_mutated = case_convert(new_read)  # not mutated actually, just to be consistent with per == False
         else:
+            middle_read, middle_ref, error_dict = error_list(ref_len_aligned, match_markov_model, match_ht_list,
+                                                             error_par, trans_error_pr)
+
+            if middle_ref > ref_trx_len:
+                continue
+
             if model_ir:
                 ir_flag, ref_trx_structure_new = update_structure(dict_ref_structure[ref_trx], IR_markov_model)
                 if ir_flag:
-                    list_iv = extract_read_pos(ref_len_aligned, ref_trx_len, ref_trx_structure_new)
+                    list_iv = extract_read_pos(middle_ref, ref_trx_len, ref_trx_structure_new)
                     new_read = ""
                     flag = False
                     for interval in list_iv:
@@ -554,17 +563,12 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
                         continue
                     ref_start_pos = list_iv[0].start
                 else:
-                    new_read, ref_start_pos = extract_read_trx(ref_trx, ref_len_aligned)
+                    new_read, ref_start_pos = extract_read_trx(ref_trx, middle_ref)
 
             else:
-                new_read, ref_start_pos = extract_read_trx(ref_trx, ref_len_aligned)
+                new_read, ref_start_pos = extract_read_trx(ref_trx, middle_ref)
 
             new_read_name = str(ref_trx) + "_" + str(ref_start_pos) + "_aligned_" + str(i + number_unaligned)
-
-
-            new_read_length = len(new_read)
-            middle_read, middle_ref, error_dict = error_list(new_read_length, match_markov_model, match_ht_list,
-                                                             error_par, trans_error_pr)
 
             # start HD len simulation
             remainder = int(remainder_l[i])
@@ -580,10 +584,7 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
 
             # Mutate read
             new_read = case_convert(new_read)
-            try:
-                read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
-            except:
-                continue
+            read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
 
         # Reverse complement according to strandness rate
         p = random.random()
@@ -610,7 +611,7 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
 
         if (i + 1 + number_unaligned) % 100 == 0:
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
-                             str(i + 1 + number_unaligned) + "\r")
+                             str(i + 1) + "\r")
             # +1 is just to ignore the zero index by python
             sys.stdout.flush()
 
@@ -699,7 +700,7 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
 
             if (passed + 1 + number_unaligned) % 100 == 0:
                 sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
-                                 str(passed + 1 + number_unaligned) + "\r")
+                                 str(passed + 1) + "\r")
                 # +1 is just to ignore the zero index by python
                 sys.stdout.flush()
 
@@ -709,13 +710,20 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
 
 def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, median_l=None, sd_l=None, model_ir=False, uracil=False):
     # Start simulation
-    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of random reads\n")
-    sys.stdout.flush()
-    out_reads = open(out + "_reads.fasta", 'w')
+    out_aligned_reads = open(out + "_aligned_reads.fasta", 'w')
     out_error = open(out + "_error_profile", 'w')
     out_error.write("Seq_name\tSeq_pos\terror_type\terror_length\tref_base\tseq_base\n")
+    if not per:
+        out_unaligned_reads = open(out + "_unaligned_reads.fasta", 'w')
+
+    if mode == "genome":
+        simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_aligned_reads, out_error, kmer_bias, per)
+    else:
+        simulation_aligned_transcriptome(model_ir, out_aligned_reads, out_error, kmer_bias, per, uracil)
 
     # Simulate unaligned reads, if per, number_unaligned = 0, taken care of in read_ecdf
+    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of random reads\n")
+    sys.stdout.flush()
     i = number_unaligned
     passed = 0
 
@@ -749,26 +757,24 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, median_l=None,
             if kmer_bias:
                 read_mutated = collapse_homo(read_mutated, kmer_bias)
 
-            out_reads.write(">" + new_read_name + "_0_" + str(middle_ref) + "_0" + '\n')
+            out_unaligned_reads.write(">" + new_read_name + "_0_" + str(middle_ref) + "_0" + '\n')
             if uracil:
                 read_mutated = read_mutated.traslate(transtap)
-            out_reads.write(read_mutated + "\n")
+            out_unaligned_reads.write(read_mutated + "\n")
 
             if (passed + 1) % 100 == 0:
                 sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
-                                 str(passed + 1) + "\r")
+                                 str(passed + 1 + number_aligned) + "\r")
                 # +1 is just to ignore the zero index by python
                 sys.stdout.flush()
             passed += 1
 
         i = number_unaligned - passed
 
-    if mode == "genome":
-        simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias, per)
-    else:
-        simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, per, uracil)
+    if not per:
+        out_unaligned_reads.close()
 
-    out_reads.close()
+    out_aligned_reads.close()
     out_error.close()
 
 
@@ -944,6 +950,7 @@ def error_list(m_ref, m_model, m_ht_list, error_p, trans_p):
         pos += prev_match
         if prev_match == 0:
             prev_error += "0"
+
     return l_new, middle_ref, e_dict
 
 
