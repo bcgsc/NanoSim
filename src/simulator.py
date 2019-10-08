@@ -611,7 +611,7 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
 
         if (i + 1 + number_unaligned) % 100 == 0:
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
-                             str(i + 1 + number_unaligned) + "\r")
+                             str(i + 1) + "\r")
             # +1 is just to ignore the zero index by python
             sys.stdout.flush()
 
@@ -700,7 +700,7 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
 
             if (passed + 1 + number_unaligned) % 100 == 0:
                 sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
-                                 str(passed + 1 + number_unaligned) + "\r")
+                                 str(passed + 1) + "\r")
                 # +1 is just to ignore the zero index by python
                 sys.stdout.flush()
 
@@ -710,8 +710,6 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
 
 def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, median_l=None, sd_l=None, model_ir=False, uracil=False):
     # Start simulation
-    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of random reads\n")
-    sys.stdout.flush()
     out_aligned_reads = open(out + "_aligned_reads.fasta", 'w')
     out_error = open(out + "_error_profile", 'w')
     out_error.write("Seq_name\tSeq_pos\terror_type\terror_length\tref_base\tseq_base\n")
@@ -724,6 +722,8 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, median_l=None,
         simulation_aligned_transcriptome(model_ir, out_aligned_reads, out_error, kmer_bias, per, uracil)
 
     # Simulate unaligned reads, if per, number_unaligned = 0, taken care of in read_ecdf
+    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of random reads\n")
+    sys.stdout.flush()
     i = number_unaligned
     passed = 0
 
@@ -764,7 +764,7 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, median_l=None,
 
             if (passed + 1) % 100 == 0:
                 sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
-                                 str(passed + 1) + "\r")
+                                 str(passed + 1 + number_aligned) + "\r")
                 # +1 is just to ignore the zero index by python
                 sys.stdout.flush()
             passed += 1
