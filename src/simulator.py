@@ -609,7 +609,7 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
             read_mutated = read_mutated.translate(trantab)
         out_reads.write(read_mutated + '\n')
 
-        if (i + 1 + number_unaligned) % 100 == 0:
+        if (i + 1) % 100 == 0:
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
                              str(i + 1) + "\r")
             # +1 is just to ignore the zero index by python
@@ -698,7 +698,7 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
                                 str(tail) + '\n')
             out_reads.write(read_mutated + '\n')
 
-            if (passed + 1 + number_unaligned) % 100 == 0:
+            if (passed + 1) % 100 == 0:
                 sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
                                  str(passed + 1) + "\r")
                 # +1 is just to ignore the zero index by python
@@ -762,7 +762,7 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, median_l=None,
                 read_mutated = read_mutated.traslate(transtap)
             out_unaligned_reads.write(read_mutated + "\n")
 
-            if (passed + 1) % 100 == 0:
+            if (passed + 1 + number_aligned) % 100 == 0:
                 sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
                                  str(passed + 1 + number_aligned) + "\r")
                 # +1 is just to ignore the zero index by python
