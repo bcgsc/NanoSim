@@ -718,6 +718,7 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
         if (sequence_index + 1) % 100 == 0:
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
                              str(sequence_index + 1) + "\r")
+
             # +1 is just to ignore the zero index by python
             sys.stdout.flush()
 
@@ -799,6 +800,11 @@ def simulation_aligned_genome(dna_type, out_reads, out_error, kmer_bias, simulat
     out_reads.close()
     out_error.close()
 
+            if (passed + 1) % 100 == 0:
+                sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
+                                 str(passed + 1) + "\r")
+                # +1 is just to ignore the zero index by python
+                sys.stdout.flush()
 
 def simulation_unaligned(dna_type, out_reads, out_error, kmer_bias, simulation_info, uracil):
     out_reads = open(out_reads, "w")
@@ -846,7 +852,7 @@ def simulation_unaligned(dna_type, out_reads, out_error, kmer_bias, simulation_i
     out_reads.close()
     out_error.close()
 
-
+    
 def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, num_threads, median_l=None, sd_l=None, model_ir=False, uracil=False):
     global num_simulated  # Keeps track of number of reads that have been simulated so far
     num_simulated = mp.Value("i", 0, lock=True)
