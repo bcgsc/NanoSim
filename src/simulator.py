@@ -7,7 +7,6 @@ This script generates simulated Oxford Nanopore 2D reads (genomic and transcript
 
 """
 
-
 from __future__ import print_function
 from __future__ import with_statement
 
@@ -497,64 +496,29 @@ def case_convert(seq):
     return out_seq
 
 
-def get_simulation_aligned_genome_info(dna_type, min_l, max_l, median_l, sd_l, per=False):
-    simulation_info = []  # Array of dictionaries, each containing info to simulate individual reads
-    passed = 0
-    i = number_aligned
+def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, num_simulate, per=False, uracil=False):
+    # Simulate aligned reads
+    out_reads = open(out_reads, "w")
+    out_error = open(out_error, "w")
 
-    while i > 0:
-        if per:
-            ref_l = get_length_kde(kde_aligned, i) if median_l is None else \
-                np.random.lognormal(np.log(median_l), sd_l, i)
-            ref_l = [x for x in ref_l if min_l <= x <= max_l and x <= max_chrom]
-        else:
-            remainder_l = get_length_kde(kde_ht, i, True)
-            head_vs_ht_ratio_l = get_length_kde(kde_ht_ratio, i)
-            if median_l is None:
-                ref_l = get_length_kde(kde_aligned, i)
-            else:
-                total_l = np.random.lognormal(np.log(median_l + sd_l ** 2 / 2), sd_l, i)
-                ref_l = total_l - remainder_l
+    if model_ir:
+        # check whether chrom names contains "chr" or not.
+        flag_chrom = False
+        for item in genome_fai.references:
+            if "chr" in item:
+                flag_chrom = True
+                break
 
-            ref_l = [x for x in ref_l if x > 0]
-
-        for j in xrange(len(ref_l)):
-            # check if the total length fits the criteria
-            ref = int(ref_l[j])
-
-            if per:
-                # Extract middle region from reference genome
-                new_read, new_read_name = extract_read(dna_type, ref)
-                simulation_info.append({"ref": ref, "new_read": new_read, "new_read_name": new_read_name})
-            else:
-                middle, middle_ref, error_dict = error_list(ref, match_markov_model, match_ht_list, error_par,
-                                                            trans_error_pr)
-                remainder = int(remainder_l[j])
-                head_vs_ht_ratio = head_vs_ht_ratio_l[j]
-
-                total = remainder + middle
-
-                if total < min_l or total > max_l or head_vs_ht_ratio < 0 or head_vs_ht_ratio > 1 or \
-                        middle_ref > max_chrom or total > max_chrom:
-                    continue
-
-                simulation_info.append({"ref": ref, "remainder": remainder, "head_vs_ht_ratio": head_vs_ht_ratio,
-                                        "middle_ref": middle_ref, "error_dict": error_dict})
-
-            passed += 1
-
-        i = number_aligned - passed
-
-    return simulation_info
-
-
-def get_simulation_aligned_transcriptome_info(model_ir, per=False):
-    # if not per:
+    #if not per:
     sampled_2d_lengths = get_length_kde(kde_aligned_2d, number_aligned, False, False)
-    simulation_info = [] # Array of dictionaries, each containing info to simulate individual reads
-    i = 0
 
-    while i < number_aligned:
+    remainder_l = get_length_kde(kde_ht, number_aligned, True)
+    head_vs_ht_ratio_temp = get_length_kde(kde_ht_ratio, number_aligned)
+    head_vs_ht_ratio_l = [1 if x > 1 else x for x in head_vs_ht_ratio_temp]
+    head_vs_ht_ratio_l = [0 if x < 0 else x for x in head_vs_ht_ratio_l]
+
+    i = 0
+    while i < num_simulate:
         while True:
             ref_trx, ref_trx_len = select_ref_transcript(ecdf_dict_ref_exp)
             if model_ir:
@@ -569,8 +533,13 @@ def get_simulation_aligned_transcriptome_info(model_ir, per=False):
                 if ref_len_aligned < ref_trx_len:
                     break
         if per:
+            with total_simulated.get_lock():
+                sequence_index = total_simulated.value
+                total_simulated.value += 1
+
             new_read, ref_start_pos = extract_read_trx(ref_trx, ref_len_aligned)
-            simulation_info.append({"ref_trx": ref_trx, "new_read": new_read, "ref_start_pos": ref_start_pos})
+            new_read_name = ref_trx + "_" + str(ref_start_pos) + "_perfect_" + str(sequence_index)
+            read_mutated = case_convert(new_read)  # not mutated actually, just to be consistent with per == False
         else:
             middle_read, middle_ref, error_dict = error_list(ref_len_aligned, match_markov_model, match_ht_list,
                                                              error_par, trans_error_pr)
@@ -578,77 +547,9 @@ def get_simulation_aligned_transcriptome_info(model_ir, per=False):
             if middle_ref > ref_trx_len:
                 continue
 
-            simulation_info.append({"ref_trx": ref_trx, "ref_trx_len": ref_trx_len, "middle_ref": middle_ref,
-                                    "error_dict": error_dict})
-
-        i += 1
-
-    return simulation_info
-
-
-def get_simulation_unaligned_info(min_l, max_l, median_l, sd_l):
-    simulation_info = []  # Array of dictionaries, each containing info to simulate individual reads
-    i = number_unaligned
-    passed = 0
-
-    while i > 0:
-        # if the median length and sd is set, use log normal distribution for simulation
-        ref_l = get_length_kde(kde_unaligned, i) if median_l is None else \
-            np.random.lognormal(np.log(median_l), sd_l, i)
-
-        for j in xrange(len(ref_l)):
-            # check if the total length fits the criteria
-            ref = int(ref_l[j])
-
-            unaligned, middle_ref, error_dict = unaligned_error_list(ref, error_par)
-            if unaligned < min_l or unaligned > max_l or middle_ref > max_chrom:
-                continue
-
-            simulation_info.append({"middle_ref": middle_ref, "error_dict": error_dict})
-
-            passed += 1
-
-        i = number_unaligned - passed
-
-    return simulation_info
-
-
-def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, simulation_info, per=False, uracil=False):
-    # Simulate aligned reads
-    out_reads = open(out_reads, "w")
-    out_error = open(out_error, "w")
-
-    if model_ir:
-        # check whether chrom names contains "chr" or not.
-        flag_chrom = False
-        for item in genome_fai.references:
-            if "chr" in item:
-                flag_chrom = True
-                break
-
-    remainder_l = get_length_kde(kde_ht, number_aligned, True)
-    head_vs_ht_ratio_temp = get_length_kde(kde_ht_ratio, number_aligned)
-    head_vs_ht_ratio_l = [1 if x > 1 else x for x in head_vs_ht_ratio_temp]
-    head_vs_ht_ratio_l = [0 if x < 0 else x for x in head_vs_ht_ratio_l]
-
-    i = 0
-    while i < len(simulation_info):
-        with num_simulated.get_lock():
-            sequence_index = num_simulated.value
-            num_simulated.value += 1
-
-        if per:
-            ref_trx = simulation_info[i]["ref_trx"]
-            new_read = simulation_info[i]["new_read"]
-            ref_start_pos = simulation_info[i]["ref_start_pos"]
-
-            new_read_name = ref_trx + "_" + str(ref_start_pos) + "_perfect_" + str(sequence_index)
-            read_mutated = case_convert(new_read)  # not mutated actually, just to be consistent with per == False
-        else:
-            ref_trx = simulation_info[i]["ref_trx"]
-            ref_trx_len = simulation_info[i]["ref_trx_len"]
-            middle_ref = simulation_info[i]["middle_ref"]
-            error_dict = simulation_info[i]["error_dict"]
+            with total_simulated.get_lock():
+                sequence_index = total_simulated.value
+                total_simulated.value += 1
 
             if model_ir:
                 ir_flag, ref_trx_structure_new = update_structure(dict_ref_structure[ref_trx], IR_markov_model)
@@ -671,6 +572,7 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
                     ref_start_pos = list_iv[0].start
                 else:
                     new_read, ref_start_pos = extract_read_trx(ref_trx, middle_ref)
+
             else:
                 new_read, ref_start_pos = extract_read_trx(ref_trx, middle_ref)
 
@@ -718,7 +620,6 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
         if (sequence_index + 1) % 100 == 0:
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
                              str(sequence_index + 1) + "\r")
-
             # +1 is just to ignore the zero index by python
             sys.stdout.flush()
 
@@ -728,166 +629,209 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
     out_error.close()
 
 
-def simulation_aligned_genome(dna_type, out_reads, out_error, kmer_bias, simulation_info, per=False):
+def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias, num_simulate, per=False):
     # Simulate aligned reads
     out_reads = open(out_reads, "w")
     out_error = open(out_error, "w")
 
-    i = 0
-    while i < len(simulation_info):
-        with num_simulated.get_lock():
-            sequence_index = num_simulated.value
-            num_simulated.value += 1
-
+    i = num_simulate
+    passed = 0
+    while i > 0:
         if per:
-            ref = simulation_info[i]["ref"]
-            new_read = simulation_info[i]["new_read"]
-            new_read_name = simulation_info[i]["new_read_name"]
-            new_read_name = new_read_name + "_perfect_" + str(sequence_index)
-            read_mutated = case_convert(new_read)  # not mutated actually, just to be consistent with per == False
+            ref_l = get_length_kde(kde_aligned, i) if median_l is None else \
+                np.random.lognormal(np.log(median_l), sd_l, i)
+            ref_l = [x for x in ref_l if min_l <= x <= max_l and x <= max_chrom]
         else:
-            ref = simulation_info[i]["ref"]
-            remainder = simulation_info[i]["remainder"]
-            head_vs_ht_ratio = simulation_info[i]["head_vs_ht_ratio"]
-            middle_ref = simulation_info[i]["middle_ref"]
-            error_dict = simulation_info[i]["error_dict"]
-
-            if remainder == 0:
-                head = 0
-                tail = 0
+            remainder_l = get_length_kde(kde_ht, i, True)
+            head_vs_ht_ratio_l = get_length_kde(kde_ht_ratio, i)
+            if median_l is None:
+                ref_l = get_length_kde(kde_aligned, i)
             else:
-                head = int(round(remainder * head_vs_ht_ratio))
-                tail = remainder - head
+                total_l = np.random.lognormal(np.log(median_l + sd_l ** 2 / 2), sd_l, i)
+                ref_l = total_l - remainder_l
 
-            # Extract middle region from reference genome
+            ref_l = [x for x in ref_l if x > 0]
+
+        for j in xrange(len(ref_l)):
+            # check if the total length fits the criteria
+            ref = int(ref_l[j])
+
+            if per:
+                with total_simulated.get_lock():
+                    sequence_index = total_simulated.value
+                    total_simulated.value += 1
+
+                # Extract middle region from reference genome
+                new_read, new_read_name = extract_read(dna_type, ref)
+                new_read_name = new_read_name + "_perfect_" + str(sequence_index)
+                read_mutated = case_convert(new_read)  # not mutated actually, just to be consistent with per == False
+            else:
+                middle, middle_ref, error_dict = error_list(ref, match_markov_model, match_ht_list, error_par,
+                                                            trans_error_pr)
+                remainder = int(remainder_l[j])
+                head_vs_ht_ratio = head_vs_ht_ratio_l[j]
+
+                total = remainder + middle
+
+                if total < min_l or total > max_l or head_vs_ht_ratio < 0 or head_vs_ht_ratio > 1 or \
+                        middle_ref > max_chrom or total > max_chrom:
+                    continue
+
+                with total_simulated.get_lock():
+                    sequence_index = total_simulated.value
+                    total_simulated.value += 1
+
+                if remainder == 0:
+                    head = 0
+                    tail = 0
+                else:
+                    head = int(round(remainder * head_vs_ht_ratio))
+                    tail = remainder - head
+
+                # Extract middle region from reference genome
+                new_read, new_read_name = extract_read(dna_type, middle_ref)
+                new_read_name = new_read_name + "_aligned_" + str(sequence_index)
+
+                # Mutate read
+                new_read = case_convert(new_read)
+                read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
+
+            # Reverse complement half of the reads
+            p = random.random()
+            if p < strandness_rate:
+                read_mutated = reverse_complement(read_mutated)
+                new_read_name += "_R"
+            else:
+                new_read_name += "_F"
+
+            if per:
+                out_reads.write(">" + new_read_name + "_0_" + str(ref) + "_0" + '\n')
+            else:
+                # Add head and tail region
+                read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated + \
+                               ''.join(np.random.choice(BASES, tail))
+
+                if kmer_bias:
+                    read_mutated = collapse_homo(read_mutated, kmer_bias)
+
+                out_reads.write(">" + new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" +
+                                str(tail) + '\n')
+            out_reads.write(read_mutated + '\n')
+
+            if (sequence_index + 1) % 100 == 0:
+                sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
+                                 str(sequence_index + 1) + "\r")
+                # +1 is just to ignore the zero index by python
+                sys.stdout.flush()
+
+            passed += 1
+        i = num_simulate - passed
+
+    out_reads.close()
+    out_error.close()
+
+
+def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias, num_simulate, uracil):
+    out_reads = open(out_reads, "w")
+    out_error = open(out_error, "w")
+
+    i = num_simulate
+    passed = 0
+
+    while i > 0:
+        # if the median length and sd is set, use log normal distribution for simulation
+        ref_l = get_length_kde(kde_unaligned, i) if median_l is None else \
+            np.random.lognormal(np.log(median_l), sd_l, i)
+
+        for j in xrange(len(ref_l)):
+            # check if the total length fits the criteria
+            ref = int(ref_l[j])
+
+            unaligned, middle_ref, error_dict = unaligned_error_list(ref, error_par)
+            if unaligned < min_l or unaligned > max_l or middle_ref > max_chrom:
+                continue
+
+            with total_simulated.get_lock():
+                sequence_index = total_simulated.value
+                total_simulated.value += 1
+
             new_read, new_read_name = extract_read(dna_type, middle_ref)
-            new_read_name = new_read_name + "_aligned_" + str(sequence_index)
-
-            # Mutate read
+            new_read_name = new_read_name + "_unaligned_" + str(sequence_index)
+            # Change lowercase to uppercase and replace N with any base
             new_read = case_convert(new_read)
-            read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
+            read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias, False)
 
-        # Reverse complement half of the reads
-        p = random.random()
-        if p < strandness_rate:
-            read_mutated = reverse_complement(read_mutated)
-            new_read_name += "_R"
-        else:
-            new_read_name += "_F"
-
-        if per:
-            out_reads.write(">" + new_read_name + "_0_" + str(ref) + "_0" + '\n')
-        else:
-            # Add head and tail region
-            read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated + \
-                           ''.join(np.random.choice(BASES, tail))
+            # Reverse complement some of the reads based on direction information
+            p = random.random()
+            if p < strandness_rate:
+                read_mutated = reverse_complement(read_mutated)
+                new_read_name += "_R"
+            else:
+                new_read_name += "_F"
 
             if kmer_bias:
                 read_mutated = collapse_homo(read_mutated, kmer_bias)
 
-            out_reads.write(">" + new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" +
-                            str(tail) + '\n')
-        out_reads.write(read_mutated + '\n')
+            out_reads.write(">" + new_read_name + "_0_" + str(middle_ref) + "_0" + '\n')
+            if uracil:
+                read_mutated = read_mutated.traslate(transtap)
+            out_reads.write(read_mutated + "\n")
 
-        if (sequence_index + 1) % 100 == 0:
-            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
-                             str(sequence_index + 1) + "\r")
-            # +1 is just to ignore the zero index by python
-            sys.stdout.flush()
-
-        i += 1
-
-    out_reads.close()
-    out_error.close()
-
-            if (passed + 1) % 100 == 0:
+            if (sequence_index + 1) % 100 == 0:
                 sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
-                                 str(passed + 1) + "\r")
+                                 str(sequence_index + 1) + "\r")
                 # +1 is just to ignore the zero index by python
                 sys.stdout.flush()
+            passed += 1
 
-def simulation_unaligned(dna_type, out_reads, out_error, kmer_bias, simulation_info, uracil):
-    out_reads = open(out_reads, "w")
-    out_error = open(out_error, "w")
-
-    i = 0
-    while i < len(simulation_info):
-        with num_simulated.get_lock():
-            sequence_index = num_simulated.value
-            num_simulated.value += 1
-
-        middle_ref = simulation_info[i]["middle_ref"]
-        error_dict = simulation_info[i]["error_dict"]
-
-        new_read, new_read_name = extract_read(dna_type, middle_ref)
-        new_read_name = new_read_name + "_unaligned_" + str(sequence_index)
-        # Change lowercase to uppercase and replace N with any base
-        new_read = case_convert(new_read)
-        read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias, False)
-
-        # Reverse complement some of the reads based on direction information
-        p = random.random()
-        if p < strandness_rate:
-            read_mutated = reverse_complement(read_mutated)
-            new_read_name += "_R"
-        else:
-            new_read_name += "_F"
-
-        if kmer_bias:
-            read_mutated = collapse_homo(read_mutated, kmer_bias)
-
-        out_reads.write(">" + new_read_name + "_0_" + str(middle_ref) + "_0" + '\n')
-        if uracil:
-            read_mutated = read_mutated.traslate(transtap)
-        out_reads.write(read_mutated + "\n")
-
-        if (sequence_index + 1 + number_aligned) % 100 == 0:
-            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
-                             str(sequence_index + 1) + "\r")
-            # +1 is just to ignore the zero index by python
-            sys.stdout.flush()
-
-        i += 1
+        i = num_simulate - passed
 
     out_reads.close()
     out_error.close()
 
-    
+
 def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, num_threads, median_l=None, sd_l=None, model_ir=False, uracil=False):
-    global num_simulated  # Keeps track of number of reads that have been simulated so far
-    num_simulated = mp.Value("i", 0, lock=True)
+    global total_simulated  # Keeps track of number of reads that have been simulated so far
+    total_simulated = mp.Value("i", 0, lock=True)
 
     # Start simulation
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of aligned reads\n")
     sys.stdout.flush()
     aligned_subfiles = []
     error_subfiles = []
+    num_simulate = int(number_aligned / num_threads)
     pool = mp.Pool(num_threads)
 
     if mode == "genome":
-        info = get_simulation_aligned_genome_info(dna_type, min_l, max_l, median_l, sd_l, per)
-        info_subarrays = numpy.array_split(info, num_threads)
-
         for i in range(num_threads):
             aligned_subfile = out + "_aligned_reads{}.fasta".format(i)
             error_subfile = out + "_error_profile{}.fasta".format(i)
             aligned_subfiles.append(aligned_subfile)
             error_subfiles.append(error_subfile)
-            pool.apply_async(simulation_aligned_genome, (dna_type, aligned_subfile, error_subfile, kmer_bias,
-                                                         info_subarrays[i], per))
+
+            if i != num_threads - 1:
+                pool.apply_async(simulation_aligned_genome, (dna_type, min_l, max_l, median_l, sd_l, aligned_subfile, error_subfile, kmer_bias,
+                             num_simulate, per))
+            else:  # Last process will simulate the remaining reads
+                pool.apply_async(simulation_aligned_genome, (dna_type, min_l, max_l, median_l, sd_l, aligned_subfile, error_subfile, kmer_bias,
+                             num_simulate + number_aligned % num_threads, per))
         pool.close()
         pool.join()
-    else:
-        info = get_simulation_aligned_transcriptome_info(model_ir, per)
-        info_subarrays = numpy.array_split(info, num_threads)
 
+    else:
         for i in range(num_threads):
             aligned_subfile = out + "_aligned_reads{}.fasta".format(i)
             error_subfile = out + "_error_profile{}.fasta".format(i)
             aligned_subfiles.append(aligned_subfile)
             error_subfiles.append(error_subfile)
-            pool.apply_async(simulation_aligned_transcriptome, (model_ir, aligned_subfile, error_subfile, kmer_bias,
-                                                                info_subarrays[i], per, uracil))
+
+            if i != num_threads - 1:
+                pool.apply_async(simulation_aligned_transcriptome, (model_ir, aligned_subfile, error_subfile,
+                                                                    kmer_bias, num_simulate, per, uracil))
+            else:
+                pool.apply_async(simulation_aligned_transcriptome, (model_ir, aligned_subfile, error_subfile, kmer_bias,
+                                                                    num_simulate + number_aligned % num_threads, per,
+                                                                    uracil))
         pool.close()
         pool.join()
 
@@ -904,20 +848,23 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, num_threads, m
     if not per:
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of random reads\n")
         sys.stdout.flush()
-        args = []
         unaligned_subfiles = []
-        info = get_simulation_unaligned_info(min_l, max_l, median_l, sd_l)
-        info_subarrays = numpy.array_split(info, num_threads)
+        num_simulate = int(number_unaligned / num_threads)
         pool = mp.Pool(num_threads)
-
         for i in range(num_threads):
             unaligned_subfile = out + "_unaligned_reads{}.fasta".format(i)
             error_subfile = out + "_error_profile{}.fasta".format(num_threads + i)  # Named "num_threads + i" so file name does not overlap with error files from aligned reads
-            args.append((dna_type, unaligned_subfile, error_subfile, kmer_bias, info_subarrays[i], uracil))
             unaligned_subfiles.append(unaligned_subfile)
             error_subfiles.append(error_subfile)
-            pool.apply_async(simulation_unaligned, (dna_type, unaligned_subfile, error_subfile, kmer_bias,
-                                                    info_subarrays[i], uracil))
+
+            # Dividing number of unaligned reads that need to be simulated amongst the number of processes
+            if i != num_threads - 1:
+                pool.apply_async(simulation_unaligned, (dna_type, min_l, max_l, median_l, sd_l, unaligned_subfile,
+                                                        error_subfile, kmer_bias, num_simulate, uracil))
+            else:
+                pool.apply_async(simulation_unaligned, (dna_type, min_l, max_l, median_l, sd_l, unaligned_subfile,
+                                                        error_subfile, kmer_bias,
+                                                        num_simulate + number_unaligned % num_threads, uracil))
         pool.close()
         pool.join()
 
@@ -937,8 +884,8 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, num_threads, m
             with open(fname) as infile:
                 out_error.write(infile.read())
 
-        for fname in error_subfiles:
-            os.remove(fname)
+    for fname in error_subfiles:
+        os.remove(fname)
 
 
 def reverse_complement(seq):
