@@ -23,7 +23,6 @@ import re
 import copy
 import argparse
 from time import strftime
-from time import sleep
 import numpy as np
 
 if sys.version_info[0] < 3:
@@ -509,7 +508,6 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
                 flag_chrom = True
                 break
 
-    #if not per:
     sampled_2d_lengths = get_length_kde(kde_aligned_2d, number_aligned, False, False)
 
     remainder_l = get_length_kde(kde_ht, number_aligned, True)
@@ -603,7 +601,7 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
             new_read_name += "_F"
 
         if per:
-            out_reads.write(">" + new_read_name + "_0_" + str(ref) + "_0" + '\n')
+            out_reads.write(">" + new_read_name + "_0_" + str(ref_len_aligned) + "_0" + '\n')
         else:
             read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated + \
                            ''.join(np.random.choice(BASES, tail))
@@ -629,7 +627,8 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
     out_error.close()
 
 
-def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias, num_simulate, per=False):
+def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias, num_simulate,
+                              per=False):
     # Simulate aligned reads
     out_reads = open(out_reads, "w")
     out_error = open(out_error, "w")
@@ -774,7 +773,7 @@ def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_
 
             out_reads.write(">" + new_read_name + "_0_" + str(middle_ref) + "_0" + '\n')
             if uracil:
-                read_mutated = read_mutated.traslate(transtap)
+                read_mutated = read_mutated.traslate(trantab)
             out_reads.write(read_mutated + "\n")
 
             if (sequence_index + 1) % 100 == 0:
@@ -790,7 +789,8 @@ def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_
     out_error.close()
 
 
-def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, num_threads, median_l=None, sd_l=None, model_ir=False, uracil=False):
+def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, num_threads, median_l=None, sd_l=None,
+               model_ir=False, uracil=False):
     global total_simulated  # Keeps track of number of reads that have been simulated so far
     total_simulated = mp.Value("i", 0, lock=True)
 
@@ -810,11 +810,12 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, num_threads, m
             error_subfiles.append(error_subfile)
 
             if i != num_threads - 1:
-                pool.apply_async(simulation_aligned_genome, (dna_type, min_l, max_l, median_l, sd_l, aligned_subfile, error_subfile, kmer_bias,
-                             num_simulate, per))
+                pool.apply_async(simulation_aligned_genome, (dna_type, min_l, max_l, median_l, sd_l, aligned_subfile,
+                                                             error_subfile, kmer_bias, num_simulate, per))
             else:  # Last process will simulate the remaining reads
-                pool.apply_async(simulation_aligned_genome, (dna_type, min_l, max_l, median_l, sd_l, aligned_subfile, error_subfile, kmer_bias,
-                             num_simulate + number_aligned % num_threads, per))
+                pool.apply_async(simulation_aligned_genome, (dna_type, min_l, max_l, median_l, sd_l, aligned_subfile,
+                                                             error_subfile, kmer_bias, num_simulate + number_aligned
+                                                             % num_threads, per))
         pool.close()
         pool.join()
 
@@ -840,7 +841,6 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, num_threads, m
         for fname in aligned_subfiles:
             with open(fname) as infile:
                 out_aligned_reads.write(infile.read())
-
     for fname in aligned_subfiles:
         os.remove(fname)
 
@@ -853,7 +853,8 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, num_threads, m
         pool = mp.Pool(num_threads)
         for i in range(num_threads):
             unaligned_subfile = out + "_unaligned_reads{}.fasta".format(i)
-            error_subfile = out + "_error_profile{}.fasta".format(num_threads + i)  # Named "num_threads + i" so file name does not overlap with error files from aligned reads
+            # Named "num_threads + i" so file name does not overlap with error files from aligned reads
+            error_subfile = out + "_error_profile{}.fasta".format(num_threads + i)
             unaligned_subfiles.append(unaligned_subfile)
             error_subfiles.append(error_subfile)
 
@@ -877,15 +878,15 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, num_threads, m
         for fname in unaligned_subfiles:
             os.remove(fname)
 
-    # Merging error subfiles
-    with open(out + "_error_profile", 'w') as out_error:
-        out_error.write("Seq_name\tSeq_pos\terror_type\terror_length\tref_base\tseq_base\n")
-        for fname in error_subfiles:
-            with open(fname) as infile:
-                out_error.write(infile.read())
+        # Merging error subfiles
+        with open(out + "_error_profile", 'w') as out_error:
+            out_error.write("Seq_name\tSeq_pos\terror_type\terror_length\tref_base\tseq_base\n")
+            for fname in error_subfiles:
+                with open(fname) as infile:
+                    out_error.write(infile.read())
 
-    for fname in error_subfiles:
-        os.remove(fname)
+        for fname in error_subfiles:
+            os.remove(fname)
 
 
 def reverse_complement(seq):
@@ -897,7 +898,6 @@ def reverse_complement(seq):
 
 
 def extract_read_trx(key, length):
-    new_read = ""
     ref_pos = random.randint(0, seq_len[key] - length)
     new_read = seq_dict[key][ref_pos: ref_pos + length]
     return new_read, ref_pos
@@ -907,7 +907,7 @@ def extract_read(dna_type, length):
     if dna_type == "transcriptome":
         while True:
             new_read = ""
-            key = random.choice(list(seq_len.keys())) #added "list" thing to be compatible with Python v3
+            key = random.choice(list(seq_len.keys()))  # added "list" thing to be compatible with Python v3
             if length < seq_len[key]:
                 ref_pos = random.randint(0, seq_len[key] - length)
                 new_read = seq_dict[key][ref_pos: ref_pos + length]
@@ -1336,7 +1336,8 @@ def main():
 
         read_profile(ref_g, ref_t, number, model_prefix, perfect, args.mode, strandness, exp, model_ir, "linear")
 
-        simulation(args.mode, out, dna_type, perfect, kmer_bias, max_len, min_len, num_threads, None, None, model_ir, uracil)
+        simulation(args.mode, out, dna_type, perfect, kmer_bias, max_len, min_len, num_threads, None, None, model_ir,
+                   uracil)
 
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
     sys.stdout.close()
