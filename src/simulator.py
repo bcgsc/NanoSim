@@ -793,6 +793,7 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, num_threads, m
                model_ir=False, uracil=False):
     global total_simulated  # Keeps track of number of reads that have been simulated so far
     total_simulated = mp.Value("i", 0, lock=True)
+    procs = []
 
     # Start simulation
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of aligned reads\n")
@@ -800,7 +801,6 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, num_threads, m
     aligned_subfiles = []
     error_subfiles = []
     num_simulate = int(number_aligned / num_threads)
-    pool = mp.Pool(num_threads)
 
     if mode == "genome":
         for i in range(num_threads):
@@ -810,14 +810,19 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, num_threads, m
             error_subfiles.append(error_subfile)
 
             if i != num_threads - 1:
-                pool.apply_async(simulation_aligned_genome, (dna_type, min_l, max_l, median_l, sd_l, aligned_subfile,
-                                                             error_subfile, kmer_bias, num_simulate, per))
+                p = mp.Process(target=simulation_aligned_genome, args=(dna_type, min_l, max_l, median_l, sd_l, aligned_subfile,
+                                                           error_subfile, kmer_bias, num_simulate, per))
+                procs.append(p)
+                p.start()
             else:  # Last process will simulate the remaining reads
-                pool.apply_async(simulation_aligned_genome, (dna_type, min_l, max_l, median_l, sd_l, aligned_subfile,
-                                                             error_subfile, kmer_bias, num_simulate + number_aligned
-                                                             % num_threads, per))
-        pool.close()
-        pool.join()
+                p = mp.Process(target=simulation_aligned_genome, args=(dna_type, min_l, max_l, median_l, sd_l, aligned_subfile,
+                                                           error_subfile, kmer_bias,
+                                                           num_simulate + number_aligned % num_threads, per))
+                procs.append(p)
+                p.start()
+
+        for p in procs:
+            p.join()
 
     else:
         for i in range(num_threads):
@@ -827,14 +832,19 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, num_threads, m
             error_subfiles.append(error_subfile)
 
             if i != num_threads - 1:
-                pool.apply_async(simulation_aligned_transcriptome, (model_ir, aligned_subfile, error_subfile,
-                                                                    kmer_bias, num_simulate, per, uracil))
+                p = mp.Process(target=simulation_aligned_transcriptome, args=(model_ir, aligned_subfile, error_subfile,
+                                                                              kmer_bias, num_simulate, per, uracil))
+                procs.append(p)
+                p.start()
             else:
-                pool.apply_async(simulation_aligned_transcriptome, (model_ir, aligned_subfile, error_subfile, kmer_bias,
-                                                                    num_simulate + number_aligned % num_threads, per,
-                                                                    uracil))
-        pool.close()
-        pool.join()
+                p = mp.Process(target=simulation_aligned_transcriptome, args=(model_ir, aligned_subfile, error_subfile,
+                                                                              kmer_bias, num_simulate +
+                                                                              number_aligned % num_threads, per, uracil))
+                procs.append(p)
+                p.start()
+
+        for p in procs:
+            p.join()
 
     # Merging aligned reads subfiles
     with open(out + "_aligned_reads.fasta", 'w') as out_aligned_reads:
@@ -850,7 +860,6 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, num_threads, m
         sys.stdout.flush()
         unaligned_subfiles = []
         num_simulate = int(number_unaligned / num_threads)
-        pool = mp.Pool(num_threads)
         for i in range(num_threads):
             unaligned_subfile = out + "_unaligned_reads{}.fasta".format(i)
             # Named "num_threads + i" so file name does not overlap with error files from aligned reads
@@ -860,14 +869,20 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, num_threads, m
 
             # Dividing number of unaligned reads that need to be simulated amongst the number of processes
             if i != num_threads - 1:
-                pool.apply_async(simulation_unaligned, (dna_type, min_l, max_l, median_l, sd_l, unaligned_subfile,
-                                                        error_subfile, kmer_bias, num_simulate, uracil))
+                p = mp.Process(target=simulation_unaligned, args=(dna_type, min_l, max_l, median_l, sd_l,
+                                                                   unaligned_subfile, error_subfile, kmer_bias,
+                                                                   num_simulate, uracil))
+                procs.append(p)
+                p.start()
             else:
-                pool.apply_async(simulation_unaligned, (dna_type, min_l, max_l, median_l, sd_l, unaligned_subfile,
-                                                        error_subfile, kmer_bias,
-                                                        num_simulate + number_unaligned % num_threads, uracil))
-        pool.close()
-        pool.join()
+                p = mp.Process(target=simulation_unaligned, args=(dna_type, min_l, max_l, median_l, sd_l,
+                                                                  unaligned_subfile, error_subfile, kmer_bias,
+                                                                  num_simulate + number_unaligned % num_threads, uracil))
+                procs.append(p)
+                p.start()
+
+        for p in procs:
+            p.join()
 
         # Merging unaligned reads subfiles
         with open(out + "_unaligned_reads.fasta", 'w') as out_unaligned_reads:
