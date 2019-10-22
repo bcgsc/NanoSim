@@ -142,6 +142,9 @@ def head_align_tail(*args):
         kde_2d = kde2d(total_ref_length, aligned_ref_length)
         joblib.dump(kde_2d, prefix + '_aligned_region_2d.pkl')
 
+        kde_2d = kde2d(total_ref_length, total_length)
+        joblib.dump(kde_2d, prefix + '_aligned_reads_2d.pkl')
+
     aligned_length = numpy.array(aligned_ref_length)  # Aligned length of the reference, which is error-free
     total_length = numpy.array(total_length)
     ht_length = numpy.array(ht_length)
