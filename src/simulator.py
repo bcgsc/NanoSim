@@ -1,10 +1,7 @@
 #!/usr/bin/env python
 """
-
 @author: Chen Yang & Saber HafezQorani
-
 This script generates simulated Oxford Nanopore 2D reads (genomic and transcriptomic - cDNA/directRNA).
-
 """
 
 from __future__ import print_function
@@ -508,10 +505,10 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
                 flag_chrom = True
                 break
 
-    sampled_2d_lengths = get_length_kde(kde_aligned_2d, number_aligned, False, False)
+    sampled_2d_lengths = get_length_kde(kde_aligned_2d, num_simulate, False, False)
 
-    remainder_l = get_length_kde(kde_ht, number_aligned, True)
-    head_vs_ht_ratio_temp = get_length_kde(kde_ht_ratio, number_aligned)
+    remainder_l = get_length_kde(kde_ht, num_simulate, True)
+    head_vs_ht_ratio_temp = get_length_kde(kde_ht_ratio, num_simulate)
     head_vs_ht_ratio_l = [1 if x > 1 else x for x in head_vs_ht_ratio_temp]
     head_vs_ht_ratio_l = [0 if x < 0 else x for x in head_vs_ht_ratio_l]
 
@@ -893,15 +890,15 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, num_threads, m
         for fname in unaligned_subfiles:
             os.remove(fname)
 
-        # Merging error subfiles
-        with open(out + "_error_profile", 'w') as out_error:
-            out_error.write("Seq_name\tSeq_pos\terror_type\terror_length\tref_base\tseq_base\n")
-            for fname in error_subfiles:
-                with open(fname) as infile:
-                    out_error.write(infile.read())
-
+    # Merging error subfiles
+    with open(out + "_error_profile", 'w') as out_error:
+        out_error.write("Seq_name\tSeq_pos\terror_type\terror_length\tref_base\tseq_base\n")
         for fname in error_subfiles:
-            os.remove(fname)
+            with open(fname) as infile:
+                out_error.write(infile.read())
+
+    for fname in error_subfiles:
+        os.remove(fname)
 
 
 def reverse_complement(seq):
