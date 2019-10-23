@@ -427,14 +427,11 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp,
 
     # Read length of aligned reads
     # If "perfect" is chosen, just use the total length ecdf profile, else use the length of aligned region on reference
-    if mode == "genome":
-        if per:
-            kde_aligned = joblib.load(model_prefix + "_aligned_reads.pkl")
-        else:
-            kde_aligned = joblib.load(model_prefix + "_aligned_region.pkl")
+    if per:
+        kde_aligned = joblib.load(model_prefix + "_aligned_reads.pkl")
     else:
-        if per:
-            kde_aligned_2d = joblib.load(model_prefix + "_aligned_reads_2d.pkl")
+        if mode == "genome":
+            kde_aligned = joblib.load(model_prefix + "_aligned_region.pkl")
         else:
             kde_aligned_2d = joblib.load(model_prefix + "_aligned_region_2d.pkl")
 
@@ -511,13 +508,12 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
                 flag_chrom = True
                 break
 
-    sampled_2d_lengths = get_length_kde(kde_aligned_2d, num_simulate, False, False)
+    sampled_2d_lengths = get_length_kde(kde_aligned_2d, number_aligned, False, False)
 
-    if not per:
-        remainder_l = get_length_kde(kde_ht, num_simulate, True)
-        head_vs_ht_ratio_temp = get_length_kde(kde_ht_ratio, num_simulate)
-        head_vs_ht_ratio_l = [1 if x > 1 else x for x in head_vs_ht_ratio_temp]
-        head_vs_ht_ratio_l = [0 if x < 0 else x for x in head_vs_ht_ratio_l]
+    remainder_l = get_length_kde(kde_ht, number_aligned, True)
+    head_vs_ht_ratio_temp = get_length_kde(kde_ht_ratio, number_aligned)
+    head_vs_ht_ratio_l = [1 if x > 1 else x for x in head_vs_ht_ratio_temp]
+    head_vs_ht_ratio_l = [0 if x < 0 else x for x in head_vs_ht_ratio_l]
 
     i = 0
     while i < num_simulate:
@@ -897,15 +893,15 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, num_threads, m
         for fname in unaligned_subfiles:
             os.remove(fname)
 
-    # Merging error subfiles
-    with open(out + "_error_profile", 'w') as out_error:
-        out_error.write("Seq_name\tSeq_pos\terror_type\terror_length\tref_base\tseq_base\n")
-        for fname in error_subfiles:
-            with open(fname) as infile:
-                out_error.write(infile.read())
+        # Merging error subfiles
+        with open(out + "_error_profile", 'w') as out_error:
+            out_error.write("Seq_name\tSeq_pos\terror_type\terror_length\tref_base\tseq_base\n")
+            for fname in error_subfiles:
+                with open(fname) as infile:
+                    out_error.write(infile.read())
 
-    for fname in error_subfiles:
-        os.remove(fname)
+        for fname in error_subfiles:
+            os.remove(fname)
 
 
 def reverse_complement(seq):
