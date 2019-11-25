@@ -1,10 +1,7 @@
 #!/usr/bin/env python
 """
-
 @author: Chen Yang & Saber HafezQorani
-
 This script generates simulated Oxford Nanopore 2D reads (genomic and transcriptomic - cDNA/directRNA).
-
 """
 
 from __future__ import print_function
@@ -436,13 +433,144 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp,
             kde_aligned_2d = joblib.load(model_prefix + "_aligned_region_2d.pkl")
 
 
-def collapse_homo(seq, k):
-    read = re.sub("A" * k + "+", "A" * (k - 1), seq)
-    read = re.sub("C" * k + "+", "C" * (k - 1), read)
-    read = re.sub("T" * k + "+", "T" * (k - 1), read)
-    read = re.sub("G" * k + "+", "G" * (k - 1), read)
+def get_homo_nd_params(ref_len, base):  # TODO: May want to add parameter for basecaller to deal with albacore sim
+    if base == "A/T":
+        if ref_len < 24:  # changepoint
+            mu = 0.7721 * ref_len + 0.4517
+        else:
+            y_at_x24 = (0.7721 * 24) + 0.4517  # Y = (slope1 * X0) + intercept1
+            y_int = y_at_x24 - (0.2509 * 24)  # intercept2 = Y - (slope2 * X0)
+            mu = 0.2509 * ref_len + y_int
 
-    return read
+        sigma = 0.2013 * ref_len + 0.2159
+
+    else:  # "C/G"
+        if ref_len < 11:  # changepoint
+            mu = 0.2380 * ref_len + 2.9573
+        else:
+            y_at_x24 = (0.2380 * 11) + 2.9573  # Y = (slope1 * X0) + intercept1
+            y_int = y_at_x24 - (0.00022633 * 11)  # intercept2 = Y - (slope2 * X0)
+            mu = -0.00022633 * ref_len + y_int
+
+        sigma = 0.1514 * ref_len + 0.5611
+
+    return mu, sigma
+
+
+def mutate_homo(seq, k, err_dict):
+    hp_arr = []  # [[base, start, end], ...]
+    hp_length_hist = {}  # {length: {A/T: count, C/G: count} ...}
+    hp_samples = {}  # {length: {A/T: [sample], C/G: [sample]} ...}
+    mutated_hp_pos = []
+
+    # Finding homopolymers in sequence
+    pattern = "A{" + re.escape(str(k)) + ",}|C{" + re.escape(str(k)) + ",}|G{" + re.escape(
+        str(k)) + ",}|T{" + re.escape(str(k)) + ",}"
+
+    for match in re.finditer(pattern, seq):
+        hp_start = match.start()
+        hp_end = match.end()
+        length = hp_end - hp_start
+        base = match.group()[0]
+        hp_arr.append([base, hp_start, hp_end])
+        if length not in hp_length_hist.keys():
+            hp_length_hist[length] = {"A/T": 0, "C/G": 0}
+
+        if base == "A" or base == "T":
+            key = "A/T"
+        else:
+            key = "C/G"
+
+        hp_length_hist[length][key] += 1
+
+    # Obtaining samples from normal distributions
+    for length in hp_length_hist.keys():
+        hp_samples[length] = {}
+
+        if hp_length_hist[length]["A/T"] > 0:
+            at_mu, at_sigma = get_homo_nd_params(length, "A/T")
+            hp_samples[length]["A/T"] = np.random.normal(at_mu, at_sigma, hp_length_hist[length]["A/T"])
+
+        if hp_length_hist[length]["C/G"] > 0:
+            cg_mu, cg_sigma = get_homo_nd_params(length, "C/G")
+            hp_samples[length]["C/G"] = np.random.normal(cg_mu, cg_sigma, hp_length_hist[length]["C/G"])
+
+    # Mutating homopolymers in given sequence
+    last_pos = 0
+    mutated_seq = ""
+    total_hp_size_change = 0
+    for hp_info in hp_arr:
+        base = hp_info[0]
+        ref_hp_start = hp_info[1]
+        ref_hp_end = hp_info[2]
+        adj_hp_start = hp_info[1] + total_hp_size_change
+        adj_hp_end = hp_info[2] + total_hp_size_change
+
+        # mu, sigma = get_homo_nd_params(hp_end - hp_start)
+        # size = round(np.random.normal(mu, sigma, 1)[0])
+        # size = int(np.random.normal(mu, sigma, 1)[0])
+        if base == "A" or base == "T":
+            size = round(hp_samples[ref_hp_end - ref_hp_start]["A/T"][-1])
+            hp_samples[ref_hp_end - ref_hp_start]["A/T"] = hp_samples[ref_hp_end - ref_hp_start]["A/T"][:-1]
+        else:
+            size = round(hp_samples[ref_hp_end - ref_hp_start]["C/G"][-1])
+            hp_samples[ref_hp_end - ref_hp_start]["C/G"] = hp_samples[ref_hp_end - ref_hp_start]["C/G"][:-1]
+
+        mutated_hp = base * int(size)
+        mutated_seq = mutated_seq + seq[last_pos: ref_hp_start] + mutated_hp
+
+        err_dict = adjust_err_dict([adj_hp_start, adj_hp_end, int(size) - (ref_hp_end - ref_hp_start)], err_dict)
+        total_hp_size_change += int(size) - (ref_hp_end - ref_hp_start)
+        last_pos = ref_hp_end
+
+    for match in re.finditer(pattern, mutated_seq):
+        mutated_hp_pos.append([match.start(), match.end()])
+
+    return mutated_seq + seq[last_pos:], mutated_hp_pos, err_dict
+
+
+def adjust_err_dict(hp, err_dict):
+    hp_start = hp[0]
+    hp_end = hp[1]
+    size_changed = hp[2]
+
+    # Adjust positions of errors due to changes in hp size
+    adjusted_err_dict = {}
+    if abs(size_changed) > 0:
+        for key in err_dict.keys():
+            err_size = err_dict[key][1]
+            if hp_start <= key or hp_start <= key + err_size:
+                adjusted_err_dict[key + size_changed] = err_dict[key]
+            else:
+                adjusted_err_dict[key] = err_dict[key]
+    else:
+        adjusted_err_dict = err_dict
+
+    return adjusted_err_dict
+
+
+def remove_err_in_homo(hp_pos, err_dict, aligned=True):
+    new_err_dict = {}
+
+    for pos in hp_pos:
+        hp_start = pos[0]
+        hp_end = pos[1]
+
+        for key in err_dict.keys():
+            err_start = int(key)
+            err_end = int(key) + err_dict[key][1]
+            err = err_dict[key][0]
+
+            if err == "mis" or hp_end <= err_start or err_end <= hp_start:  # Ins/del doesn't land in hp
+                if err == "ins":
+                    if aligned:
+                        new_err_dict[err_start + 0.5] = [err, int(err_dict[key][1])]
+                    else:
+                        new_err_dict[err_start + 0.1] = [err, int(err_dict[key][1])]
+                else:
+                    new_err_dict[err_start] = [err, int(err_dict[key][1])]
+
+    return new_err_dict
 
 
 # Taken from https://github.com/lh3/readfq
@@ -508,10 +636,10 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
                 flag_chrom = True
                 break
 
-    sampled_2d_lengths = get_length_kde(kde_aligned_2d, number_aligned, False, False)
+    sampled_2d_lengths = get_length_kde(kde_aligned_2d, num_simulate, False, False)
 
-    remainder_l = get_length_kde(kde_ht, number_aligned, True)
-    head_vs_ht_ratio_temp = get_length_kde(kde_ht_ratio, number_aligned)
+    remainder_l = get_length_kde(kde_ht, num_simulate, True)
+    head_vs_ht_ratio_temp = get_length_kde(kde_ht_ratio, num_simulate)
     head_vs_ht_ratio_l = [1 if x > 1 else x for x in head_vs_ht_ratio_temp]
     head_vs_ht_ratio_l = [0 if x < 0 else x for x in head_vs_ht_ratio_l]
 
@@ -590,7 +718,9 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
 
             # Mutate read
             new_read = case_convert(new_read)
-            read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
+            read_mutated, hp_pos, error_dict = mutate_homo(new_read, kmer_bias, error_dict)
+            error_dict = remove_err_in_homo(hp_pos, error_dict)
+            read_mutated = mutate_read(read_mutated, new_read_name, out_error, error_dict, kmer_bias)
 
         # Reverse complement according to strandness rate
         p = random.random()
@@ -605,9 +735,6 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
         else:
             read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated + \
                            ''.join(np.random.choice(BASES, tail))
-
-            if kmer_bias:
-                read_mutated = collapse_homo(read_mutated, kmer_bias)
 
             out_reads.write(">" + new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" + str(tail) + '\n')
 
@@ -693,7 +820,9 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
 
                 # Mutate read
                 new_read = case_convert(new_read)
-                read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
+                read_mutated, hp_pos, error_dict = mutate_homo(new_read, kmer_bias, error_dict)
+                error_dict = remove_err_in_homo(hp_pos, error_dict)  # Remove ins and del in error_dict that land in hp
+                read_mutated = mutate_read(read_mutated, new_read_name, out_error, error_dict, kmer_bias)
 
             # Reverse complement half of the reads
             p = random.random()
@@ -709,9 +838,6 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
                 # Add head and tail region
                 read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated + \
                                ''.join(np.random.choice(BASES, tail))
-
-                if kmer_bias:
-                    read_mutated = collapse_homo(read_mutated, kmer_bias)
 
                 out_reads.write(">" + new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" +
                                 str(tail) + '\n')
@@ -758,7 +884,9 @@ def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_
             new_read_name = new_read_name + "_unaligned_" + str(sequence_index)
             # Change lowercase to uppercase and replace N with any base
             new_read = case_convert(new_read)
-            read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias, False)
+            read_mutated, hp_pos, error_dict = mutate_homo(new_read, kmer_bias, error_dict)
+            error_dict = remove_err_in_homo(hp_pos, error_dict, False)
+            read_mutated = mutate_read(read_mutated, new_read_name, out_error, error_dict, kmer_bias, False)
 
             # Reverse complement some of the reads based on direction information
             p = random.random()
@@ -767,9 +895,6 @@ def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_
                 new_read_name += "_R"
             else:
                 new_read_name += "_F"
-
-            if kmer_bias:
-                read_mutated = collapse_homo(read_mutated, kmer_bias)
 
             out_reads.write(">" + new_read_name + "_0_" + str(middle_ref) + "_0" + '\n')
             if uracil:
@@ -893,15 +1018,15 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, num_threads, m
         for fname in unaligned_subfiles:
             os.remove(fname)
 
-        # Merging error subfiles
-        with open(out + "_error_profile", 'w') as out_error:
-            out_error.write("Seq_name\tSeq_pos\terror_type\terror_length\tref_base\tseq_base\n")
-            for fname in error_subfiles:
-                with open(fname) as infile:
-                    out_error.write(infile.read())
-
+    # Merging error subfiles
+    with open(out + "_error_profile", 'w') as out_error:
+        out_error.write("Seq_name\tSeq_pos\terror_type\terror_length\tref_base\tseq_base\n")
         for fname in error_subfiles:
-            os.remove(fname)
+            with open(fname) as infile:
+                out_error.write(infile.read())
+
+    for fname in error_subfiles:
+        os.remove(fname)
 
 
 def reverse_complement(seq):
@@ -1020,7 +1145,7 @@ def error_list(m_ref, m_model, m_ht_list, error_p, trans_p):
     k1 = list(m_ht_list.keys())[0]
     for k2, v2 in m_ht_list[k1].items():
         if k2[0] < p <= k2[1]:
-            prev_match = int(np.floor((p - k2[0])/(k2[1] - k2[0]) * (v2[1] - v2[0]) + v2[0]))
+            prev_match = int(np.floor((p - k2[0]) / (k2[1] - k2[0]) * (v2[1] - v2[0]) + v2[0]))
             if prev_match < 2:
                 prev_match = 2
     pos += prev_match
@@ -1061,7 +1186,7 @@ def error_list(m_ref, m_model, m_ht_list, error_p, trans_p):
         p = random.random()
         for k2, v2 in m_model[k1].items():
             if k2[0] < p <= k2[1]:
-                step = int(np.floor((p - k2[0])/(k2[1] - k2[0]) * (v2[1] - v2[0]) + v2[0]))
+                step = int(np.floor((p - k2[0]) / (k2[1] - k2[0]) * (v2[1] - v2[0]) + v2[0]))
                 break
         # there are no two 0 base matches together
         if prev_match == 0 and step == 0:
@@ -1080,28 +1205,20 @@ def error_list(m_ref, m_model, m_ht_list, error_p, trans_p):
 
 
 def mutate_read(read, read_name, error_log, e_dict, k, aligned=True):
-    if k:
-        search_pattern = "A" * k + "+|" + "T" * k + "+|" + "C" * k + "+|" + "G" * k
     for key in sorted(e_dict.keys(), reverse=True):
         val = e_dict[key]
         key = int(round(key))
 
         if val[0] == "mis":
             ref_base = read[key: key + val[1]]
-            while True:
-                new_bases = ""
-                for i in xrange(val[1]):
-                    tmp_bases = list(BASES)
-                    tmp_bases.remove(read[key + i])
-                    # tmp_bases.remove(read[key]) ## Edited this part for testing
-                    new_base = random.choice(tmp_bases)
-                    new_bases += new_base
-                if not k:
-                    break
-                else:
-                    check_kmer = read[max(key - k + 1, 0): key] + new_bases + read[key + val[1]: key + val[1] + k - 1]
-                    if not re.search(search_pattern, check_kmer):
-                        break
+            new_bases = ""
+            for i in xrange(val[1]):
+                tmp_bases = list(BASES)
+                tmp_bases.remove(read[key + i])
+                # tmp_bases.remove(read[key]) ## Edited this part for testing
+                new_base = random.choice(tmp_bases)
+                new_bases += new_base
+
             new_read = read[:key] + new_bases + read[key + val[1]:]
 
         elif val[0] == "del":
@@ -1111,17 +1228,10 @@ def mutate_read(read, read_name, error_log, e_dict, k, aligned=True):
 
         elif val[0] == "ins":
             ref_base = val[1] * "-"
-            while True:
-                new_bases = ""
-                for i in xrange(val[1]):
-                    new_base = random.choice(BASES)
-                    new_bases += new_base
-                if not k:
-                    break
-                else:
-                    check_kmer = read[max(key - k + 1, 0): key] + new_bases + read[key: key + k - 1]
-                    if not re.search(search_pattern, check_kmer):
-                        break
+            new_bases = ""
+            for i in xrange(val[1]):
+                new_base = random.choice(BASES)
+                new_bases += new_base
             new_read = read[:key] + new_bases + read[key:]
 
         read = new_read
@@ -1129,10 +1239,6 @@ def mutate_read(read, read_name, error_log, e_dict, k, aligned=True):
         if aligned and val[0] != "match":
             error_log.write(read_name + "\t" + str(key) + "\t" + val[0] + "\t" + str(val[1]) +
                             "\t" + ref_base + "\t" + new_bases + "\n")
-
-    # If choose to have kmer bias, then need to compress homopolymers to k-mer
-    if k:
-        read = collapse_homo(read, k)
 
     return read
 
@@ -1174,7 +1280,7 @@ def main():
     parser_g.add_argument('-sd', '--sd_len', help='The standard deviation of read length in log scale (Default = None)',
                           type=float, default=None)
     parser_g.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
-    parser_g.add_argument('-k', '--KmerBias', help='Enable k-mer bias simulation', type=int, default=None)
+    parser_g.add_argument('-k', '--KmerBias', help='Enable k-mer bias simulation', type=int, default=5)
     parser_g.add_argument('-s', '--strandness', help='Percentage of antisense sequences. Overrides the value profiled '
                                                      'in characterization stage. Should be between 0 and 1',
                           type=float, default=None)
@@ -1202,7 +1308,7 @@ def main():
     parser_t.add_argument('-min', '--min_len', help='The minimum length for simulated reads (Default = 50)',
                           type=int, default=50)
     parser_t.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
-    parser_t.add_argument('-k', '--KmerBias', help='Enable k-mer bias simulation', type=int, default=None)
+    parser_t.add_argument('-k', '--KmerBias', help='Enable k-mer bias simulation', type=int, default=5)
     parser_t.add_argument('-s', '--strandness', help='Percentage of antisense sequences. Overrides the value profiled '
                                                      'in characterization stage. Should be between 0 and 1',
                           type=float, default=None)
