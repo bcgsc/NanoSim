@@ -461,7 +461,6 @@ def mutate_homo(seq, k, err_dict):
     hp_arr = []  # [[base, start, end], ...]
     hp_length_hist = {}  # {length: {A/T: count, C/G: count} ...}
     hp_samples = {}  # {length: {A/T: [sample], C/G: [sample]} ...}
-    mutated_hp_pos = []
 
     # Finding homopolymers in sequence
     pattern = "A{" + re.escape(str(k)) + ",}|C{" + re.escape(str(k)) + ",}|G{" + re.escape(
@@ -523,10 +522,7 @@ def mutate_homo(seq, k, err_dict):
         total_hp_size_change += int(size) - (ref_hp_end - ref_hp_start)
         last_pos = ref_hp_end
 
-    for match in re.finditer(pattern, mutated_seq):
-        mutated_hp_pos.append([match.start(), match.end()])
-
-    return mutated_seq + seq[last_pos:], mutated_hp_pos, err_dict
+    return mutated_seq + seq[last_pos:], err_dict
 
 
 def adjust_err_dict(hp, err_dict):
@@ -536,41 +532,20 @@ def adjust_err_dict(hp, err_dict):
 
     # Adjust positions of errors due to changes in hp size
     adjusted_err_dict = {}
-    if abs(size_changed) > 0:
-        for key in err_dict.keys():
-            err_size = err_dict[key][1]
-            if hp_start <= key or hp_start <= key + err_size:
-                adjusted_err_dict[key + size_changed] = err_dict[key]
-            else:
+    for key in err_dict.keys():
+        err = err_dict[key][0]
+        err_start = int(key)
+        err_end = int(key) + err_dict[key][1]
+
+        if hp_end <= err_start:  # Error occurs after hp
+            adjusted_err_dict[key + size_changed] = err_dict[key]
+        elif err_end <= hp_start:  # Error occurs before hp
+            adjusted_err_dict[key] = err_dict[key]
+        else:  # Error occurs in hp
+            if err == "mis" and err_end <= hp_end + size_changed:  # Error lands within mutated hp
                 adjusted_err_dict[key] = err_dict[key]
-    else:
-        adjusted_err_dict = err_dict
 
     return adjusted_err_dict
-
-
-def remove_err_in_homo(hp_pos, err_dict, aligned=True):
-    new_err_dict = {}
-
-    for pos in hp_pos:
-        hp_start = pos[0]
-        hp_end = pos[1]
-
-        for key in err_dict.keys():
-            err_start = int(key)
-            err_end = int(key) + err_dict[key][1]
-            err = err_dict[key][0]
-
-            if err == "mis" or hp_end <= err_start or err_end <= hp_start:  # Ins/del doesn't land in hp
-                if err == "ins":
-                    if aligned:
-                        new_err_dict[err_start + 0.5] = [err, int(err_dict[key][1])]
-                    else:
-                        new_err_dict[err_start + 0.1] = [err, int(err_dict[key][1])]
-                else:
-                    new_err_dict[err_start] = [err, int(err_dict[key][1])]
-
-    return new_err_dict
 
 
 # Taken from https://github.com/lh3/readfq
@@ -718,8 +693,7 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
 
             # Mutate read
             new_read = case_convert(new_read)
-            read_mutated, hp_pos, error_dict = mutate_homo(new_read, kmer_bias, error_dict)
-            error_dict = remove_err_in_homo(hp_pos, error_dict)
+            read_mutated, error_dict = mutate_homo(new_read, kmer_bias, error_dict)
             read_mutated = mutate_read(read_mutated, new_read_name, out_error, error_dict, kmer_bias)
 
         # Reverse complement according to strandness rate
@@ -756,104 +730,104 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
 
 def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias, num_simulate,
                               per=False):
-    # Simulate aligned reads
-    out_reads = open(out_reads, "w")
-    out_error = open(out_error, "w")
+        # Simulate aligned reads
+        out_reads = open(out_reads, "w")
+        out_error = open(out_error, "w")
 
-    i = num_simulate
-    passed = 0
-    while i > 0:
-        if per:
-            ref_l = get_length_kde(kde_aligned, i) if median_l is None else \
-                np.random.lognormal(np.log(median_l), sd_l, i)
-            ref_l = [x for x in ref_l if min_l <= x <= max_l and x <= max_chrom]
-        else:
-            remainder_l = get_length_kde(kde_ht, i, True)
-            head_vs_ht_ratio_l = get_length_kde(kde_ht_ratio, i)
-            if median_l is None:
-                ref_l = get_length_kde(kde_aligned, i)
-            else:
-                total_l = np.random.lognormal(np.log(median_l + sd_l ** 2 / 2), sd_l, i)
-                ref_l = total_l - remainder_l
-
-            ref_l = [x for x in ref_l if x > 0]
-
-        for j in xrange(len(ref_l)):
-            # check if the total length fits the criteria
-            ref = int(ref_l[j])
-
+        i = num_simulate
+        passed = 0
+        while i > 0:
             if per:
-                with total_simulated.get_lock():
-                    sequence_index = total_simulated.value
-                    total_simulated.value += 1
-
-                # Extract middle region from reference genome
-                new_read, new_read_name = extract_read(dna_type, ref)
-                new_read_name = new_read_name + "_perfect_" + str(sequence_index)
-                read_mutated = case_convert(new_read)  # not mutated actually, just to be consistent with per == False
+                ref_l = get_length_kde(kde_aligned, i) if median_l is None else \
+                    np.random.lognormal(np.log(median_l), sd_l, i)
+                ref_l = [x for x in ref_l if min_l <= x <= max_l and x <= max_chrom]
             else:
-                middle, middle_ref, error_dict = error_list(ref, match_markov_model, match_ht_list, error_par,
-                                                            trans_error_pr)
-                remainder = int(remainder_l[j])
-                head_vs_ht_ratio = head_vs_ht_ratio_l[j]
-
-                total = remainder + middle
-
-                if total < min_l or total > max_l or head_vs_ht_ratio < 0 or head_vs_ht_ratio > 1 or \
-                        middle_ref > max_chrom or total > max_chrom:
-                    continue
-
-                with total_simulated.get_lock():
-                    sequence_index = total_simulated.value
-                    total_simulated.value += 1
-
-                if remainder == 0:
-                    head = 0
-                    tail = 0
+                remainder_l = get_length_kde(kde_ht, i, True)
+                head_vs_ht_ratio_l = get_length_kde(kde_ht_ratio, i)
+                if median_l is None:
+                    ref_l = get_length_kde(kde_aligned, i)
                 else:
-                    head = int(round(remainder * head_vs_ht_ratio))
-                    tail = remainder - head
+                    total_l = np.random.lognormal(np.log(median_l + sd_l ** 2 / 2), sd_l, i)
+                    ref_l = total_l - remainder_l
 
-                # Extract middle region from reference genome
-                new_read, new_read_name = extract_read(dna_type, middle_ref)
-                new_read_name = new_read_name + "_aligned_" + str(sequence_index)
+                ref_l = [x for x in ref_l if x > 0]
 
-                # Mutate read
-                new_read = case_convert(new_read)
-                read_mutated, hp_pos, error_dict = mutate_homo(new_read, kmer_bias, error_dict)
-                error_dict = remove_err_in_homo(hp_pos, error_dict)  # Remove ins and del in error_dict that land in hp
-                read_mutated = mutate_read(read_mutated, new_read_name, out_error, error_dict, kmer_bias)
+            for j in xrange(len(ref_l)):
+                # check if the total length fits the criteria
+                ref = int(ref_l[j])
 
-            # Reverse complement half of the reads
-            p = random.random()
-            if p < strandness_rate:
-                read_mutated = reverse_complement(read_mutated)
-                new_read_name += "_R"
-            else:
-                new_read_name += "_F"
+                if per:
+                    with total_simulated.get_lock():
+                        sequence_index = total_simulated.value
+                        total_simulated.value += 1
 
-            if per:
-                out_reads.write(">" + new_read_name + "_0_" + str(ref) + "_0" + '\n')
-            else:
-                # Add head and tail region
-                read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated + \
-                               ''.join(np.random.choice(BASES, tail))
+                    # Extract middle region from reference genome
+                    new_read, new_read_name = extract_read(dna_type, ref)
+                    new_read_name = new_read_name + "_perfect_" + str(sequence_index)
+                    read_mutated = case_convert(
+                        new_read)  # not mutated actually, just to be consistent with per == False
+                else:
+                    middle, middle_ref, error_dict = error_list(ref, match_markov_model, match_ht_list, error_par,
+                                                                trans_error_pr)
+                    remainder = int(remainder_l[j])
+                    head_vs_ht_ratio = head_vs_ht_ratio_l[j]
 
-                out_reads.write(">" + new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" +
-                                str(tail) + '\n')
-            out_reads.write(read_mutated + '\n')
+                    total = remainder + middle
 
-            if (sequence_index + 1) % 100 == 0:
-                sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
-                                 str(sequence_index + 1) + "\r")
-                # +1 is just to ignore the zero index by python
-                sys.stdout.flush()
+                    if total < min_l or total > max_l or head_vs_ht_ratio < 0 or head_vs_ht_ratio > 1 or \
+                            middle_ref > max_chrom or total > max_chrom:
+                        continue
 
-            passed += 1
-        i = num_simulate - passed
+                    with total_simulated.get_lock():
+                        sequence_index = total_simulated.value
+                        total_simulated.value += 1
 
-    out_reads.close()
-    out_error.close()
+                    if remainder == 0:
+                        head = 0
+                        tail = 0
+                    else:
+                        head = int(round(remainder * head_vs_ht_ratio))
+                        tail = remainder - head
+
+                    # Extract middle region from reference genome
+                    new_read, new_read_name = extract_read(dna_type, middle_ref)
+                    new_read_name = new_read_name + "_aligned_" + str(sequence_index)
+
+                    # Mutate read
+                    new_read = case_convert(new_read)
+                    read_mutated, error_dict = mutate_homo(new_read, kmer_bias, error_dict)
+                    read_mutated = mutate_read(read_mutated, new_read_name, out_error, error_dict, kmer_bias)
+
+                # Reverse complement half of the reads
+                p = random.random()
+                if p < strandness_rate:
+                    read_mutated = reverse_complement(read_mutated)
+                    new_read_name += "_R"
+                else:
+                    new_read_name += "_F"
+
+                if per:
+                    out_reads.write(">" + new_read_name + "_0_" + str(ref) + "_0" + '\n')
+                else:
+                    # Add head and tail region
+                    read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated + \
+                                   ''.join(np.random.choice(BASES, tail))
+
+                    out_reads.write(">" + new_read_name + "_" + str(head) + "_" + str(middle_ref) + "_" +
+                                    str(tail) + '\n')
+                out_reads.write(read_mutated + '\n')
+
+                if (sequence_index + 1) % 100 == 0:
+                    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
+                                     str(sequence_index + 1) + "\r")
+                    # +1 is just to ignore the zero index by python
+                    sys.stdout.flush()
+
+                passed += 1
+            i = num_simulate - passed
+
+        out_reads.close()
+        out_error.close()
 
 
 def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias, num_simulate, uracil):
@@ -884,8 +858,7 @@ def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_
             new_read_name = new_read_name + "_unaligned_" + str(sequence_index)
             # Change lowercase to uppercase and replace N with any base
             new_read = case_convert(new_read)
-            read_mutated, hp_pos, error_dict = mutate_homo(new_read, kmer_bias, error_dict)
-            error_dict = remove_err_in_homo(hp_pos, error_dict, False)
+            read_mutated, error_dict = mutate_homo(new_read, kmer_bias, error_dict)
             read_mutated = mutate_read(read_mutated, new_read_name, out_error, error_dict, kmer_bias, False)
 
             # Reverse complement some of the reads based on direction information
@@ -976,6 +949,7 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, num_threads, m
         for fname in aligned_subfiles:
             with open(fname) as infile:
                 out_aligned_reads.write(infile.read())
+
     for fname in aligned_subfiles:
         os.remove(fname)
 
