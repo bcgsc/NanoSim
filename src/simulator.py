@@ -433,27 +433,28 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp,
             kde_aligned_2d = joblib.load(model_prefix + "_aligned_region_2d.pkl")
 
 
-def get_homo_nd_params(ref_len, base):  # TODO: May want to add parameter for basecaller to deal with albacore sim
+def get_homo_nd_params(ref_len, base):
     if base == "A/T":
-        if ref_len < 24:  # changepoint
-            mu = 0.7721 * ref_len + 0.4517
+        if ref_len <= 26:  # changepoint
+            slope = 0.81033
+            y_int = 0.02237
         else:
-            y_at_x24 = (0.7721 * 24) + 0.4517  # Y = (slope1 * X0) + intercept1
-            y_int = y_at_x24 - (0.2509 * 24)  # intercept2 = Y - (slope2 * X0)
-            mu = 0.2509 * ref_len + y_int
+            slope = 0.2835
+            y_int = 13.71995
 
         sigma = 0.2013 * ref_len + 0.2159
 
     else:  # "C/G"
-        if ref_len < 11:  # changepoint
-            mu = 0.2380 * ref_len + 2.9573
+        if ref_len <= 10:  # changepoint
+            slope = 0.2380
+            y_int = 2.9573
         else:
-            y_at_x24 = (0.2380 * 11) + 2.9573  # Y = (slope1 * X0) + intercept1
-            y_int = y_at_x24 - (0.00022633 * 11)  # intercept2 = Y - (slope2 * X0)
-            mu = -0.00022633 * ref_len + y_int
+            slope = -0.00022633
+            y_int = 5.4929
 
         sigma = 0.1514 * ref_len + 0.5611
 
+    mu = slope * ref_len + y_int
     return mu, sigma
 
 
