@@ -27,7 +27,6 @@ def kde2d(x, y):
 
 
 def get_head_tail(cigar_string):
-
     head_info = cigar_string[0]
     tail_info = cigar_string[-1]
 
@@ -101,34 +100,78 @@ def head_align_tail(*args):
         sam_reader = HTSeq.SAM_Reader
         alnm_file = alnm_file_prefix + "_primary.sam"
         alignments = sam_reader(alnm_file)
+        last_read = ''
+        aligned_ref = 0
         for alnm in alignments:
+            read = alnm.read.name
             ref = alnm.iv.chrom
-            aligned_ref = alnm.iv.length
             if mode == "transcriptome":
                 total_ref = dict_ref_len[ref]
                 total_ref_length.append(total_ref)
-            aligned_ref_length.append(aligned_ref)
+                aligned_ref_length.append(alnm.iv.length)
+                read_len_total = len(alnm.read.seq)
+                total_length.append(read_len_total)
+                head, tail = get_head_tail(alnm.cigar)
 
-            read_len_total = len(alnm.read.seq)
-            total_length.append(read_len_total)
-            head, tail = get_head_tail(alnm.cigar)
-            middle = read_len_total - head - tail
+            else:
+                if read == last_read:
+                    flag = False
+                    aligned_ref += alnm.iv.length
+                    head_new, tail_new = get_head_tail(alnm.cigar)
+                    start_new = alnm.iv.start
+                    if (alnm.iv.strand == '+' and start_new > start) or (alnm.iv.strand == '-' and start_new < start):
+                        head = head_new
+                        tail = tail
+                    elif (alnm.iv.strand == '-' and start_new > start) or (alnm.iv.strand == '+' and start_new < start):
+                        head = head
+                        tail = tail_new
+                else:
+                    flag = True
+                    if aligned_ref != 0:
+                        aligned_ref_length.append(aligned_ref)
+                        total_length.append(read_len_total)
+                    last_read = alnm.read.name
+                    aligned_ref = alnm.iv.length
+                    read_len_total = len(alnm.read.seq)
+                    head, tail = get_head_tail(alnm.cigar)
+                    start = alnm.iv.start
 
-            # ratio aligned part over total length of the read
-            ratio = float(middle) / read_len_total
-            ht = head + tail
-            ht_length.append(ht)
-            if head != 0:
-                r = float(head) / ht
-                head_vs_ht_ratio.append(r)
+                    middle = read_len_total - head - tail
 
-            out1.write(str(read_len_total) + '\n')
-            out2.write(str(middle) + '\n')
-            out3.write(str(alnm.read.name) + '\t' + str(head) + '\n')
-            out4.write(str(aligned_ref) + '\n')
-            out5.write(str(ht) + '\n')
-            out6.write(str(ratio) + '\n')
-            out7.write(str(tail) + '\n')
+                    # ratio aligned part over total length of the read
+                    ratio = float(middle) / read_len_total
+                    ht = head + tail
+                    ht_length.append(ht)
+                    if head != 0:
+                        r = float(head) / ht
+                        head_vs_ht_ratio.append(r)
+
+                    out1.write(str(read_len_total) + '\n')
+                    out2.write(str(middle) + '\n')
+                    out3.write(str(alnm.read.name) + '\t' + str(head) + '\n')
+                    out4.write(str(aligned_ref) + '\n')
+                    out5.write(str(ht) + '\n')
+                    out6.write(str(ratio) + '\n')
+                    out7.write(str(tail) + '\n')
+
+    if not flag:
+        aligned_ref_length.append(aligned_ref)
+        total_length.append(read_len_total)
+        middle = read_len_total - head - tail
+        ratio = float(middle) / read_len_total
+        ht = head + tail
+        ht_length.append(ht)
+        if head != 0:
+            r = float(head) / ht
+            head_vs_ht_ratio.append(r)
+
+        out1.write(str(read_len_total) + '\n')
+        out2.write(str(middle) + '\n')
+        out3.write(str(alnm.read.name) + '\t' + str(head) + '\n')
+        out4.write(str(aligned_ref) + '\n')
+        out5.write(str(ht) + '\n')
+        out6.write(str(ratio) + '\n')
+        out7.write(str(tail) + '\n')
 
     out1.close()
     out2.close()

@@ -12,15 +12,15 @@ def primary_and_unaligned(sam_alnm_file, prefix):
     num_aligned = 0
     sam_reader = HTSeq.SAM_Reader
     alignments = sam_reader(sam_alnm_file)
-    for alnm in alignments:
-        if alnm.aligned and (not alnm.not_primary_alignment and not alnm.supplementary):
-            out_primary.write(alnm.original_sam_line)
+    for aln in alignments:
+        if aln.aligned and (not aln.not_primary_alignment and not aln.supplementary):
+            out_primary.write(aln.original_sam_line)
             num_aligned += 1
-            if alnm.flag == 0:
+            if aln.flag == 0:
                 pos_strand += 1
 
-        elif not alnm.aligned:
-            unaligned_len.append(len(alnm.read.seq))
+        elif not aln.aligned:
+            unaligned_len.append(len(aln.read.seq))
 
     strandness = float(pos_strand) / num_aligned
     out_primary.close()

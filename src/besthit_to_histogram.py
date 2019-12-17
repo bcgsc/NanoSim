@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 
 from __future__ import with_statement
-import numpy
 import HTSeq
 import re
-import itertools
 
 try:
     from six.moves import xrange

@@ -21,6 +21,7 @@ from sklearn.externals import joblib
 import head_align_tail_dist as align
 import get_besthit_maf
 import get_primary_sam
+import get_primary_sam_circular
 import besthit_to_histogram as error_model
 import model_fitting
 import model_intron_retention as model_ir
@@ -128,7 +129,7 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g
     return t_alnm_ext, unaligned_length, g_alnm, t_alnm, strandness
 
 
-def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, post=True):
+def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, circular, meta_list=''):
     num_threads = str(num_threads)
 
     # if an alignment file is not provided
@@ -145,9 +146,6 @@ def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, post=Tru
             call("lastdb ref_genome " + ref_g, shell=True)
             call("lastal -a 1 -P " + num_threads + " ref_genome " + in_fasta + " " + g_alnm, shell=True)
 
-    if not post:
-        return
-
     # post-process
     pre, file_ext = os.path.splitext(g_alnm)
     file_extension = file_ext[1:]
@@ -161,7 +159,10 @@ def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, post=Tru
 
     elif file_extension == "sam":
         # get the primary alignments and define unaligned reads.
-        unaligned_length, strandness = get_primary_sam.primary_and_unaligned(g_alnm, prefix)
+        if circular:
+            unaligned_length, strandness = get_primary_sam_circular.primary_and_unaligned(g_alnm, prefix, meta_list)
+        else:
+            unaligned_length, strandness = get_primary_sam.primary_and_unaligned(g_alnm, prefix)
 
     return file_extension, unaligned_length, strandness
 
@@ -242,6 +243,8 @@ def main():
     parser_g.add_argument('-ga', '--g_alnm', help='Genome alignment file in sam or maf format (optional)', default='')
     parser_g.add_argument('-o', '--output', help='The location and prefix of outputting profiles (Default = training)',
                           default='training')
+    parser_g.add_argument('-c', '--circular', help='Circularity of the reference genome (Default = False)',
+                          action='store_true', default=False)
     parser_g.add_argument('--no_model_fit', help='Disable model fitting step', action='store_false', default=True)
     parser_g.add_argument('-t', '--num_threads', help='Number of threads for alignment and model fitting (Default = 1)',
                           type=int, default=1)
@@ -279,6 +282,8 @@ def main():
                                                          '(optional)', default='')
     parser_m.add_argument('-o', '--output', help='The location and prefix of outputting profiles (Default = training)',
                           default='training')
+    parser_m.add_argument('-c', '--circular', help='Circularity of the reference genome (Default = False)',
+                          action='store_true', default=False)
     parser_m.add_argument('--no_model_fit', help='Disable model fitting step', action='store_false', default=True)
     parser_m.add_argument('-t', '--num_threads', help='Number of threads for alignment and model fitting (Default = 1)',
                           type=int, default=1)
@@ -417,6 +422,7 @@ def main():
         prefix = args.output
         num_threads = args.num_threads
         model_fit = args.no_model_fit
+        circularity = args.circular
 
         # check validity of parameters
         if g_alnm != '':
@@ -439,6 +445,7 @@ def main():
         print("prefix", prefix)
         print("num_threads", num_threads)
         print("model_fit", model_fit)
+        print("circularity", circularity)
 
         dir_name = os.path.dirname(prefix)
         if dir_name != '':
@@ -457,7 +464,8 @@ def main():
                 processed_fasta.write('>' + chr_name + '\n' + seqS + '\n')
         processed_fasta.close()
 
-        alnm_ext, unaligned_length, strandness = align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g)
+        alnm_ext, unaligned_length, strandness = align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g,
+                                                              circularity)
 
         # Aligned reads analysis
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
@@ -472,6 +480,7 @@ def main():
         prefix = args.output
         num_threads = args.num_threads
         model_fit = args.no_model_fit
+        circularity = args.circular
 
         # check validity of parameters
         if g_alnm != '':
@@ -491,6 +500,7 @@ def main():
         print("prefix", prefix)
         print("num_threads", num_threads)
         print("model_fit", model_fit)
+        print("circularity", circularity)
 
         dir_name = os.path.dirname(prefix)
         if dir_name != '':
@@ -514,28 +524,30 @@ def main():
         with open(genome_list, 'r') as f:
             for line in f:
                 info = line.split('\t')
-                species = info[0]
-                metagenome_list[species] = {'path': info[1][:-1]}
+                species = '-'.join(info[0].split())
+                metagenome_list[species] = {'path': info[1], 'type': info[2][:-1]}
 
         if exp_proportion != '':
             with open(exp_proportion, 'r') as f:
                 for line in f:
                     info = line.split('\t')
-                    if info[0] not in metagenome_list:
-                        print(info[0])
+                    species = '-'.join(info[0].split())
+                    if species not in metagenome_list:
+                        print(species)
                         sys.stderr.write("The species name in the expected proportion list has to match the one in the "
                                          "reference genome list!\n")
                         sys.exit(1)
                     else:
-                        metagenome_list[info[0]]['exp'] = float(info[1])
+                        metagenome_list[species]['exp'] = float(info[1])
 
         ref_g = concatenate_genomes(metagenome_list)
 
-        alnm_ext, unaligned_length, strandness = align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g)
+        alnm_ext, unaligned_length, strandness = align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g,
+                                                              circularity, metagenome_list)
 
         # Aligned reads analysis
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
-        num_aligned = align.head_align_tail(prefix, alnm_ext, args.mode)\
+        num_aligned = align.head_align_tail(prefix, alnm_ext, args.mode)
 
     if args.mode == "transcriptome":
         infile = args.read
