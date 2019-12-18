@@ -252,12 +252,13 @@ def get_length_kde(kde, num, log=False, flatten=True):
         return length_list
 
 
-def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp, model_ir, dna_type):
+def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp, model_ir, dna_type, basecaller):
     global number_aligned, number_unaligned
     global match_ht_list, error_par, trans_error_pr, match_markov_model
     global kde_aligned, kde_ht, kde_ht_ratio, kde_unaligned, kde_aligned_2d
     global seq_dict, seq_len, max_chrom
     global strandness_rate
+    global homo_par
 
     if mode == "genome":
         global genome_len
@@ -366,6 +367,25 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp,
         # Read model profile for match, mismatch, insertion and deletions
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read error profile\n")
         sys.stdout.flush()
+
+        homo_par = {}  # {A/T: {dict_of_par}, C/G {dict_of_par}}
+        with open(model_prefix + "_homo", "r") as homo_params:
+            homo_params.readline()
+            for line in homo_params:
+                info = line.strip().split()
+                if info[0] == basecaller:
+                    hp = info[1]
+                    intercept = float(info[2])
+                    beta1 = float(info[3])
+                    beta2 = float(info[4])
+                    beta3 = float(info[5])
+                    chngpt = float(info[6])
+                    m = float(info[7])
+                    b = float(info[8])
+
+                    homo_par[hp] = {"alpha": intercept, "beta1": beta1, "beta2": beta2, "beta3": beta3,
+                                    "changepoint": chngpt, "m": m, "b": b}
+
         error_par = {}
         model_profile = model_prefix + "_model_profile"
         with open(model_profile, 'r') as mod_profile:
@@ -435,30 +455,36 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp,
 
 def get_homo_nd_params(ref_len, base):
     if base == "A/T":
-        if ref_len <= 26:  # changepoint
-            slope = 0.81033
-            y_int = 0.02237
-        else:
-            slope = 0.2835
-            y_int = 13.71995
-
-        sigma = 0.2013 * ref_len + 0.2159
+        alpha = homo_par["A/T"]["alpha"]
+        beta1 = homo_par["A/T"]["beta1"]
+        beta2 = homo_par["A/T"]["beta2"]
+        beta3 = homo_par["A/T"]["beta3"]
+        changepoint = homo_par["A/T"]["changepoint"]
+        sigma = homo_par["A/T"]["m"] * ref_len + homo_par["A/T"]["b"]
 
     else:  # "C/G"
-        if ref_len <= 10:  # changepoint
-            slope = 0.2380
-            y_int = 2.9573
-        else:
-            slope = -0.00022633
-            y_int = 5.4929
+        alpha = homo_par["C/G"]["alpha"]
+        beta1 = homo_par["C/G"]["beta1"]
+        beta2 = homo_par["C/G"]["beta2"]
+        beta3 = homo_par["C/G"]["beta3"]
+        changepoint = homo_par["C/G"]["changepoint"]
+        sigma = homo_par["C/G"]["m"] * ref_len + homo_par["C/G"]["b"]
 
-        sigma = 0.1514 * ref_len + 0.5611
+    # Calculating mu from M22c threshold regression model (chngpt package)
+    if ref_len > changepoint:
+        xe2 = 0
+        xe3 = ref_len - changepoint
+    else:
+        xe2 = ref_len - changepoint
+        xe3 = 0
 
-    mu = slope * ref_len + y_int
+    xe1 = ref_len - changepoint
+    mu = alpha + beta1 * xe1 + beta2 * xe2**2 + beta3 * xe3**2
+
     return mu, sigma
 
 
-def mutate_homo(seq, k, err_dict):
+def mutate_homo(seq, k):
     hp_arr = []  # [[base, start, end], ...]
     hp_length_hist = {}  # {length: {A/T: count, C/G: count} ...}
     hp_samples = {}  # {length: {A/T: [sample], C/G: [sample]} ...}
@@ -503,12 +529,7 @@ def mutate_homo(seq, k, err_dict):
         base = hp_info[0]
         ref_hp_start = hp_info[1]
         ref_hp_end = hp_info[2]
-        adj_hp_start = hp_info[1] + total_hp_size_change
-        adj_hp_end = hp_info[2] + total_hp_size_change
 
-        # mu, sigma = get_homo_nd_params(hp_end - hp_start)
-        # size = round(np.random.normal(mu, sigma, 1)[0])
-        # size = int(np.random.normal(mu, sigma, 1)[0])
         if base == "A" or base == "T":
             size = round(hp_samples[ref_hp_end - ref_hp_start]["A/T"][-1])
             hp_samples[ref_hp_end - ref_hp_start]["A/T"] = hp_samples[ref_hp_end - ref_hp_start]["A/T"][:-1]
@@ -517,36 +538,23 @@ def mutate_homo(seq, k, err_dict):
             hp_samples[ref_hp_end - ref_hp_start]["C/G"] = hp_samples[ref_hp_end - ref_hp_start]["C/G"][:-1]
 
         mutated_hp = base * int(size)
+        mutated_hp_with_mis = ""
+        for old_base in mutated_hp:
+            p = random.random()
+            if 0 < p <= 0.02215:
+                tmp_bases = list(BASES)
+                new_base = old_base
+                while new_base != old_base:
+                    new_base = random.choice(tmp_bases)
+                mutated_hp_with_mis += new_base
+            else:
+                mutated_hp_with_mis += old_base
         mutated_seq = mutated_seq + seq[last_pos: ref_hp_start] + mutated_hp
 
-        err_dict = adjust_err_dict([adj_hp_start, adj_hp_end, int(size) - (ref_hp_end - ref_hp_start)], err_dict)
         total_hp_size_change += int(size) - (ref_hp_end - ref_hp_start)
         last_pos = ref_hp_end
 
-    return mutated_seq + seq[last_pos:], err_dict
-
-
-def adjust_err_dict(hp, err_dict):
-    hp_start = hp[0]
-    hp_end = hp[1]
-    size_changed = hp[2]
-
-    # Adjust positions of errors due to changes in hp size
-    adjusted_err_dict = {}
-    for key in err_dict.keys():
-        err = err_dict[key][0]
-        err_start = int(key)
-        err_end = int(key) + err_dict[key][1]
-
-        if hp_end <= err_start:  # Error occurs after hp
-            adjusted_err_dict[key + size_changed] = err_dict[key]
-        elif err_end <= hp_start:  # Error occurs before hp
-            adjusted_err_dict[key] = err_dict[key]
-        else:  # Error occurs in hp
-            if err == "mis" and err_end <= hp_end + size_changed:  # Error lands within mutated hp
-                adjusted_err_dict[key] = err_dict[key]
-
-    return adjusted_err_dict
+    return mutated_seq + seq[last_pos:]
 
 
 # Taken from https://github.com/lh3/readfq
@@ -694,8 +702,9 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
 
             # Mutate read
             new_read = case_convert(new_read)
-            read_mutated, error_dict = mutate_homo(new_read, kmer_bias, error_dict)
-            read_mutated = mutate_read(read_mutated, new_read_name, out_error, error_dict, kmer_bias)
+            read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
+            if kmer_bias:
+                read_mutated = mutate_homo(read_mutated, kmer_bias)
 
         # Reverse complement according to strandness rate
         p = random.random()
@@ -796,8 +805,9 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
 
                     # Mutate read
                     new_read = case_convert(new_read)
-                    read_mutated, error_dict = mutate_homo(new_read, kmer_bias, error_dict)
-                    read_mutated = mutate_read(read_mutated, new_read_name, out_error, error_dict, kmer_bias)
+                    read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
+                    if kmer_bias:
+                        read_mutated = mutate_homo(read_mutated, kmer_bias)
 
                 # Reverse complement half of the reads
                 p = random.random()
@@ -859,8 +869,9 @@ def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_
             new_read_name = new_read_name + "_unaligned_" + str(sequence_index)
             # Change lowercase to uppercase and replace N with any base
             new_read = case_convert(new_read)
-            read_mutated, error_dict = mutate_homo(new_read, kmer_bias, error_dict)
-            read_mutated = mutate_read(read_mutated, new_read_name, out_error, error_dict, kmer_bias, False)
+            read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
+            if kmer_bias:
+                read_mutated = mutate_homo(read_mutated, kmer_bias)
 
             # Reverse complement some of the reads based on direction information
             p = random.random()
@@ -1180,8 +1191,35 @@ def error_list(m_ref, m_model, m_ht_list, error_p, trans_p):
 
 
 def mutate_read(read, read_name, error_log, e_dict, k, aligned=True):
-    for key in sorted(e_dict.keys(), reverse=True):
-        val = e_dict[key]
+    if k:  # First remove any errors that land in hp regions
+        pattern = "A{" + re.escape(str(k)) + ",}|C{" + re.escape(str(k)) + ",}|G{" + re.escape(str(k)) + ",}|T{" + \
+                  re.escape(str(k)) + ",}"
+
+        hp_pos = []  # [[start, end], ...]
+        for match in re.finditer(pattern, read):
+            hp_pos.append([match.start(), match.end()])
+
+        new_e_dict = {}
+        for err_start in e_dict.keys():
+            err = e_dict[err_start][0]
+            err_end = err_start + e_dict[err_start][1]
+            hp_err = False
+
+            for hp in hp_pos:
+                hp_start = hp[0]
+                hp_end = hp[1]
+                if not (hp_end <= err_start or err_end <= hp_start):  # Lands in hp
+                    hp_err = True
+                    break
+
+            if not hp_err:
+                new_e_dict[err_start] = [err, e_dict[err_start][1]]
+    else:
+        new_e_dict = e_dict
+
+    # Mutate read
+    for key in sorted(new_e_dict.keys(), reverse=True):
+        val = new_e_dict[key]
         key = int(round(key))
 
         if val[0] == "mis":
@@ -1255,7 +1293,8 @@ def main():
     parser_g.add_argument('-sd', '--sd_len', help='The standard deviation of read length in log scale (Default = None)',
                           type=float, default=None)
     parser_g.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
-    parser_g.add_argument('-k', '--KmerBias', help='Enable k-mer bias simulation', type=int, default=5)
+    parser_g.add_argument('-k', '--KmerBias', help='Enable k-mer bias simulation', type=int, default=None)
+    parser_g.add_argument('-b', '--basecaller', help='Simulate k-mer bias from basecaller', default=None)
     parser_g.add_argument('-s', '--strandness', help='Percentage of antisense sequences. Overrides the value profiled '
                                                      'in characterization stage. Should be between 0 and 1',
                           type=float, default=None)
@@ -1283,7 +1322,8 @@ def main():
     parser_t.add_argument('-min', '--min_len', help='The minimum length for simulated reads (Default = 50)',
                           type=int, default=50)
     parser_t.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
-    parser_t.add_argument('-k', '--KmerBias', help='Enable k-mer bias simulation', type=int, default=5)
+    parser_t.add_argument('-k', '--KmerBias', help='Enable k-mer bias simulation', type=int, default=None)
+    parser_t.add_argument('-b', '--basecaller', help='Simulate k-mer bias from basecaller', default=None)
     parser_t.add_argument('-s', '--strandness', help='Percentage of antisense sequences. Overrides the value profiled '
                                                      'in characterization stage. Should be between 0 and 1',
                           type=float, default=None)
@@ -1313,6 +1353,7 @@ def main():
             np.random.seed(int(args.seed))
         perfect = args.perfect
         kmer_bias = args.KmerBias
+        basecaller = args.basecaller
         strandness = args.strandness
         dna_type = args.dna_type
         num_threads = max(args.num_threads, 1)
@@ -1359,7 +1400,7 @@ def main():
         if dir_name != '':
             call("mkdir -p " + dir_name, shell=True)
 
-        read_profile(ref_g, None, number, model_prefix, perfect, args.mode, strandness, None, False, dna_type)
+        read_profile(ref_g, None, number, model_prefix, perfect, args.mode, strandness, None, False, dna_type, basecaller)
 
         if median_len and sd_len:
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Simulating read length with log-normal distribution\n")
@@ -1379,6 +1420,7 @@ def main():
         max_len = args.max_len
         min_len = args.min_len
         kmer_bias = args.KmerBias
+        basecaller = args.basecaller
         strandness = args.strandness
         perfect = args.perfect
         model_ir = args.no_model_ir
@@ -1430,7 +1472,7 @@ def main():
         if dir_name != '':
             call("mkdir -p " + dir_name, shell=True)
 
-        read_profile(ref_g, ref_t, number, model_prefix, perfect, args.mode, strandness, exp, model_ir, "linear")
+        read_profile(ref_g, ref_t, number, model_prefix, perfect, args.mode, strandness, exp, model_ir, "linear", basecaller)
 
         simulation(args.mode, out, dna_type, perfect, kmer_bias, max_len, min_len, num_threads, None, None, model_ir,
                    uracil)
