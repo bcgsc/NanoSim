@@ -557,6 +557,7 @@ def case_convert(seq):
     return out_seq
 
 
+
 def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, basecaller, num_simulate, per=False,
                                      uracil=False):
     # Simulate aligned reads
