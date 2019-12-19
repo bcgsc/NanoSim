@@ -35,6 +35,7 @@ try:
 except ImportError:
     pass
 import mixed_model as mm
+import norm_distr as nd
 
 PYTHON_VERSION = sys.version_info
 VERSION = "2.5.0"
@@ -252,13 +253,12 @@ def get_length_kde(kde, num, log=False, flatten=True):
         return length_list
 
 
-def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp, model_ir, dna_type, basecaller):
+def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp, model_ir, dna_type):
     global number_aligned, number_unaligned
     global match_ht_list, error_par, trans_error_pr, match_markov_model
     global kde_aligned, kde_ht, kde_ht_ratio, kde_unaligned, kde_aligned_2d
     global seq_dict, seq_len, max_chrom
     global strandness_rate
-    global homo_par
 
     if mode == "genome":
         global genome_len
@@ -368,24 +368,6 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp,
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read error profile\n")
         sys.stdout.flush()
 
-        homo_par = {}  # {A/T: {dict_of_par}, C/G {dict_of_par}}
-        with open(model_prefix + "_homo", "r") as homo_params:
-            homo_params.readline()
-            for line in homo_params:
-                info = line.strip().split()
-                if info[0] == basecaller:
-                    hp = info[1]
-                    intercept = float(info[2])
-                    beta1 = float(info[3])
-                    beta2 = float(info[4])
-                    beta3 = float(info[5])
-                    chngpt = float(info[6])
-                    m = float(info[7])
-                    b = float(info[8])
-
-                    homo_par[hp] = {"alpha": intercept, "beta1": beta1, "beta2": beta2, "beta3": beta3,
-                                    "changepoint": chngpt, "m": m, "b": b}
-
         error_par = {}
         model_profile = model_prefix + "_model_profile"
         with open(model_profile, 'r') as mod_profile:
@@ -453,38 +435,7 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp,
             kde_aligned_2d = joblib.load(model_prefix + "_aligned_region_2d.pkl")
 
 
-def get_homo_nd_params(ref_len, base):
-    if base == "A/T":
-        alpha = homo_par["A/T"]["alpha"]
-        beta1 = homo_par["A/T"]["beta1"]
-        beta2 = homo_par["A/T"]["beta2"]
-        beta3 = homo_par["A/T"]["beta3"]
-        changepoint = homo_par["A/T"]["changepoint"]
-        sigma = homo_par["A/T"]["m"] * ref_len + homo_par["A/T"]["b"]
-
-    else:  # "C/G"
-        alpha = homo_par["C/G"]["alpha"]
-        beta1 = homo_par["C/G"]["beta1"]
-        beta2 = homo_par["C/G"]["beta2"]
-        beta3 = homo_par["C/G"]["beta3"]
-        changepoint = homo_par["C/G"]["changepoint"]
-        sigma = homo_par["C/G"]["m"] * ref_len + homo_par["C/G"]["b"]
-
-    # Calculating mu from M22c threshold regression model (chngpt package)
-    if ref_len > changepoint:
-        xe2 = 0
-        xe3 = ref_len - changepoint
-    else:
-        xe2 = ref_len - changepoint
-        xe3 = 0
-
-    xe1 = ref_len - changepoint
-    mu = alpha + beta1 * xe1 + beta2 * xe2**2 + beta3 * xe3**2
-
-    return mu, sigma
-
-
-def mutate_homo(seq, k):
+def mutate_homo(seq, k, basecaller):
     hp_arr = []  # [[base, start, end], ...]
     hp_length_hist = {}  # {length: {A/T: count, C/G: count} ...}
     hp_samples = {}  # {length: {A/T: [sample], C/G: [sample]} ...}
@@ -512,13 +463,12 @@ def mutate_homo(seq, k):
     # Obtaining samples from normal distributions
     for length in hp_length_hist.keys():
         hp_samples[length] = {}
+        at_mu, at_sigma, cg_mu, cg_sigma = nd.get_nd_par(length, basecaller)
 
         if hp_length_hist[length]["A/T"] > 0:
-            at_mu, at_sigma = get_homo_nd_params(length, "A/T")
             hp_samples[length]["A/T"] = np.random.normal(at_mu, at_sigma, hp_length_hist[length]["A/T"])
 
         if hp_length_hist[length]["C/G"] > 0:
-            cg_mu, cg_sigma = get_homo_nd_params(length, "C/G")
             hp_samples[length]["C/G"] = np.random.normal(cg_mu, cg_sigma, hp_length_hist[length]["C/G"])
 
     # Mutating homopolymers in given sequence
@@ -607,7 +557,8 @@ def case_convert(seq):
     return out_seq
 
 
-def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, num_simulate, per=False, uracil=False):
+def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, basecaller, num_simulate, per=False,
+                                     uracil=False):
     # Simulate aligned reads
     out_reads = open(out_reads, "w")
     out_error = open(out_error, "w")
@@ -704,7 +655,7 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
             new_read = case_convert(new_read)
             read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
             if kmer_bias:
-                read_mutated = mutate_homo(read_mutated, kmer_bias)
+                read_mutated = mutate_homo(read_mutated, kmer_bias, basecaller)
 
         # Reverse complement according to strandness rate
         p = random.random()
@@ -738,8 +689,8 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
     out_error.close()
 
 
-def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias, num_simulate,
-                              per=False):
+def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias, basecaller,
+                              num_simulate, per=False):
         # Simulate aligned reads
         out_reads = open(out_reads, "w")
         out_error = open(out_error, "w")
@@ -807,7 +758,7 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
                     new_read = case_convert(new_read)
                     read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
                     if kmer_bias:
-                        read_mutated = mutate_homo(read_mutated, kmer_bias)
+                        read_mutated = mutate_homo(read_mutated, kmer_bias, basecaller)
 
                 # Reverse complement half of the reads
                 p = random.random()
@@ -841,7 +792,8 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
         out_error.close()
 
 
-def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias, num_simulate, uracil):
+def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias, basecaller,
+                         num_simulate, uracil):
     out_reads = open(out_reads, "w")
     out_error = open(out_error, "w")
 
@@ -871,7 +823,7 @@ def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_
             new_read = case_convert(new_read)
             read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
             if kmer_bias:
-                read_mutated = mutate_homo(read_mutated, kmer_bias)
+                read_mutated = mutate_homo(read_mutated, kmer_bias, basecaller)
 
             # Reverse complement some of the reads based on direction information
             p = random.random()
@@ -899,7 +851,7 @@ def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_
     out_error.close()
 
 
-def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, num_threads, median_l=None, sd_l=None,
+def simulation(mode, out, dna_type, per, kmer_bias, basecaller, max_l, min_l, num_threads, median_l=None, sd_l=None,
                model_ir=False, uracil=False):
     global total_simulated  # Keeps track of number of reads that have been simulated so far
     total_simulated = mp.Value("i", 0, lock=True)
@@ -921,12 +873,12 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, num_threads, m
 
             if i != num_threads - 1:
                 p = mp.Process(target=simulation_aligned_genome, args=(dna_type, min_l, max_l, median_l, sd_l, aligned_subfile,
-                                                           error_subfile, kmer_bias, num_simulate, per))
+                                                           error_subfile, kmer_bias, basecaller, num_simulate, per))
                 procs.append(p)
                 p.start()
             else:  # Last process will simulate the remaining reads
                 p = mp.Process(target=simulation_aligned_genome, args=(dna_type, min_l, max_l, median_l, sd_l, aligned_subfile,
-                                                           error_subfile, kmer_bias,
+                                                           error_subfile, kmer_bias, basecaller,
                                                            num_simulate + number_aligned % num_threads, per))
                 procs.append(p)
                 p.start()
@@ -943,13 +895,15 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, num_threads, m
 
             if i != num_threads - 1:
                 p = mp.Process(target=simulation_aligned_transcriptome, args=(model_ir, aligned_subfile, error_subfile,
-                                                                              kmer_bias, num_simulate, per, uracil))
+                                                                              kmer_bias, basecaller, num_simulate, per,
+                                                                              uracil))
                 procs.append(p)
                 p.start()
             else:
                 p = mp.Process(target=simulation_aligned_transcriptome, args=(model_ir, aligned_subfile, error_subfile,
-                                                                              kmer_bias, num_simulate +
-                                                                              number_aligned % num_threads, per, uracil))
+                                                                              kmer_bias, basecaller,
+                                                                              num_simulate + number_aligned % num_threads,
+                                                                              per, uracil))
                 procs.append(p)
                 p.start()
 
@@ -982,13 +936,14 @@ def simulation(mode, out, dna_type, per, kmer_bias, max_l, min_l, num_threads, m
             if i != num_threads - 1:
                 p = mp.Process(target=simulation_unaligned, args=(dna_type, min_l, max_l, median_l, sd_l,
                                                                    unaligned_subfile, error_subfile, kmer_bias,
-                                                                   num_simulate, uracil))
+                                                                   basecaller, num_simulate, uracil))
                 procs.append(p)
                 p.start()
             else:
                 p = mp.Process(target=simulation_unaligned, args=(dna_type, min_l, max_l, median_l, sd_l,
                                                                   unaligned_subfile, error_subfile, kmer_bias,
-                                                                  num_simulate + number_unaligned % num_threads, uracil))
+                                                                  basecaller, num_simulate + number_unaligned % num_threads,
+                                                                  uracil))
                 procs.append(p)
                 p.start()
 
@@ -1385,6 +1340,7 @@ def main():
         print("number", number)
         print("perfect", perfect)
         print("kmer_bias", kmer_bias)
+        print("basecaller", basecaller)
         print("dna_type", dna_type)
         print("strandness", strandness)
         print("sd_len", sd_len)
@@ -1400,15 +1356,15 @@ def main():
         if dir_name != '':
             call("mkdir -p " + dir_name, shell=True)
 
-        read_profile(ref_g, None, number, model_prefix, perfect, args.mode, strandness, None, False, dna_type, basecaller)
+        read_profile(ref_g, None, number, model_prefix, perfect, args.mode, strandness, None, False, dna_type)
 
         if median_len and sd_len:
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Simulating read length with log-normal distribution\n")
             sys.stdout.flush()
-            simulation(args.mode, out, dna_type, perfect, kmer_bias, max_len, min_len, num_threads, median_len,
-                       sd_len)
+            simulation(args.mode, out, dna_type, perfect, kmer_bias, basecaller, max_len, min_len, num_threads,
+                       median_len, sd_len)
         else:
-            simulation(args.mode, out, dna_type, perfect, kmer_bias, max_len, min_len, num_threads)
+            simulation(args.mode, out, dna_type, perfect, kmer_bias, basecaller, max_len, min_len, num_threads)
 
     elif args.mode == "transcriptome":
         ref_g = args.ref_g
@@ -1457,6 +1413,7 @@ def main():
         print("number", number)
         print("perfect", perfect)
         print("kmer_bias", kmer_bias)
+        print("basecaller", basecaller)
         print("model_ir", model_ir)
         print("dna_type", dna_type)
         print("strandness", strandness)
@@ -1472,10 +1429,10 @@ def main():
         if dir_name != '':
             call("mkdir -p " + dir_name, shell=True)
 
-        read_profile(ref_g, ref_t, number, model_prefix, perfect, args.mode, strandness, exp, model_ir, "linear", basecaller)
+        read_profile(ref_g, ref_t, number, model_prefix, perfect, args.mode, strandness, exp, model_ir, "linear")
 
-        simulation(args.mode, out, dna_type, perfect, kmer_bias, max_len, min_len, num_threads, None, None, model_ir,
-                   uracil)
+        simulation(args.mode, out, dna_type, perfect, kmer_bias, basecaller, max_len, min_len, num_threads, None, None,
+                   model_ir, uracil)
 
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
     sys.stdout.close()
