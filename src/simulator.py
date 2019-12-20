@@ -475,6 +475,7 @@ def mutate_homo(seq, k, basecaller):
     last_pos = 0
     mutated_seq = ""
     total_hp_size_change = 0
+    mis_rate = nd.get_hpmis_rate(basecaller)
     for hp_info in hp_arr:
         base = hp_info[0]
         ref_hp_start = hp_info[1]
@@ -489,7 +490,6 @@ def mutate_homo(seq, k, basecaller):
 
         mutated_hp = base * int(size)
         mutated_hp_with_mis = ""
-        mis_rate = nd.get_hpmis_rate(basecaller)
         for old_base in mutated_hp:
             p = random.random()
             if 0 < p <= mis_rate:
