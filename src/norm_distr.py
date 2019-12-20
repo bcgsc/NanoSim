@@ -34,7 +34,7 @@ def albacore_nd_par(ref_len):
 def guppy_nd_par(ref_len):
     at_xe1, at_xe2, at_xe3 = seg_par(ref_len, 16)
     at_mu = 12.13283713 + 0.71843395 * at_xe1 + 0.00127124 * at_xe2 ** 2 - 0.01429113 * at_xe3 ** 2
-    AT_sigma = 0.2138 * ref_len + 0.4799
+    at_sigma = 0.2138 * ref_len + 0.4799
 
     cg_xe1, cg_xe2, cg_xe3 = seg_par(ref_len, 12)
     cg_mu = 6.13526513 + 0.21219760 * cg_xe1 - 0.01249273 * cg_xe2 ** 2 - 0.04870821 * cg_xe3 ** 2
@@ -53,3 +53,12 @@ def guppy_ff_nd_par(ref_len):
     cg_sigma = 0.1514 * ref_len + 0.5611
 
     return at_mu, at_sigma, cg_mu, cg_sigma
+
+
+def get_hpmis_rate(basecaller):
+    if basecaller == "albacore":
+        return 0.02204
+    elif basecaller == "guppy":
+        return 0.02166
+    elif basecaller == "guppy-flipflop":
+        return 0.02215

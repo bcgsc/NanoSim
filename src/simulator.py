@@ -489,9 +489,10 @@ def mutate_homo(seq, k, basecaller):
 
         mutated_hp = base * int(size)
         mutated_hp_with_mis = ""
+        mis_rate = nd.get_hpmis_rate(basecaller)
         for old_base in mutated_hp:
             p = random.random()
-            if 0 < p <= 0.02215:
+            if 0 < p <= mis_rate:
                 tmp_bases = list(BASES)
                 new_base = old_base
                 while new_base != old_base:
@@ -555,7 +556,6 @@ def case_convert(seq):
     out_seq = ''.join(up_list)
 
     return out_seq
-
 
 
 def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, basecaller, num_simulate, per=False,
