@@ -1250,7 +1250,9 @@ def main():
                           type=float, default=None)
     parser_g.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
     parser_g.add_argument('-k', '--KmerBias', help='Enable k-mer bias simulation', type=int, default=None)
-    parser_g.add_argument('-b', '--basecaller', help='Simulate k-mer bias from basecaller', default=None)
+    parser_g.add_argument('-b', '--basecaller', help='Simulate k-mer bias from basecaller: albacore, guppy, '
+                                                     'or guppy-flipflop',
+                          choices=["albacore", "guppy", "guppy-flipflop"], default=None)
     parser_g.add_argument('-s', '--strandness', help='Percentage of antisense sequences. Overrides the value profiled '
                                                      'in characterization stage. Should be between 0 and 1',
                           type=float, default=None)
@@ -1279,7 +1281,9 @@ def main():
                           type=int, default=50)
     parser_t.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
     parser_t.add_argument('-k', '--KmerBias', help='Enable k-mer bias simulation', type=int, default=None)
-    parser_t.add_argument('-b', '--basecaller', help='Simulate k-mer bias from basecaller', default=None)
+    parser_t.add_argument('-b', '--basecaller', help='Simulate k-mer bias from basecaller: albacore, guppy, '
+                                                     'or guppy-flipflop',
+                          choices=["albacore", "guppy", "guppy-flipflop"], default=None)
     parser_t.add_argument('-s', '--strandness', help='Percentage of antisense sequences. Overrides the value profiled '
                                                      'in characterization stage. Should be between 0 and 1',
                           type=float, default=None)
