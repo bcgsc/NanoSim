@@ -242,8 +242,9 @@ __genome mode usage:__
 usage: simulator.py genome [-h] -rg REF_G [-c MODEL_PREFIX] [-o OUTPUT]
                            [-n NUMBER] [-max MAX_LEN] [-min MIN_LEN]
                            [-med MEDIAN_LEN] [-sd SD_LEN] [--seed SEED]
-                           [-k KMERBIAS] [-s STRANDNESS]
-                           [-dna_type {linear,circular}] [--perfect]
+                           [-k KMERBIAS] [-b {albacore,guppy,guppy-flipflop}]
+                           [-s STRANDNESS] [-dna_type {linear,circular}]
+                           [--perfect] [-t NUM_THREADS]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -268,8 +269,9 @@ optional arguments:
                         The standard deviation of read length in log scale
                         (Default = None)
   --seed SEED           Manually seeds the pseudo-random number generator
-  -k KMERBIAS, --KmerBias KMERBIAS
-                        Enable k-mer bias simulation
+  -b {albacore,guppy,guppy-flipflop}, --basecaller {albacore,guppy,guppy-flipflop}
+                        Simulate k-mer bias from basecaller: albacore, guppy,
+                        or guppy-flipflop
   -s STRANDNESS, --strandness STRANDNESS
                         Percentage of antisense sequences. Overrides the value
                         profiled in characterization stage. Should be between
@@ -278,6 +280,8 @@ optional arguments:
                         Specify the dna type: circular OR linear (Default =
                         linear)
   --perfect             Ignore error profiles and simulate perfect reads
+  -t NUM_THREADS, --num_threads NUM_THREADS
+                        Number of threads for simulation (Default = 1)
 
 ```
 
@@ -289,8 +293,10 @@ __transcriptome mode usage:__
 usage: simulator.py transcriptome [-h] -rt REF_T [-rg REF_G] -e EXP
                                   [-c MODEL_PREFIX] [-o OUTPUT] [-n NUMBER]
                                   [-max MAX_LEN] [-min MIN_LEN] [--seed SEED]
-                                  [-k KMERBIAS] [-s STRANDNESS]
-                                  [--no_model_ir] [--perfect]
+                                  [-k KMERBIAS]
+                                  [-b {albacore,guppy,guppy-flipflop}]
+                                  [-s STRANDNESS] [--no_model_ir] [--perfect]
+                                  [-t NUM_THREADS] [--uracil]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -317,12 +323,19 @@ optional arguments:
   --seed SEED           Manually seeds the pseudo-random number generator
   -k KMERBIAS, --KmerBias KMERBIAS
                         Enable k-mer bias simulation
+  -b {albacore,guppy,guppy-flipflop}, --basecaller {albacore,guppy,guppy-flipflop}
+                        Simulate k-mer bias from basecaller: albacore, guppy,
+                        or guppy-flipflop
   -s STRANDNESS, --strandness STRANDNESS
                         Percentage of antisense sequences. Overrides the value
                         profiled in characterization stage. Should be between
                         0 and 1
   --no_model_ir         Simulate intron retention events
   --perfect             Ignore profiles and simulate perfect reads
+  -t NUM_THREADS, --num_threads NUM_THREADS
+                        Number of threads for simulation (Default = 1)
+  --uracil              Converts the thymine (T) bases to uracil (U) in the
+                        output fasta format
 ```
 
 
