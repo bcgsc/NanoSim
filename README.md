@@ -193,11 +193,14 @@ optional arguments:
 
 ```
 
-
 \* NOTICE: -ga/-ta option allows users to provide their own alignment file. Make sure that the name of query sequences are the same as appears in the FASTA files. For FASTA files, some headers have spaces in them and most aligners only take part of the header (before the first white space/tab) as the query name. However, the truncated headers may not be unique if using the output of poretools. We suggest users to pre-process the fasta files by concatenating all elements in the header via '\_' before alignment and feed the processed FASTA file as input of NanoSim.
 
+__Downloads__
+
 Some ONT read profiles are ready to use for users. With the profiles, users can run simulation tool directly. Please go to **[ftp](http://www.bcgsc.ca/downloads/supplementary)** to download.  
-For **releases before v2.2.0**, we provide profiles trained for _E. coli_ or _S. cerevisiae_ datasets. Flowcell chemistry is R7.3 and R9, and they were basecalled by Metrichor. 
+
+For **releases before v2.2.0**, we provide profiles trained for _E. coli_ or _S. cerevisiae_ datasets. Flowcell chemistry is R7.3 and R9, and they were basecalled by Metrichor.  
+
 For **release v2.5.0 and onwards**, we provide profiles trained for _H. sapiens_ NA12878 gDNA, cDNA 1D2, and directRNA datasets, and _Mus. musculus_ cDNA dataset. Flowcell chemistry is R9.4 for all datasets. NA12878 gDNA and directRNA was basecalled by Guppy 3.1.5; NA12878 cDNA 1D2 was basecalled by Albacore 2.1.3; mouse cDNA was basecalled by Metrichor.  
 
 ### 2. Simulation stage
