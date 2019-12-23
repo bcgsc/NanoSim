@@ -1,4 +1,4 @@
-![Release](https://img.shields.io/github/v/release/bcgsc/nanosim?include_prereleases)
+[![Release](https://img.shields.io/github/v/release/bcgsc/nanosim?include_prereleases)](https://github.com/bcgsc/NanoSim/releases)
 [![Downloads](https://img.shields.io/github/downloads/bcgsc/Nanosim/total?logo=github)](https://github.com/bcgsc/NanoSim/archive/v2.5.0.zip)
  [![Stars](https://img.shields.io/github/stars/bcgsc/NanoSim.svg)](https://github.com/bcgsc/NanoSim/stargazers)  
 
