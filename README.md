@@ -1,23 +1,36 @@
+![Release](https://img.shields.io/github/v/release/bcgsc/nanosim?include_prereleases)
+[![Downloads](https://img.shields.io/github/downloads/bcgsc/Nanosim/total?logo=github)](https://github.com/bcgsc/NanoSim/archive/v2.5.0.zip)
+ [![Stars](https://img.shields.io/github/stars/bcgsc/NanoSim.svg)](https://github.com/bcgsc/NanoSim/stargazers)  
+
 ![NanoSim](https://github.com/bcgsc/NanoSim/blob/master/NanoSim%20logo.png)
 
 NanoSim is a fast and scalable read simulator that captures the technology-specific features of ONT data, and allows for adjustments upon improvement of nanopore sequencing technology.  
 
-The second version of NanoSim (v2.0) uses minimap2 as default aligner to align long genomic ONT reads to reference genome. It leads to much faster alignment step and reduces the overall runtime of NanoSim. We also utilize HTSeq, a python package, to read SAM alignment files efficiently.
+The second version of NanoSim (v2.0.0) uses minimap2 as default aligner to align long genomic ONT reads to reference genome. It leads to much faster alignment step and reduces the overall runtime of NanoSim. We also utilize HTSeq, a python package, to read SAM alignment files efficiently.
 
-The latest version of NanoSim [(v2.4-beta)](https://github.com/bcgsc/NanoSim/releases/tag/v2.4-beta) is able to simulate ONT transcriptome reads (cDNA / directRNA) as well as genomic reads. It also models features of the library preparation protocols used, including intron retention (IR) events in cDNA and directRNA reads. Further, it has stand-alone modes which profiles transcript expression patterns and detects IR events in custom datasets.
+The latest version of NanoSim [(v2.5.0)](https://github.com/bcgsc/NanoSim/releases/tag/v2.5.0) is able to simulate ONT transcriptome reads (cDNA / directRNA) as well as genomic reads. It also models features of the library preparation protocols used, including intron retention (IR) events in cDNA and directRNA reads. Further, it has stand-alone modes which profiles transcript expression patterns and detects IR events in custom datasets. Additionally, we improved the homopolymer simulation option which simulates homopolymer expansion and contraction events with respect to chosen basecaller. Multiprocessing option allows for faster runtime for large library simulation.
 
-__Citation__: Chen Yang, Justin Chu, René L Warren, Inanç Birol; NanoSim: nanopore sequence read simulator based on statistical characterization. Gigascience 2017 gix010. doi: 10.1093/gigascience/gix010
+![Citation](https://img.shields.io/badge/NanoSim-manuscript-ff69b4)  
+**NanoSim**  
+Chen Yang, Justin Chu, René L Warren, Inanç Birol; NanoSim: nanopore sequence read simulator based on statistical characterization. Gigascience 2017 gix010. doi: 10.1093/gigascience/gix010  
+
+
+**Trans-NanoSim**  
+Hafezqorani, Saber, Chen Yang, Ka Ming Nip, Rene L. Warren, and Inanc Birol. "Trans-NanoSim characterizes and simulates nanopore RNA-seq data." bioRxiv (2019): 800110.  
+
 
 ## Dependencies
-minimap2 (Tested with version 2.10)  
-LAST (Tested with version 581 and 916)  
-Python (2.7 or >= 3.4)  
+![Python}](https://img.shields.io/pypi/pyversions/py)  
 Python packages:  
 * six  
 * numpy (Tested with version 1.10.1 or above)
-* HTSeq  
+* HTSeq (Tested with version 0.9.1)  
+* Pysam (Tested with version 0.13)  
 * scipy (Tested with verson 1.0.0)  
 * scikit-learn (Tested with version 0.20.0)
+
+minimap2 (Tested with version 2.10 and 2.17)  
+LAST (Tested with version 581 and 916)  
 
 ## Usage
 NanoSim is implemented using Python for error model fitting, read length analysis, and simulation. The first step of NanoSim is read characterization, which provides a comprehensive alignment-based analysis, and generates a set of read profiles serving as the input to the next step, the simulation stage. The simulation tool uses the model built in the previous step to produce in silico reads for a given reference genome/transcriptome. It also outputs a list of introduced errors, consisting of the position on each read, error type and reference bases.
@@ -86,7 +99,7 @@ optional arguments:
 ```
 
 **transcriptome mode**  
-If you are interested in simulating ONT transcriptome reads (cDNA / directRNA), you need to run the characterization stage in "transcriptome" mode with following options. It takes a reference transcriptome and a training read set in FASTA or FASTQ format as input and aligns these reads to the reference using minimap2 (default) or LAST aligner. User can also provide their own alignment file in SAM or MAF formats. If the SAM file is provided, make sure that is MD flag in the SAM file. The output of this is a bunch of profiles which you should use in simulation stage.
+If you are interested in simulating ONT transcriptome reads (cDNA / directRNA), you need to run the characterization stage in "transcriptome" mode with following options. It takes a reference transcriptome, a reference genome, and a training read set in FASTA or FASTQ format as input and aligns these reads to the reference using minimap2 (default) or LAST aligner. User can also provide their own alignment file in SAM or MAF formats. If the SAM file is provided, make sure that is MD flag in the SAM file. The output of this is a bunch of profiles which you should use in simulation stage.
 
 __transcriptome mode usage:__
 ```
@@ -183,8 +196,9 @@ optional arguments:
 
 \* NOTICE: -ga/-ta option allows users to provide their own alignment file. Make sure that the name of query sequences are the same as appears in the FASTA files. For FASTA files, some headers have spaces in them and most aligners only take part of the header (before the first white space/tab) as the query name. However, the truncated headers may not be unique if using the output of poretools. We suggest users to pre-process the fasta files by concatenating all elements in the header via '\_' before alignment and feed the processed FASTA file as input of NanoSim.
 
-~~Some ONT read profiles are ready to use for users. With the profiles, users can run simulation tool directly. Please go to [ftp](ftp://ftp.bcgsc.ca/supplementary/NanoSim/) to download _E. coli_ or _S. cerevisiae_ datasets and profiles.~~  
-UPDATE: For release v2.2.0 onwards, there's no pre-trained profiles to download temporarily. We are working on this for now.
+Some ONT read profiles are ready to use for users. With the profiles, users can run simulation tool directly. Please go to [ftp](http://www.bcgsc.ca/downloads/supplementary) to download.  
+For releases before v2.2.0, we provide profiles trained for _E. coli_ or _S. cerevisiae_ datasets. Flowcell chemistry is R7.3 and R9, and they were basecalled by Metrichor. 
+For release v2.5.0 and onwards, we provide profiles trained for _H. sapiens_ NA12878 gDNA, cDNA 1D2, and directRNA datasets, and _Mus. musculus_ cDNA dataset. Flowcell chemistry is R9.4 for all datasets. NA12878 gDNA and directRNA was basecalled by Guppy 3.1.5; NA12878 cDNA 1D2 was basecalled by Albacore 2.1.3; mouse cDNA was basecalled by Metrichor.  
 
 ### 2. Simulation stage
 Simulation stage takes reference genome/transcriptome and read profiles as input and outputs simulated reads in FASTA format. Simulation stage runs in two modes: "genome" and "transcriptome" and you may use either of them based on your needs.
