@@ -1391,22 +1391,22 @@ def main():
 
         if kmer_bias and kmer_bias < 0:
             print("\nPlease input proper kmer bias value >= 0\n")
-            parser_g.print_help(sys.stderr)
+            parser_t.print_help(sys.stderr)
             sys.exit(1)
 
         if strandness and (strandness < 0 or strandness > 1):
             print("\nPlease input proper strandness value between 0 and 1\n")
-            parser_g.print_help(sys.stderr)
+            parser_t.print_help(sys.stderr)
             sys.exit(1)
 
         if max_len < min_len:
             sys.stderr.write("\nMaximum read length must be longer than Minimum read length!\n")
-            parser_g.print_help(sys.stderr)
+            parser_t.print_help(sys.stderr)
             sys.exit(1)
 
         if model_ir and ref_g == '':
             sys.stderr.write("\nPlease provide a reference genome to simulate intron retention events!\n")
-            parser_g.print_help(sys.stderr)
+            parser_t.print_help(sys.stderr)
             sys.exit(1)
 
         print("\nrunning the code with following parameters:\n")
