@@ -856,119 +856,135 @@ def simulation(mode, out, dna_type, per, kmer_bias, basecaller, max_l, min_l, nu
                model_ir=False, uracil=False):
     global total_simulated  # Keeps track of number of reads that have been simulated so far
     total_simulated = mp.Value("i", 0, lock=True)
-    procs = []
 
     # Start simulation
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of aligned reads\n")
     sys.stdout.flush()
-    aligned_subfiles = []
-    error_subfiles = []
-    num_simulate = int(number_aligned / num_threads)
 
-    if mode == "genome":
-        for i in range(num_threads):
-            aligned_subfile = out + "_aligned_reads{}.fasta".format(i)
-            error_subfile = out + "_error_profile{}.fasta".format(i)
-            aligned_subfiles.append(aligned_subfile)
-            error_subfiles.append(error_subfile)
+    if num_threads == 1:
+        out_aligned = out + "_aligned_reads.fasta"
+        out_unaligned = out + "_unaligned_reads.fasta"
+        out_error = out + "_error_profile.fasta"
+        if mode == "genome":
+            simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_aligned, out_error,
+                                      kmer_bias, basecaller, number_aligned, per)
+        else:
+            simulation_aligned_transcriptome(model_ir, out_aligned, out_error, kmer_bias, basecaller,
+                                             number_aligned, per, uracil)
 
-            if i != num_threads - 1:
-                p = mp.Process(target=simulation_aligned_genome, args=(dna_type, min_l, max_l, median_l, sd_l, aligned_subfile,
+        if not per:
+            simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_unaligned, out_error,
+                             kmer_bias, basecaller, number_unaligned, uracil)
+    else:
+        procs = []
+        aligned_subfiles = []
+        error_subfiles = []
+        num_simulate = int(number_aligned / num_threads)
+
+        if mode == "genome":
+            for i in range(num_threads):
+                aligned_subfile = out + "_aligned_reads{}.fasta".format(i)
+                error_subfile = out + "_error_profile{}.fasta".format(i)
+                aligned_subfiles.append(aligned_subfile)
+                error_subfiles.append(error_subfile)
+
+                if i != num_threads - 1:
+                    p = mp.Process(target=simulation_aligned_genome, args=(dna_type, min_l, max_l, median_l, sd_l, aligned_subfile,
                                                            error_subfile, kmer_bias, basecaller, num_simulate, per))
-                procs.append(p)
-                p.start()
-            else:  # Last process will simulate the remaining reads
-                p = mp.Process(target=simulation_aligned_genome, args=(dna_type, min_l, max_l, median_l, sd_l, aligned_subfile,
+                    procs.append(p)
+                    p.start()
+                else:  # Last process will simulate the remaining reads
+                    p = mp.Process(target=simulation_aligned_genome, args=(dna_type, min_l, max_l, median_l, sd_l, aligned_subfile,
                                                            error_subfile, kmer_bias, basecaller,
                                                            num_simulate + number_aligned % num_threads, per))
-                procs.append(p)
-                p.start()
+                    procs.append(p)
+                    p.start()
 
-        for p in procs:
-            p.join()
+            for p in procs:
+                p.join()
 
-    else:
-        for i in range(num_threads):
-            aligned_subfile = out + "_aligned_reads{}.fasta".format(i)
-            error_subfile = out + "_error_profile{}.fasta".format(i)
-            aligned_subfiles.append(aligned_subfile)
-            error_subfiles.append(error_subfile)
+        else:
+            for i in range(num_threads):
+                aligned_subfile = out + "_aligned_reads{}.fasta".format(i)
+                error_subfile = out + "_error_profile{}.fasta".format(i)
+                aligned_subfiles.append(aligned_subfile)
+                error_subfiles.append(error_subfile)
 
-            if i != num_threads - 1:
-                p = mp.Process(target=simulation_aligned_transcriptome, args=(model_ir, aligned_subfile, error_subfile,
+                if i != num_threads - 1:
+                    p = mp.Process(target=simulation_aligned_transcriptome, args=(model_ir, aligned_subfile, error_subfile,
                                                                               kmer_bias, basecaller, num_simulate, per,
                                                                               uracil))
-                procs.append(p)
-                p.start()
-            else:
-                p = mp.Process(target=simulation_aligned_transcriptome, args=(model_ir, aligned_subfile, error_subfile,
+                    procs.append(p)
+                    p.start()
+                else:
+                    p = mp.Process(target=simulation_aligned_transcriptome, args=(model_ir, aligned_subfile, error_subfile,
                                                                               kmer_bias, basecaller,
                                                                               num_simulate + number_aligned % num_threads,
                                                                               per, uracil))
-                procs.append(p)
-                p.start()
+                    procs.append(p)
+                    p.start()
 
-        for p in procs:
-            p.join()
+            for p in procs:
+                p.join()
 
-    # Merging aligned reads subfiles
-    with open(out + "_aligned_reads.fasta", 'w') as out_aligned_reads:
+        # Merging aligned reads subfiles
+        with open(out + "_aligned_reads.fasta", 'w') as out_aligned_reads:
+            for fname in aligned_subfiles:
+                with open(fname) as infile:
+                    out_aligned_reads.write(infile.read())
+
         for fname in aligned_subfiles:
-            with open(fname) as infile:
-                out_aligned_reads.write(infile.read())
+            os.remove(fname)
 
-    for fname in aligned_subfiles:
-        os.remove(fname)
+        # Simulate unaligned reads, if per, number_unaligned = 0, taken care of in read_ecdf
+        if not per:
+            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of random reads\n")
+            sys.stdout.flush()
+            unaligned_subfiles = []
+            num_simulate = int(number_unaligned / num_threads)
+            for i in range(num_threads):
+                unaligned_subfile = out + "_unaligned_reads{}.fasta".format(i)
+                # Named "num_threads + i" so file name does not overlap with error files from aligned reads
+                error_subfile = out + "_error_profile{}.fasta".format(num_threads + i)
+                unaligned_subfiles.append(unaligned_subfile)
+                error_subfiles.append(error_subfile)
 
-    # Simulate unaligned reads, if per, number_unaligned = 0, taken care of in read_ecdf
-    if not per:
-        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of random reads\n")
-        sys.stdout.flush()
-        unaligned_subfiles = []
-        num_simulate = int(number_unaligned / num_threads)
-        for i in range(num_threads):
-            unaligned_subfile = out + "_unaligned_reads{}.fasta".format(i)
-            # Named "num_threads + i" so file name does not overlap with error files from aligned reads
-            error_subfile = out + "_error_profile{}.fasta".format(num_threads + i)
-            unaligned_subfiles.append(unaligned_subfile)
-            error_subfiles.append(error_subfile)
-
-            # Dividing number of unaligned reads that need to be simulated amongst the number of processes
-            if i != num_threads - 1:
-                p = mp.Process(target=simulation_unaligned, args=(dna_type, min_l, max_l, median_l, sd_l,
+                # Dividing number of unaligned reads that need to be simulated amongst the number of processes
+                if i != num_threads - 1:
+                    p = mp.Process(target=simulation_unaligned, args=(dna_type, min_l, max_l, median_l, sd_l,
                                                                    unaligned_subfile, error_subfile, kmer_bias,
                                                                    basecaller, num_simulate, uracil))
-                procs.append(p)
-                p.start()
-            else:
-                p = mp.Process(target=simulation_unaligned, args=(dna_type, min_l, max_l, median_l, sd_l,
+                    procs.append(p)
+                    p.start()
+                else:
+                    p = mp.Process(target=simulation_unaligned, args=(dna_type, min_l, max_l, median_l, sd_l,
                                                                   unaligned_subfile, error_subfile, kmer_bias,
                                                                   basecaller, num_simulate + number_unaligned % num_threads,
                                                                   uracil))
-                procs.append(p)
-                p.start()
+                    procs.append(p)
+                    p.start()
 
-        for p in procs:
-            p.join()
+            for p in procs:
+                p.join()
 
-        # Merging unaligned reads subfiles
-        with open(out + "_unaligned_reads.fasta", 'w') as out_unaligned_reads:
+            # Merging unaligned reads subfiles
+            with open(out + "_unaligned_reads.fasta", 'w') as out_unaligned_reads:
+                for fname in unaligned_subfiles:
+                    with open(fname) as infile:
+                        out_unaligned_reads.write(infile.read())
+
             for fname in unaligned_subfiles:
+                os.remove(fname)
+
+        # Merging error subfiles
+        with open(out + "_error_profile", 'w') as out_error:
+            out_error.write("Seq_name\tSeq_pos\terror_type\terror_length\tref_base\tseq_base\n")
+            for fname in error_subfiles:
                 with open(fname) as infile:
-                    out_unaligned_reads.write(infile.read())
+                    out_error.write(infile.read())
 
-        for fname in unaligned_subfiles:
-            os.remove(fname)
-
-    # Merging error subfiles
-    with open(out + "_error_profile", 'w') as out_error:
-        out_error.write("Seq_name\tSeq_pos\terror_type\terror_length\tref_base\tseq_base\n")
         for fname in error_subfiles:
-            with open(fname) as infile:
-                out_error.write(infile.read())
-
-    for fname in error_subfiles:
-        os.remove(fname)
+            os.remove(fname)
 
 
 def reverse_complement(seq):
@@ -1391,22 +1407,22 @@ def main():
 
         if kmer_bias and kmer_bias < 0:
             print("\nPlease input proper kmer bias value >= 0\n")
-            parser_t.print_help(sys.stderr)
+            parser_g.print_help(sys.stderr)
             sys.exit(1)
 
         if strandness and (strandness < 0 or strandness > 1):
             print("\nPlease input proper strandness value between 0 and 1\n")
-            parser_t.print_help(sys.stderr)
+            parser_g.print_help(sys.stderr)
             sys.exit(1)
 
         if max_len < min_len:
             sys.stderr.write("\nMaximum read length must be longer than Minimum read length!\n")
-            parser_t.print_help(sys.stderr)
+            parser_g.print_help(sys.stderr)
             sys.exit(1)
 
         if model_ir and ref_g == '':
             sys.stderr.write("\nPlease provide a reference genome to simulate intron retention events!\n")
-            parser_t.print_help(sys.stderr)
+            parser_g.print_help(sys.stderr)
             sys.exit(1)
 
         print("\nrunning the code with following parameters:\n")
