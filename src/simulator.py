@@ -435,7 +435,7 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp,
             kde_aligned_2d = joblib.load(model_prefix + "_aligned_region_2d.pkl")
 
 
-def mutate_homo(seq, k, basecaller):
+def mutate_homo(seq, k, basecaller, read_type):
     hp_arr = []  # [[base, start, end], ...]
     hp_length_hist = {}  # {length: {A/T: count, C/G: count} ...}
     hp_samples = {}  # {length: {A/T: [sample], C/G: [sample]} ...}
@@ -451,42 +451,55 @@ def mutate_homo(seq, k, basecaller):
         base = match.group()[0]
         hp_arr.append([base, hp_start, hp_end])
         if length not in hp_length_hist.keys():
-            hp_length_hist[length] = {"A/T": 0, "C/G": 0}
+            hp_length_hist[length] = {"A": 0, "T": 0, "C": 0, "G": 0}
 
-        if base == "A" or base == "T":
-            key = "A/T"
+        if base == "A":
+            key = "A"
+        elif base == "T":
+            key = "T"
+        elif base == "C":
+            key = "C"
         else:
-            key = "C/G"
+            key = "G"
 
         hp_length_hist[length][key] += 1
 
     # Obtaining samples from normal distributions
     for length in hp_length_hist.keys():
         hp_samples[length] = {}
-        at_mu, at_sigma, cg_mu, cg_sigma = nd.get_nd_par(length, basecaller)
+        a_mu, a_sigma, t_mu, t_sigma, c_mu, c_sigma, g_mu, g_sigma = nd.get_nd_par(length, read_type, basecaller)
 
-        if hp_length_hist[length]["A/T"] > 0:
-            hp_samples[length]["A/T"] = np.random.normal(at_mu, at_sigma, hp_length_hist[length]["A/T"])
-
-        if hp_length_hist[length]["C/G"] > 0:
-            hp_samples[length]["C/G"] = np.random.normal(cg_mu, cg_sigma, hp_length_hist[length]["C/G"])
+        if hp_length_hist[length]["A"] > 0:
+            hp_samples[length]["A"] = np.random.normal(a_mu, a_sigma, hp_length_hist[length]["A"])
+        if hp_length_hist[length]["T"] > 0:
+            hp_samples[length]["T"] = np.random.normal(t_mu, t_sigma, hp_length_hist[length]["T"])
+        if hp_length_hist[length]["C"] > 0:
+            hp_samples[length]["C"] = np.random.normal(c_mu, c_sigma, hp_length_hist[length]["C"])
+        if hp_length_hist[length]["G"] > 0:
+            hp_samples[length]["G"] = np.random.normal(g_mu, g_sigma, hp_length_hist[length]["G"])
 
     # Mutating homopolymers in given sequence
     last_pos = 0
     mutated_seq = ""
     total_hp_size_change = 0
-    mis_rate = nd.get_hpmis_rate(basecaller)
+    mis_rate = nd.get_hpmis_rate(read_type, basecaller)
     for hp_info in hp_arr:
         base = hp_info[0]
         ref_hp_start = hp_info[1]
         ref_hp_end = hp_info[2]
 
-        if base == "A" or base == "T":
-            size = round(hp_samples[ref_hp_end - ref_hp_start]["A/T"][-1])
-            hp_samples[ref_hp_end - ref_hp_start]["A/T"] = hp_samples[ref_hp_end - ref_hp_start]["A/T"][:-1]
+        if base == "A":
+            size = round(hp_samples[ref_hp_end - ref_hp_start]["A"][-1])
+            hp_samples[ref_hp_end - ref_hp_start]["A"] = hp_samples[ref_hp_end - ref_hp_start]["A"][:-1]
+        elif base == "T":
+            size = round(hp_samples[ref_hp_end - ref_hp_start]["T"][-1])
+            hp_samples[ref_hp_end - ref_hp_start]["T"] = hp_samples[ref_hp_end - ref_hp_start]["T"][:-1]
+        elif base == "C":
+            size = round(hp_samples[ref_hp_end - ref_hp_start]["C"][-1])
+            hp_samples[ref_hp_end - ref_hp_start]["C"] = hp_samples[ref_hp_end - ref_hp_start]["C"][:-1]
         else:
-            size = round(hp_samples[ref_hp_end - ref_hp_start]["C/G"][-1])
-            hp_samples[ref_hp_end - ref_hp_start]["C/G"] = hp_samples[ref_hp_end - ref_hp_start]["C/G"][:-1]
+            size = round(hp_samples[ref_hp_end - ref_hp_start]["G"][-1])
+            hp_samples[ref_hp_end - ref_hp_start]["G"] = hp_samples[ref_hp_end - ref_hp_start]["G"][:-1]
 
         mutated_hp = base * int(size)
         mutated_hp_with_mis = ""
@@ -558,8 +571,8 @@ def case_convert(seq):
     return out_seq
 
 
-def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, basecaller, num_simulate, per=False,
-                                     uracil=False):
+def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, basecaller, read_type, num_simulate,
+                                     per=False, uracil=False):
     # Simulate aligned reads
     out_reads = open(out_reads, "w")
     out_error = open(out_error, "w")
@@ -656,7 +669,7 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
             new_read = case_convert(new_read)
             read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
             if kmer_bias:
-                read_mutated = mutate_homo(read_mutated, kmer_bias, basecaller)
+                read_mutated = mutate_homo(read_mutated, kmer_bias, basecaller, read_type)
 
         # Reverse complement according to strandness rate
         p = random.random()
@@ -759,7 +772,7 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
                     new_read = case_convert(new_read)
                     read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
                     if kmer_bias:
-                        read_mutated = mutate_homo(read_mutated, kmer_bias, basecaller)
+                        read_mutated = mutate_homo(read_mutated, kmer_bias, basecaller, None)
 
                 # Reverse complement half of the reads
                 p = random.random()
@@ -793,7 +806,7 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
         out_error.close()
 
 
-def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias, basecaller,
+def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias, basecaller, read_type,
                          num_simulate, uracil):
     out_reads = open(out_reads, "w")
     out_error = open(out_error, "w")
@@ -824,7 +837,7 @@ def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_
             new_read = case_convert(new_read)
             read_mutated = mutate_read(new_read, new_read_name, out_error, error_dict, kmer_bias)
             if kmer_bias:
-                read_mutated = mutate_homo(read_mutated, kmer_bias, basecaller)
+                read_mutated = mutate_homo(read_mutated, kmer_bias, basecaller, read_type)
 
             # Reverse complement some of the reads based on direction information
             p = random.random()
@@ -852,8 +865,8 @@ def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_
     out_error.close()
 
 
-def simulation(mode, out, dna_type, per, kmer_bias, basecaller, max_l, min_l, num_threads, median_l=None, sd_l=None,
-               model_ir=False, uracil=False):
+def simulation(mode, out, dna_type, per, kmer_bias, basecaller, read_type, max_l, min_l, num_threads, median_l=None,
+               sd_l=None, model_ir=False, uracil=False):
     global total_simulated  # Keeps track of number of reads that have been simulated so far
     total_simulated = mp.Value("i", 0, lock=True)
 
@@ -864,17 +877,31 @@ def simulation(mode, out, dna_type, per, kmer_bias, basecaller, max_l, min_l, nu
     if num_threads == 1:
         out_aligned = out + "_aligned_reads.fasta"
         out_unaligned = out + "_unaligned_reads.fasta"
-        out_error = out + "_error_profile.fasta"
+        out_error_aligned = out + "_aligned_error_profile"
+        out_error_unaligned = out + "_unaligned_error_profile"
         if mode == "genome":
-            simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_aligned, out_error,
+            simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_aligned, out_error_aligned,
                                       kmer_bias, basecaller, number_aligned, per)
         else:
-            simulation_aligned_transcriptome(model_ir, out_aligned, out_error, kmer_bias, basecaller,
+            simulation_aligned_transcriptome(model_ir, out_aligned, out_error_aligned, kmer_bias, basecaller,
                                              number_aligned, per, uracil)
 
         if not per:
-            simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_unaligned, out_error,
-                             kmer_bias, basecaller, number_unaligned, uracil)
+            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of random reads\n")
+            sys.stdout.flush()
+
+            simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_unaligned, out_error_unaligned,
+                                 kmer_bias, basecaller, read_type, number_unaligned, uracil)
+
+        with open(out + "_error_profile", "w") as out_error:
+            with open(out_error_aligned) as infile:
+                out_error.write(infile.read())
+
+            with open(out_error_unaligned) as infile:
+                out_error.write(infile.read())
+        os.remove(out_error_aligned)
+        os.remove(out_error_unaligned)
+
     else:
         procs = []
         aligned_subfiles = []
@@ -889,14 +916,17 @@ def simulation(mode, out, dna_type, per, kmer_bias, basecaller, max_l, min_l, nu
                 error_subfiles.append(error_subfile)
 
                 if i != num_threads - 1:
-                    p = mp.Process(target=simulation_aligned_genome, args=(dna_type, min_l, max_l, median_l, sd_l, aligned_subfile,
-                                                           error_subfile, kmer_bias, basecaller, num_simulate, per))
+                    p = mp.Process(target=simulation_aligned_genome, args=(dna_type, min_l, max_l, median_l, sd_l,
+                                                                           aligned_subfile, error_subfile, kmer_bias,
+                                                                           basecaller, num_simulate, per))
                     procs.append(p)
                     p.start()
                 else:  # Last process will simulate the remaining reads
-                    p = mp.Process(target=simulation_aligned_genome, args=(dna_type, min_l, max_l, median_l, sd_l, aligned_subfile,
-                                                           error_subfile, kmer_bias, basecaller,
-                                                           num_simulate + number_aligned % num_threads, per))
+                    p = mp.Process(target=simulation_aligned_genome, args=(dna_type, min_l, max_l, median_l, sd_l,
+                                                                           aligned_subfile, error_subfile, kmer_bias,
+                                                                           basecaller,
+                                                                           num_simulate + number_aligned % num_threads,
+                                                                           per))
                     procs.append(p)
                     p.start()
 
@@ -911,16 +941,16 @@ def simulation(mode, out, dna_type, per, kmer_bias, basecaller, max_l, min_l, nu
                 error_subfiles.append(error_subfile)
 
                 if i != num_threads - 1:
-                    p = mp.Process(target=simulation_aligned_transcriptome, args=(model_ir, aligned_subfile, error_subfile,
-                                                                              kmer_bias, basecaller, num_simulate, per,
-                                                                              uracil))
+                    p = mp.Process(target=simulation_aligned_transcriptome, args=(model_ir, aligned_subfile,
+                                                                                  error_subfile, kmer_bias, basecaller,
+                                                                                  read_type, num_simulate, per, uracil))
                     procs.append(p)
                     p.start()
                 else:
                     p = mp.Process(target=simulation_aligned_transcriptome, args=(model_ir, aligned_subfile, error_subfile,
-                                                                              kmer_bias, basecaller,
-                                                                              num_simulate + number_aligned % num_threads,
-                                                                              per, uracil))
+                                                                                  kmer_bias, basecaller, read_type,
+                                                                                  num_simulate + number_aligned % num_threads,
+                                                                                  per, uracil))
                     procs.append(p)
                     p.start()
 
@@ -952,15 +982,16 @@ def simulation(mode, out, dna_type, per, kmer_bias, basecaller, max_l, min_l, nu
                 # Dividing number of unaligned reads that need to be simulated amongst the number of processes
                 if i != num_threads - 1:
                     p = mp.Process(target=simulation_unaligned, args=(dna_type, min_l, max_l, median_l, sd_l,
-                                                                   unaligned_subfile, error_subfile, kmer_bias,
-                                                                   basecaller, num_simulate, uracil))
+                                                                      unaligned_subfile, error_subfile, kmer_bias,
+                                                                      basecaller, read_type, num_simulate, uracil))
                     procs.append(p)
                     p.start()
                 else:
                     p = mp.Process(target=simulation_unaligned, args=(dna_type, min_l, max_l, median_l, sd_l,
-                                                                  unaligned_subfile, error_subfile, kmer_bias,
-                                                                  basecaller, num_simulate + number_unaligned % num_threads,
-                                                                  uracil))
+                                                                      unaligned_subfile, error_subfile, kmer_bias,
+                                                                      basecaller, read_type,
+                                                                      num_simulate + number_unaligned % num_threads,
+                                                                      uracil))
                     procs.append(p)
                     p.start()
 
@@ -1265,9 +1296,11 @@ def main():
     parser_g.add_argument('-sd', '--sd_len', help='The standard deviation of read length in log scale (Default = None)',
                           type=float, default=None)
     parser_g.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
-    parser_g.add_argument('-k', '--KmerBias', help='Enable k-mer bias simulation', type=int, default=None)
-    parser_g.add_argument('-b', '--basecaller', help='Simulate k-mer bias from basecaller: albacore, guppy, '
-                                                     'or guppy-flipflop',
+    parser_g.add_argument('-k', '--KmerBias', help='Minimum homopolymer length to simulate homopolymer contraction and'
+                                                   'expansion events in',
+                          type=int, default=None)
+    parser_g.add_argument('-b', '--basecaller', help='Simulate homopolymers with respect to chosen basecaller: '
+                                                     'albacore, guppy, or guppy-flipflop',
                           choices=["albacore", "guppy", "guppy-flipflop"], default=None)
     parser_g.add_argument('-s', '--strandness', help='Percentage of antisense sequences. Overrides the value profiled '
                                                      'in characterization stage. Should be between 0 and 1',
@@ -1296,10 +1329,15 @@ def main():
     parser_t.add_argument('-min', '--min_len', help='The minimum length for simulated reads (Default = 50)',
                           type=int, default=50)
     parser_t.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
-    parser_t.add_argument('-k', '--KmerBias', help='Enable k-mer bias simulation', type=int, default=None)
-    parser_t.add_argument('-b', '--basecaller', help='Simulate k-mer bias from basecaller: albacore, guppy, '
-                                                     'or guppy-flipflop',
-                          choices=["albacore", "guppy", "guppy-flipflop"], default=None)
+    parser_t.add_argument('-k', '--KmerBias', help='Minimum homopolymer length to simulate homopolymer contraction and'
+                                                   'expansion events in',
+                          type=int, default=None)
+    parser_t.add_argument('-b', '--basecaller', help='Simulate homopolymers with respect to chosen basecaller: '
+                                                     'albacore or guppy',
+                          choices=["albacore", "guppy"], default=None)
+    parser_t.add_argument('-r', '--read_type', help='Simulate homopolymers with respect to chosen read type: dRNA, '
+                                                    'cDNA_1D or cDNA_1D2',
+                          choices=["dRNA", "cDNA_1D", "cDNA_1D2"], default=None)
     parser_t.add_argument('-s', '--strandness', help='Percentage of antisense sequences. Overrides the value profiled '
                                                      'in characterization stage. Should be between 0 and 1',
                           type=float, default=None)
@@ -1336,6 +1374,11 @@ def main():
 
         if kmer_bias and kmer_bias < 0:
             print("\nPlease input proper kmer bias value >= 0\n")
+            parser_g.print_help(sys.stderr)
+            sys.exit(1)
+
+        if kmer_bias and basecaller == '':
+            print("\nPlease input basecaller to simulate homopolymer contraction and expansion events from\n")
             parser_g.print_help(sys.stderr)
             sys.exit(1)
 
@@ -1382,10 +1425,10 @@ def main():
         if median_len and sd_len:
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Simulating read length with log-normal distribution\n")
             sys.stdout.flush()
-            simulation(args.mode, out, dna_type, perfect, kmer_bias, basecaller, max_len, min_len, num_threads,
+            simulation(args.mode, out, dna_type, perfect, kmer_bias, basecaller, None, max_len, min_len, num_threads,
                        median_len, sd_len)
         else:
-            simulation(args.mode, out, dna_type, perfect, kmer_bias, basecaller, max_len, min_len, num_threads)
+            simulation(args.mode, out, dna_type, perfect, kmer_bias, basecaller, None, max_len, min_len, num_threads)
 
     elif args.mode == "transcriptome":
         ref_g = args.ref_g
@@ -1398,6 +1441,7 @@ def main():
         min_len = args.min_len
         kmer_bias = args.KmerBias
         basecaller = args.basecaller
+        read_type = args.read_type
         strandness = args.strandness
         perfect = args.perfect
         model_ir = args.no_model_ir
@@ -1407,6 +1451,12 @@ def main():
 
         if kmer_bias and kmer_bias < 0:
             print("\nPlease input proper kmer bias value >= 0\n")
+            parser_g.print_help(sys.stderr)
+            sys.exit(1)
+
+        if kmer_bias and (basecaller == '' or read_type == ''):
+            print("\nPlease input basecaller and read_type to simulate homopolymer contraction and expansion events"
+                  "from\n")
             parser_g.print_help(sys.stderr)
             sys.exit(1)
 
@@ -1425,6 +1475,7 @@ def main():
             parser_g.print_help(sys.stderr)
             sys.exit(1)
 
+
         print("\nrunning the code with following parameters:\n")
         print("ref_g", ref_g)
         print("ref_t", ref_t)
@@ -1435,6 +1486,7 @@ def main():
         print("perfect", perfect)
         print("kmer_bias", kmer_bias)
         print("basecaller", basecaller)
+        print("read_type", read_type)
         print("model_ir", model_ir)
         print("dna_type", dna_type)
         print("strandness", strandness)
@@ -1452,8 +1504,8 @@ def main():
 
         read_profile(ref_g, ref_t, number, model_prefix, perfect, args.mode, strandness, exp, model_ir, "linear")
 
-        simulation(args.mode, out, dna_type, perfect, kmer_bias, basecaller, max_len, min_len, num_threads, None, None,
-                   model_ir, uracil)
+        simulation(args.mode, out, dna_type, perfect, kmer_bias, basecaller, read_type, max_len, min_len, num_threads,
+                   None, None, model_ir, uracil)
 
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
     sys.stdout.close()
