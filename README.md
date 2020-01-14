@@ -1,6 +1,7 @@
 [![Release](https://img.shields.io/github/v/release/bcgsc/nanosim?include_prereleases)](https://github.com/bcgsc/NanoSim/releases)
 [![Downloads](https://img.shields.io/github/downloads/bcgsc/Nanosim/total?logo=github)](https://github.com/bcgsc/NanoSim/archive/v2.5.0.zip)
- [![Stars](https://img.shields.io/github/stars/bcgsc/NanoSim.svg)](https://github.com/bcgsc/NanoSim/stargazers)  
+[![Conda](https://img.shields.io/conda/dn/bioconda/nanosim?label=Conda)](https://anaconda.org/bioconda/nanosim)
+[![Stars](https://img.shields.io/github/stars/bcgsc/NanoSim.svg)](https://github.com/bcgsc/NanoSim/stargazers)  
 
 ![NanoSim](https://github.com/bcgsc/NanoSim/blob/master/NanoSim%20logo.png)
 
