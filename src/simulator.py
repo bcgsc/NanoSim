@@ -19,6 +19,7 @@ import random
 import re
 import copy
 import argparse
+import joblib
 from time import strftime
 import numpy as np
 
@@ -27,8 +28,6 @@ if sys.version_info[0] < 3:
     trantab = maketrans("T", "U")
 else:
     trantab = str.maketrans("T", "U")
-
-from sklearn.externals import joblib
 
 try:
     from six.moves import xrange
@@ -884,7 +883,7 @@ def simulation(mode, out, dna_type, per, kmer_bias, basecaller, read_type, max_l
                                       kmer_bias, basecaller, number_aligned, per)
         else:
             simulation_aligned_transcriptome(model_ir, out_aligned, out_error_aligned, kmer_bias, basecaller,
-                                             number_aligned, per, uracil)
+                                             read_type, number_aligned, per, uracil)
 
         if not per:
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of random reads\n")
@@ -1451,28 +1450,28 @@ def main():
 
         if kmer_bias and kmer_bias < 0:
             print("\nPlease input proper kmer bias value >= 0\n")
-            parser_g.print_help(sys.stderr)
+            parser_t.print_help(sys.stderr)
             sys.exit(1)
 
         if kmer_bias and (basecaller == '' or read_type == ''):
             print("\nPlease input basecaller and read_type to simulate homopolymer contraction and expansion events"
                   "from\n")
-            parser_g.print_help(sys.stderr)
+            parser_t.print_help(sys.stderr)
             sys.exit(1)
 
         if strandness and (strandness < 0 or strandness > 1):
             print("\nPlease input proper strandness value between 0 and 1\n")
-            parser_g.print_help(sys.stderr)
+            parser_t.print_help(sys.stderr)
             sys.exit(1)
 
         if max_len < min_len:
             sys.stderr.write("\nMaximum read length must be longer than Minimum read length!\n")
-            parser_g.print_help(sys.stderr)
+            parser_t.print_help(sys.stderr)
             sys.exit(1)
 
         if model_ir and ref_g == '':
             sys.stderr.write("\nPlease provide a reference genome to simulate intron retention events!\n")
-            parser_g.print_help(sys.stderr)
+            parser_t.print_help(sys.stderr)
             sys.exit(1)
 
 
