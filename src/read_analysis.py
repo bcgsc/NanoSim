@@ -353,7 +353,8 @@ def main():
             call("mkdir -p " + dir_name, shell=True)
 
         # Alignment if maf/sam file not provided, and post process them to include only primary alignments
-        t_alnm, g_alnm = align_transcriptome(infile, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm, ref_g)
+        alnm_ext, unaligned_length, g_alnm, t_alnm, strandness \
+            = align_transcriptome(infile, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm, ref_g)
 
         # Add introns to annotation file
         add_intron(annot, prefix)
