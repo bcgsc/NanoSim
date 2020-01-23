@@ -1376,7 +1376,7 @@ def main():
             parser_g.print_help(sys.stderr)
             sys.exit(1)
 
-        if kmer_bias and basecaller == '':
+        if kmer_bias and basecaller is None:
             print("\nPlease input basecaller to simulate homopolymer contraction and expansion events from\n")
             parser_g.print_help(sys.stderr)
             sys.exit(1)
@@ -1453,8 +1453,8 @@ def main():
             parser_t.print_help(sys.stderr)
             sys.exit(1)
 
-        if kmer_bias and (basecaller == '' or read_type == ''):
-            print("\nPlease input basecaller and read_type to simulate homopolymer contraction and expansion events"
+        if kmer_bias and (basecaller is None or read_type is None):
+            print("\nPlease input basecaller and read_type to simulate homopolymer contraction and expansion events "
                   "from\n")
             parser_t.print_help(sys.stderr)
             sys.exit(1)
@@ -1473,7 +1473,6 @@ def main():
             sys.stderr.write("\nPlease provide a reference genome to simulate intron retention events!\n")
             parser_t.print_help(sys.stderr)
             sys.exit(1)
-
 
         print("\nrunning the code with following parameters:\n")
         print("ref_g", ref_g)
