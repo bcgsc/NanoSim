@@ -1295,7 +1295,7 @@ def main():
     parser_g.add_argument('-sd', '--sd_len', help='The standard deviation of read length in log scale (Default = None)',
                           type=float, default=None)
     parser_g.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
-    parser_g.add_argument('-k', '--KmerBias', help='Minimum homopolymer length to simulate homopolymer contraction and'
+    parser_g.add_argument('-k', '--KmerBias', help='Minimum homopolymer length to simulate homopolymer contraction and '
                                                    'expansion events in',
                           type=int, default=None)
     parser_g.add_argument('-b', '--basecaller', help='Simulate homopolymers with respect to chosen basecaller: '
@@ -1328,7 +1328,7 @@ def main():
     parser_t.add_argument('-min', '--min_len', help='The minimum length for simulated reads (Default = 50)',
                           type=int, default=50)
     parser_t.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
-    parser_t.add_argument('-k', '--KmerBias', help='Minimum homopolymer length to simulate homopolymer contraction and'
+    parser_t.add_argument('-k', '--KmerBias', help='Minimum homopolymer length to simulate homopolymer contraction and '
                                                    'expansion events in',
                           type=int, default=None)
     parser_t.add_argument('-b', '--basecaller', help='Simulate homopolymers with respect to chosen basecaller: '
