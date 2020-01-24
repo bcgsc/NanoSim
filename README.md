@@ -9,15 +9,17 @@ NanoSim is a fast and scalable read simulator that captures the technology-speci
 
 The second version of NanoSim (v2.0.0) uses minimap2 as default aligner to align long genomic ONT reads to reference genome. It leads to much faster alignment step and reduces the overall runtime of NanoSim. We also utilize HTSeq, a python package, to read SAM alignment files efficiently.
 
-The latest version of NanoSim [(v2.5.0)](https://github.com/bcgsc/NanoSim/releases/tag/v2.5.0) is able to simulate ONT transcriptome reads (cDNA / directRNA) as well as genomic reads. It also models features of the library preparation protocols used, including intron retention (IR) events in cDNA and directRNA reads. Further, it has stand-alone modes which profiles transcript expression patterns and detects IR events in custom datasets. Additionally, we improved the homopolymer simulation option which simulates homopolymer expansion and contraction events with respect to chosen basecaller. Multiprocessing option allows for faster runtime for large library simulation.
+NanoSim [(v2.5)](https://github.com/bcgsc/NanoSim/releases/tag/v2.5.1) is able to simulate ONT transcriptome reads (cDNA / direct RNA) as well as genomic reads. It also models features of the library preparation protocols used, including intron retention (IR) events in cDNA and directRNA reads. Further, it has stand-alone modes which profiles transcript expression patterns and detects IR events in custom datasets. Additionally, we improved the homopolymer simulation option which simulates homopolymer expansion and contraction events with respect to chosen basecaller. Multiprocessing option allows for faster runtime for large library simulation.  
+
+**We provide 6 pre-trained models in the latest release! Users can choose to download the whole package or only scripts without models to speed it up**
 
 ![Citation](https://img.shields.io/badge/NanoSim-manuscript-ff69b4)  
 **NanoSim**  
-Chen Yang, Justin Chu, René L Warren, Inanç Birol; NanoSim: nanopore sequence read simulator based on statistical characterization. Gigascience 2017 gix010. doi: 10.1093/gigascience/gix010  
+Chen Yang, Justin Chu, René L Warren, and Inanç Birol; NanoSim: nanopore sequence read simulator based on statistical characterization. Gigascience 2017 gix010. doi: 10.1093/gigascience/gix010  
 
 
 **Trans-NanoSim**  
-Hafezqorani, Saber, Chen Yang, Ka Ming Nip, Rene L. Warren, and Inanc Birol. "Trans-NanoSim characterizes and simulates nanopore RNA-seq data." bioRxiv (2019): 800110.  
+Saber Hafezqorani, Chen Yang, Ka Ming Nip, René L. Warren, and Inanç Birol; Trans-NanoSim characterizes and simulates nanopore RNA-seq data. bioRxiv (2019): 800110.  
 
 
 ## Dependencies
@@ -196,13 +198,12 @@ optional arguments:
 
 \* NOTICE: -ga/-ta option allows users to provide their own alignment file. Make sure that the name of query sequences are the same as appears in the FASTA files. For FASTA files, some headers have spaces in them and most aligners only take part of the header (before the first white space/tab) as the query name. However, the truncated headers may not be unique if using the output of poretools. We suggest users to pre-process the fasta files by concatenating all elements in the header via '\_' before alignment and feed the processed FASTA file as input of NanoSim.
 
-__Downloads__
+__Downloads__  
+**Some ONT read profiles are ready to use for users. With the profiles, users can run simulation tool directly.**  
 
-Some ONT read profiles are ready to use for users. With the profiles, users can run simulation tool directly. Please go to **[ftp](http://www.bcgsc.ca/downloads/supplementary)** to download.  
+For **releases before v2.2.0**, we provide profiles trained for _E. coli_ or _S. cerevisiae_ datasets. Flowcell chemistry is R7.3 and R9, and they were basecalled by Metrichor. They can be downloaded from **[our ftp site](http://www.bcgsc.ca/downloads/supplementary)**
 
-For **releases before v2.2.0**, we provide profiles trained for _E. coli_ or _S. cerevisiae_ datasets. Flowcell chemistry is R7.3 and R9, and they were basecalled by Metrichor.  
-
-For **release v2.5.0 and onwards**, we provide profiles trained for _H. sapiens_ NA12878 gDNA, cDNA 1D2, and directRNA datasets, and _Mus. musculus_ cDNA dataset. Flowcell chemistry is R9.4 for all datasets. NA12878 gDNA and directRNA was basecalled by Guppy 3.1.5; NA12878 cDNA 1D2 was basecalled by Albacore 2.1.3; mouse cDNA was basecalled by Metrichor.  
+For **release v2.5.0 and onwards**, we provide profiles trained for _H. sapiens_ NA12878 gDNA, cDNA 1D2, and directRNA datasets, and _Mus. musculus_ cDNA dataset. Flowcell chemistry is R9.4 for all datasets. NA12878 gDNA and directRNA was basecalled by Guppy 3.1.5; NA12878 cDNA 1D2 was basecalled by Albacore 2.3.1; mouse cDNA was basecalled by Metrichor. These models are available within **[pre-trained_models folder](https://github.com/bcgsc/NanoSim/tree/master/pre-trained_models)**.  
 
 ### 2. Simulation stage
 Simulation stage takes reference genome/transcriptome and read profiles as input and outputs simulated reads in FASTA format. Simulation stage runs in two modes: "genome" and "transcriptome" and you may use either of them based on your needs.
@@ -270,9 +271,12 @@ optional arguments:
                         The standard deviation of read length in log scale
                         (Default = None)
   --seed SEED           Manually seeds the pseudo-random number generator
+  -k KMERBIAS, --KmerBias KMERBIAS
+                        Minimum homopolymer length to simulate homopolymer
+                        contraction andexpansion events in
   -b {albacore,guppy,guppy-flipflop}, --basecaller {albacore,guppy,guppy-flipflop}
-                        Simulate k-mer bias from basecaller: albacore, guppy,
-                        or guppy-flipflop
+                        Simulate homopolymers with respect to chosen
+                        basecaller: albacore, guppy, or guppy-flipflop
   -s STRANDNESS, --strandness STRANDNESS
                         Percentage of antisense sequences. Overrides the value
                         profiled in characterization stage. Should be between
@@ -294,10 +298,10 @@ __transcriptome mode usage:__
 usage: simulator.py transcriptome [-h] -rt REF_T [-rg REF_G] -e EXP
                                   [-c MODEL_PREFIX] [-o OUTPUT] [-n NUMBER]
                                   [-max MAX_LEN] [-min MIN_LEN] [--seed SEED]
-                                  [-k KMERBIAS]
-                                  [-b {albacore,guppy,guppy-flipflop}]
-                                  [-s STRANDNESS] [--no_model_ir] [--perfect]
-                                  [-t NUM_THREADS] [--uracil]
+                                  [-k KMERBIAS] [-b {albacore, guppy}]
+                                  [-r {dRNA,cDNA_1D,cDNA_1D2}] [-s STRANDNESS]
+                                  [--no_model_ir] [--perfect] [-t NUM_THREADS]
+                                  [--uracil]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -324,9 +328,12 @@ optional arguments:
   --seed SEED           Manually seeds the pseudo-random number generator
   -k KMERBIAS, --KmerBias KMERBIAS
                         Enable k-mer bias simulation
-  -b {albacore,guppy,guppy-flipflop}, --basecaller {albacore,guppy,guppy-flipflop}
-                        Simulate k-mer bias from basecaller: albacore, guppy,
-                        or guppy-flipflop
+  -b {albacore,guppy}, --basecaller {albacore,guppy}
+                        Simulate homopolymers with respect to chosen  
+                        basecaller: albacore or guppy
+  -r {dRNA,cDNA_1D,cDNA_1D2}, --read_type {dRNA,cDNA_1D,cDNA_1D2}
+                        Simulate homopolymers with respect to chosen read
+                        type: dRNA, cDNA_1D or cDNA_1D2
   -s STRANDNESS, --strandness STRANDNESS
                         Percentage of antisense sequences. Overrides the value
                         profiled in characterization stage. Should be between
