@@ -1490,7 +1490,7 @@ def main():
         print("dna_type", dna_type)
         print("strandness", strandness)
         print("max_len", max_len)
-        print("min_readlength", min_len)
+        print("min_len", min_len)
         print("uracil", uracil)
         print("num_threads", num_threads)
 
