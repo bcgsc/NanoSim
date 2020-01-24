@@ -198,7 +198,7 @@ optional arguments:
 
 \* NOTICE: -ga/-ta option allows users to provide their own alignment file. Make sure that the name of query sequences are the same as appears in the FASTA files. For FASTA files, some headers have spaces in them and most aligners only take part of the header (before the first white space/tab) as the query name. However, the truncated headers may not be unique if using the output of poretools. We suggest users to pre-process the fasta files by concatenating all elements in the header via '\_' before alignment and feed the processed FASTA file as input of NanoSim.
 
-__Downloads__  
+### Downloads  
 **Some ONT read profiles are ready to use for users. With the profiles, users can run simulation tool directly.**  
 
 For **releases before v2.2.0**, we provide profiles trained for _E. coli_ or _S. cerevisiae_ datasets. Flowcell chemistry is R7.3 and R9, and they were basecalled by Metrichor. They can be downloaded from **[our ftp site](http://www.bcgsc.ca/downloads/supplementary)**
