@@ -6,12 +6,12 @@ Adapted by: Chen Yang (BC Cancer Genome Sciences Centre)
 """
 
 from __future__ import with_statement
-import sys
 import pysam
+import HTSeq
 import numpy
 
 
-def primary_and_unaligned(sam_alnm_file, prefix, meta_list, ref_edge_max_dist=400, query_min_aln_len=100,
+def primary_and_unaligned_circular(sam_alnm_file, prefix, meta_list, ref_edge_max_dist=400, query_min_aln_len=100,
                        include_other_primary_alns=True):
     '''
     Function to extract alignments of reads at extremities of circular genome references

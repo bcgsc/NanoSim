@@ -28,7 +28,7 @@ import model_intron_retention as model_ir
 
 
 PYTHON_VERSION = sys.version_info
-VERSION = "2.5.0"
+VERSION = "3.0.0"
 PRORAM = "NanoSim"
 AUTHOR = "Chen Yang, Saber Hafezqorani (UBC & BCGSC)"
 CONTACT = "cheny@bcgsc.ca; shafezqorani@bcgsc.ca"
@@ -70,8 +70,6 @@ def readfq(fp):  # this is a generator function
 
 
 def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm, ref_g, post=True):
-    num_threads = str(num_threads)
-
     if t_alnm == '':
         if aligner == "minimap2":
             t_alnm = prefix + "_transcriptome_alnm.sam"
@@ -129,9 +127,7 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g
     return t_alnm_ext, unaligned_length, g_alnm, t_alnm, strandness
 
 
-def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, circular, meta_list=''):
-    num_threads = str(num_threads)
-
+def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, circular, meta_list=None):
     # if an alignment file is not provided
     if g_alnm == '':
         if aligner == "minimap2":  # Align with minimap2 by default
@@ -160,7 +156,7 @@ def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, circular
     elif file_extension == "sam":
         # get the primary alignments and define unaligned reads.
         if circular:
-            unaligned_length, strandness = get_primary_sam_circular.primary_and_unaligned(g_alnm, prefix, meta_list)
+            unaligned_length, strandness = get_primary_sam.primary_and_unaligned_circular(g_alnm, prefix, meta_list)
         else:
             unaligned_length, strandness = get_primary_sam.primary_and_unaligned(g_alnm, prefix)
 
@@ -209,9 +205,8 @@ def concatenate_genomes(g_list):
                     else:
                         f.write(line)
                         total += len(line.strip())
-                        gc += len(re.findall(r"C|G", line))
-
-            info['GC'] = gc / total
+                        # gc += len(re.findall(r"C|G", line))
+            # info['GC'] = gc / total
 
     return metagenome
 
@@ -247,7 +242,7 @@ def main():
                           action='store_true', default=False)
     parser_g.add_argument('--no_model_fit', help='Disable model fitting step', action='store_false', default=True)
     parser_g.add_argument('-t', '--num_threads', help='Number of threads for alignment and model fitting (Default = 1)',
-                          type=int, default=1)
+                          default='1')
 
     parser_t = subparsers.add_parser('transcriptome', help="Run the simulator on transcriptome mode")
     parser_t.add_argument('-i', '--read', help='Input read for training', required=True)
@@ -266,27 +261,26 @@ def main():
     parser_t.add_argument('--no_intron_retention', help='Disable Intron Retention analysis', action='store_false',
                           default=True)
     parser_t.add_argument('-t', '--num_threads', help='Number of threads for alignment and model fitting (Default = 1)',
-                          type=int, default=1)
+                          default='1')
 
     parser_m = subparsers.add_parser('metagenome', help="Run the simulator on metagenome mode")
     parser_m.add_argument('-i', '--read', help='Input read for training', required=True)
     parser_m.add_argument('-gl', '--genome_list', help='Reference metagenome list, tsv file, the first column is '
                                                        'species/strain name, the second column is the reference genome '
                                                        'fasta/fastq file directory', required=True)
-    parser_m.add_argument('-a', '--aligner', help='The aligner to be used, minimap2 or LAST (Default = minimap2)',
-                          choices=['minimap2', 'LAST'], default='minimap2')
-    parser_m.add_argument('-ga', '--g_alnm', help='Genome alignment file in sam or maf format, the header of each '
-                                                  'species should match the metagenome list provided above (optional)',
+    parser_m.add_argument('-ga', '--g_alnm', help='Genome alignment file in sam format, the header of each species '
+                                                  'should match the metagenome list provided above (optional)',
                           default='')
     parser_m.add_argument('-e', '--exp_proportion', help='Expected proportion of each species/strain, tsv file'
                                                          '(optional)', default='')
     parser_m.add_argument('-o', '--output', help='The location and prefix of outputting profiles (Default = training)',
                           default='training')
-    parser_m.add_argument('-c', '--circular', help='Circularity of the reference genome (Default = False)',
+    parser_m.add_argument('-c', '--circular', help='Circularity of the reference genome, please set this flag even if '
+                                                   'only one of the genome is circular (Default = False)',
                           action='store_true', default=False)
     parser_m.add_argument('--no_model_fit', help='Disable model fitting step', action='store_false', default=True)
     parser_m.add_argument('-t', '--num_threads', help='Number of threads for alignment and model fitting (Default = 1)',
-                          type=int, default=1)
+                          default='1')
 
     parser_e = subparsers.add_parser('quantify', help="Quantify expression profile of transcripts")
     parser_e.add_argument('-i', '--read', help='Input reads for quantification', required=True)
@@ -310,8 +304,7 @@ def main():
     parser_ir.add_argument('-ga', '--g_alnm', help='Genome alignment file in sam or maf format (optional)', default='')
     parser_ir.add_argument('-ta', '--t_alnm', help='Transcriptome alignment file in sam or maf format (optional)',
                            default='')
-    parser_ir.add_argument('-t', '--num_threads', help='Number of threads for alignment (Default = 1)', type=int,
-                           default=1)
+    parser_ir.add_argument('-t', '--num_threads', help='Number of threads for alignment (Default = 1)', default='1')
 
     args = parser.parse_args()
 
@@ -339,7 +332,7 @@ def main():
         # Quantifying the transcript abundance from input read
         sys.stdout.write('Quantifying transcripts abundance: \n')
         map_file = prefix + '_mapping.paf'
-        call("minimap2 -t " + str(num_threads) + " -x map-ont -p0 " + ref_t + " " + infile + " > " + map_file,
+        call("minimap2 -t " + num_threads + " -x map-ont -p0 " + ref_t + " " + infile + " > " + map_file,
              shell=True)
 
         # Get the script path
@@ -474,7 +467,6 @@ def main():
     if args.mode == "metagenome":
         infile = args.read
         genome_list = args.genome_list
-        aligner = args.aligner
         g_alnm = args.g_alnm
         exp_proportion = args.exp_proportion
         prefix = args.output
@@ -486,15 +478,14 @@ def main():
         if g_alnm != '':
             pre, file_ext = os.path.splitext(g_alnm)
             file_extension = file_ext[1:]
-            if file_extension not in ['maf', 'sam']:
-                print("Please specify an acceptable alignment format! (.maf or .sam)\n")
+            if file_extension != 'sam':
+                print("Please specify an acceptable alignment format! (.sam)\n")
                 parser_g.print_help(sys.stderr)
                 sys.exit(1)
 
         print("\nRunning the code with following parameters:\n")
         print("infile", infile)
         print("genome_list", genome_list)
-        print("aligner", aligner)
         print("g_alnm", g_alnm)
         print("exp_proportion", exp_proportion)
         print("prefix", prefix)
@@ -525,7 +516,7 @@ def main():
             for line in f:
                 info = line.split('\t')
                 species = '-'.join(info[0].split())
-                metagenome_list[species] = {'path': info[1], 'type': info[2][:-1]}
+                metagenome_list[species] = {'path': info[1]}
 
         if exp_proportion != '':
             with open(exp_proportion, 'r') as f:
@@ -542,7 +533,7 @@ def main():
 
         ref_g = concatenate_genomes(metagenome_list)
 
-        alnm_ext, unaligned_length, strandness = align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g,
+        alnm_ext, unaligned_length, strandness = align_genome(in_fasta, prefix, 'minimap2', num_threads, g_alnm, ref_g,
                                                               circularity, metagenome_list)
 
         # Aligned reads analysis
