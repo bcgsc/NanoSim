@@ -6,7 +6,7 @@ This script defines Poisson-Geometric distribution and Weibull-Geometric distrib
 """
 
 import numpy as np
-from math import ceil
+from math import ceil, exp
 from scipy.stats import rv_discrete, poisson, geom, lognorm
 
 
