@@ -683,6 +683,9 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
 
             if fastq:
                 base_quals = mm.trunc_lognorm_rvs("match", read_type, basecaller, ref_len_aligned).tolist()
+            else:
+                base_quals = []
+
         else:
             middle_read, middle_ref, error_dict, error_count = error_list(ref_len_aligned, match_markov_model,
                                                                           match_ht_list, error_par, trans_error_pr,
@@ -847,6 +850,8 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
 
                 if fastq:
                     base_quals = mm.trunc_lognorm_rvs("match", read_type, basecaller, ref).tolist()
+                else:
+                    base_quals = []
 
             else:
                 middle, middle_ref, error_dict, error_count = error_list(ref, match_markov_model, match_ht_list,
