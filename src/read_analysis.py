@@ -16,11 +16,10 @@ import os
 import re
 import argparse
 import numpy
+import joblib
 from sklearn.neighbors import KernelDensity
-from sklearn.externals import joblib
 import head_align_tail_dist as align
 import get_besthit_maf
-import get_primary_sam
 import get_primary_sam_circular
 import besthit_to_histogram as error_model
 import model_fitting
@@ -133,7 +132,7 @@ def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, circular
         if aligner == "minimap2":  # Align with minimap2 by default
             g_alnm = prefix + "_genome_alnm.sam"
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with minimap2\n")
-            call("minimap2 --cs --MD -ax map-ont -t " + num_threads + " " + ref_g + " " + in_fasta + " > " + g_alnm,
+            call("minimap2 --cs -ax map-ont -t " + num_threads + " " + ref_g + " " + in_fasta + " > " + g_alnm,
                  shell=True)
 
         elif aligner == "LAST":
@@ -156,7 +155,8 @@ def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, circular
     elif file_extension == "sam":
         # get the primary alignments and define unaligned reads.
         if circular:
-            unaligned_length, strandness = get_primary_sam.primary_and_unaligned_circular(g_alnm, prefix, meta_list)
+            unaligned_length, strandness = get_primary_sam_circular.primary_and_unaligned_circular(g_alnm, prefix,
+                                                                                               meta_list)
         else:
             unaligned_length, strandness = get_primary_sam.primary_and_unaligned(g_alnm, prefix)
 
@@ -500,6 +500,7 @@ def main():
         # READ PRE-PROCESS AND ALIGNMENT ANALYSIS
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process\n")
         in_fasta = prefix + "_processed.fasta"
+
         processed_fasta = open(in_fasta, 'w')
 
         # Replace spaces in sequence headers with dashes to create unique header for each read
@@ -518,6 +519,7 @@ def main():
                 species = '-'.join(info[0].split())
                 metagenome_list[species] = {'path': info[1]}
 
+        '''
         if exp_proportion != '':
             with open(exp_proportion, 'r') as f:
                 for line in f:
@@ -530,6 +532,8 @@ def main():
                         sys.exit(1)
                     else:
                         metagenome_list[species]['exp'] = float(info[1])
+
+        '''
 
         ref_g = concatenate_genomes(metagenome_list)
 
@@ -664,8 +668,7 @@ def main():
 
     if model_fit:
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Model fitting\n")
-        model_fitting.model_fitting(prefix, num_threads)
-
+        model_fitting.model_fitting(prefix, int(num_threads))
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
 
 

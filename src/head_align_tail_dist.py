@@ -3,6 +3,8 @@
 from __future__ import with_statement
 import numpy
 import HTSeq
+import sys
+from time import strftime
 from sklearn.neighbors import KernelDensity
 from sklearn.externals import joblib
 
@@ -67,7 +69,10 @@ def head_align_tail(*args):
     out6 = open(prefix + "_ratio.txt", 'w')
     out7 = open(prefix + "_tail.txt", 'w')
 
+    parsed = 0
+
     if alnm_ext == "maf":
+        # TODO: circular reads
         alnm_file = alnm_file_prefix + "_besthit.maf"
         with open(alnm_file, 'r') as f:
             for line in f:
@@ -118,41 +123,41 @@ def head_align_tail(*args):
                     flag = False
                     aligned_ref += alnm.iv.length
                     head_new, tail_new = get_head_tail(alnm.cigar)
-                    start_new = alnm.iv.start
-                    if (alnm.iv.strand == '+' and start_new > start) or (alnm.iv.strand == '-' and start_new < start):
-                        head = head_new
-                        tail = tail
-                    elif (alnm.iv.strand == '-' and start_new > start) or (alnm.iv.strand == '+' and start_new < start):
-                        head = head
-                        tail = tail_new
+                    head = min(head, head_new)
+                    tail = min(tail, tail_new)
                 else:
                     flag = True
                     if aligned_ref != 0:
                         aligned_ref_length.append(aligned_ref)
                         total_length.append(read_len_total)
+                        middle = read_len_total - head - tail
+
+                        # ratio aligned part over total length of the read
+                        ratio = float(middle) / read_len_total
+                        ht = head + tail
+                        ht_length.append(ht)
+                        if head != 0:
+                            r = float(head) / ht
+                            head_vs_ht_ratio.append(r)
+
+                        out1.write(str(read_len_total) + '\n')
+                        out2.write(str(middle) + '\n')
+                        out3.write(str(last_read) + '\t' + str(head) + '\n')
+                        out4.write(str(aligned_ref) + '\n')
+                        out5.write(str(ht) + '\n')
+                        out6.write(str(ratio) + '\n')
+                        out7.write(str(tail) + '\n')
+                        parsed += 1
+                        if (parsed) % 1000 == 0:
+                            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
+                                             str(parsed + 1) + "\r")
+                            # +1 is just to ignore the zero index by python
+                            sys.stdout.flush()
+
                     last_read = alnm.read.name
                     aligned_ref = alnm.iv.length
                     read_len_total = len(alnm.read.seq)
                     head, tail = get_head_tail(alnm.cigar)
-                    start = alnm.iv.start
-
-                    middle = read_len_total - head - tail
-
-                    # ratio aligned part over total length of the read
-                    ratio = float(middle) / read_len_total
-                    ht = head + tail
-                    ht_length.append(ht)
-                    if head != 0:
-                        r = float(head) / ht
-                        head_vs_ht_ratio.append(r)
-
-                    out1.write(str(read_len_total) + '\n')
-                    out2.write(str(middle) + '\n')
-                    out3.write(str(alnm.read.name) + '\t' + str(head) + '\n')
-                    out4.write(str(aligned_ref) + '\n')
-                    out5.write(str(ht) + '\n')
-                    out6.write(str(ratio) + '\n')
-                    out7.write(str(tail) + '\n')
 
     if not flag:
         aligned_ref_length.append(aligned_ref)

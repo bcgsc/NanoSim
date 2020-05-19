@@ -7,124 +7,168 @@ Adapted by: Chen Yang (BC Cancer Genome Sciences Centre)
 
 from __future__ import with_statement
 import pysam
-import HTSeq
 import numpy
+import re
 
 
-def primary_and_unaligned_circular(sam_alnm_file, prefix, meta_list, ref_edge_max_dist=400, query_min_aln_len=100,
-                       include_other_primary_alns=True):
-    '''
+def cigar_parser(cigar):
+    match = re.findall(r'(\d+)(\w)', cigar)
+    qstart = int(match[0][0])
+    qlen = 0
+    rlen = 0
+
+    for item in match:
+        if item[1] == 'M':
+            qlen += int(item[0])
+            rlen += int(item[0])
+        elif item[1] == 'I':
+            qlen += int(item[0])
+        elif item[1] == 'D':
+            rlen += int(item[0])
+    qend = qstart + qlen
+    return qstart, qend, qlen, rlen
+
+
+def not_overlap(interval, interval_lst, overlap_base=10):
+    # interval: (start, end)
+    # overlap_base: a relaxed threshold reserved for a small stretch of bases shared by both alignments
+    for i in interval_lst:
+        if interval[0] < i[1] - overlap_base and interval[1] - overlap_base > i[0]:
+            return False
+    return True
+
+
+def edge_checker(rstart, rend, rname, ref_lengths, ref_edge_max_dist=400, query_min_aln_len=100):
+    is_edge = [False, False]
+    if rend - rstart >= query_min_aln_len:
+        if rend >= ref_lengths[rname] - 1 - ref_edge_max_dist:
+            # read was aligned to reference end
+            is_edge[1] = True
+        elif rstart <= ref_edge_max_dist:
+            # read was aligned to reference start
+            is_edge[0] = True
+
+    return is_edge
+
+
+def primary_and_unaligned_circular(sam_alnm_file, prefix, meta_list, ref_edge_max_dist=400, query_min_aln_len=100):
+    """
     Function to extract alignments of reads at extremities of circular genome references
     :param sam_alnm_file: path of input SAM file
     :param prefix: prefix of output SAM file
     :param meta_list: a dictionary of metagenome information, including circularity
     :param ref_edge_max_dist: max distance of alignments from extremities of references
     :param query_min_aln_len: min length of split alignments
-    :param include_other_primary_alns: include other primary alignments
     :return: Outputs a sam file that contains: 1) primary alignments for all reads that can be aligned and 2)
              split alignments for reads that are aligned to both ends of a circular genome
              Return unaligned_len list, and strandness information
-    '''
+    """
 
     # TODO: check meta_list, handle the case when a metagenome contains both circular and linear genomes
 
     in_sam_file = pysam.AlignmentFile(sam_alnm_file, 'r')
     out_sam_file = pysam.AlignmentFile(prefix + "_primary.sam", 'w', template=in_sam_file, add_sam_header=False)
+    tmp = open("tmp", 'w')
     unaligned_len = []
     pos_strand = 0
     num_aligned = 0
-        
+
     # extract the lengths of all reference sequences
     ref_lengths = dict()
     for info in in_sam_file.header['SQ']:
         ref_lengths[info['SN']] = info['LN']
 
-    # info for the current read
-    current_qname = None
-    current_start_rnames = set()
-    current_end_rnames = set()
-    current_edge_alns = []
-    current_primary_aln = None
-
     # parse alignment file, assuming that all alignments of a read are grouped together
     for aln in in_sam_file.fetch(until_eof=True):
-        if not aln.is_unmapped:
-            if aln.query_name != current_qname:
-                # a new read; evaluate all alignments for the previous read
-                is_circular = False
-                if len(current_start_rnames) > 0 and len(current_end_rnames) > 0:
-                    for rname in (current_start_rnames & current_end_rnames):
-                        is_circular = True
-                        # write alignments for this reference
-                        for a in current_edge_alns:
-                            flag = False
-                            if a.reference_name == rname:
-                                out_sam_file.write(a)
-                                if not flag:
-                                    num_aligned += 1
-                                    if aln.flag == 0:
-                                        pos_strand += 1
-                                    flag = True
-                
-                if include_other_primary_alns and not is_circular and current_primary_aln is not None:
-                    out_sam_file.write(current_primary_aln)
-                    num_aligned += 1
-                    if aln.flag == 0:
-                        pos_strand += 1
-                        
-                # reset info for the new read
-                current_qname = aln.query_name
-                current_start_rnames = set()
-                current_end_rnames = set()
-                current_edge_alns = []
-                current_primary_aln = None
+        if aln.is_unmapped:
+            unaligned_len.append(aln.query_length)
+            continue
 
-            if not aln.is_secondary and not aln.is_supplementary:
-                # a primary alignment
-                current_primary_aln = aln
-            
-            if aln.query_alignment_length >= query_min_aln_len:
-                if aln.reference_end >= ref_lengths[aln.reference_name] - 1 - ref_edge_max_dist:
-                    # read was aligned to reference end
-                    current_end_rnames.add(aln.reference_name)
-                    current_edge_alns.append(aln)
-                elif aln.reference_start <= ref_edge_max_dist:
-                    # read was aligned to reference start
-                    current_start_rnames.add(aln.reference_name)
-                    current_edge_alns.append(aln)
+        if not aln.is_secondary and not aln.is_supplementary:
+            # a primary alignment
+            num_aligned += 1
+
+            # Define a list to store chimeric reads, each item is a interval (query_start, query_end)
+            primary_direction = '+' if not aln.is_reverse else '-'
+            NM_tag = int(aln.get_tag('NM'))
+            primary_qstart = aln.query_alignment_start
+
+            compatible_list = [{"query": [(aln.query_alignment_start, aln.query_alignment_end)],
+                                "ref": [(aln.reference_start, aln.reference_end)],
+                                # alignment score = alignment_length - edit_distance (Can be changed later)
+                                "score": aln.query_alignment_length - NM_tag,
+                                "rname": [aln.reference_name],
+                                "direction": [primary_direction]}]
+
+            supplementary_to_be_added = []
+            try:
+                supplementary_aln_list = aln.get_tag('SA').split(';')
+
+                for supp_aln in supplementary_aln_list[:-1]:
+                    ref_name, ref_start, direction, cigar, _ , NM_tag = supp_aln.split(',')
+                    ref_start = int(ref_start) - 1
+                    NM_tag = int(NM_tag)
+                    qstart, qend, qlen, rlen = cigar_parser(cigar)
+
+                    added = False
+                    for seg in compatible_list:
+                        if not_overlap((qstart, qend), seg["query"]) and \
+                                not_overlap((ref_start, ref_start + rlen), seg["ref"]):
+                            seg["query"].append((qstart, qend))
+                            seg["ref"].append((ref_start, ref_start + rlen))
+                            seg["score"] += (qlen - NM_tag)
+                            seg["rname"].append(ref_name)
+                            seg["direction"].append(direction)
+                            added = True
+
+                    if not added:
+                        compatible_list.append({"query": [(qstart, qend)],
+                                                "ref": [(ref_start, ref_start + rlen)],
+                                                "length": qlen,
+                                                "rname": [ref_name],
+                                                "direction": [direction]})
+
+                max_score = max([x['score'] for x in compatible_list])
+                edge_added = [False, False]
+                added_strand = ''
+                for seg in compatible_list:
+                    if seg['score'] == max_score:
+                        for i in range(len(seg['query'])):
+                            edge_info = edge_checker(seg['ref'][i][0], seg['ref'][i][1], seg['rname'][i], ref_lengths)
+                            if seg['query'][i][0] == primary_qstart:
+                                out_sam_file.write(aln)
+                                edge_added = edge_info
+                                added_strand = seg['direction'][i]
+                                if seg['direction'][i] == '+':
+                                    pos_strand += 1
+                                if not any(edge_added):
+                                    break
+                            elif (edge_info[0] and not edge_added[0]) or (edge_info[1] and not edge_added[1]):
+                                if added_strand == '' or added_strand == seg['direction'][i]:
+                                    if added_strand == '' and seg['direction'][i] == '+':
+                                        pos_strand += 1
+                                    added_strand = seg['direction'][i]
+                                supplementary_to_be_added.append(seg['ref'][i][0])
+                            else:
+                                continue
+                    else:
+                        continue
+
+            except KeyError:
+                out_sam_file.write(aln)
+                if primary_direction == '+':
+                    pos_strand += 1
 
         else:
-            unaligned_len.append(aln.query_length)
-    
+            if aln.reference_start in supplementary_to_be_added:
+                out_sam_file.write(aln)
+
     in_sam_file.close()
-    
-    # evaluate the final read
-    is_circular = False
-    if len(current_start_rnames) > 0 and len(current_end_rnames) > 0:
-        for rname in (current_start_rnames & current_end_rnames):
-            is_circular = True
-            # write alignments for this reference
-            for a in current_edge_alns:
-                flag = False
-                if a.reference_name == rname:
-                    out_sam_file.write(aln)
-                    if not flag:
-                        num_aligned += 1
-                        if aln.flag == 0:
-                            pos_strand += 1
-                        flag = True
-    
-    if include_other_primary_alns and not is_circular and current_primary_aln is not None:
-        out_sam_file.write(current_primary_aln)
-        num_aligned += 1
-        if aln.flag == 0:
-            pos_strand += 1
 
     unaligned_len = numpy.array(unaligned_len)
     strandness = float(pos_strand) / num_aligned
-    
+
     out_sam_file.close()
+    tmp.close()
 
     return unaligned_len, strandness
-
-

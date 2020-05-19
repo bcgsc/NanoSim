@@ -29,7 +29,7 @@ def primary_and_unaligned(sam_alnm_file, prefix):
     return unaligned_len, strandness
 
 
-def primary_and_unaligned_circular(sam_alnm_file, prefix, ref_edge_max_dist=400, query_min_aln_len=100, meta_list=None,
+def primary_and_unaligned_circular(sam_alnm_file, prefix, meta_list=None, ref_edge_max_dist=400, query_min_aln_len=100,
                                    include_other_primary_alns=True):
     '''
     Function to extract alignments of reads at extremities of circular genome references
@@ -48,6 +48,7 @@ def primary_and_unaligned_circular(sam_alnm_file, prefix, ref_edge_max_dist=400,
 
     in_sam_file = pysam.AlignmentFile(sam_alnm_file, 'r')
     out_sam_file = pysam.AlignmentFile(prefix + "_primary.sam", 'w', template=in_sam_file, add_sam_header=False)
+    tmp = open("tmp", 'w')
     unaligned_len = []
     pos_strand = 0
     num_aligned = 0
@@ -59,78 +60,109 @@ def primary_and_unaligned_circular(sam_alnm_file, prefix, ref_edge_max_dist=400,
 
     # info for the current read
     current_qname = None
-    current_start_rnames = set()
-    current_end_rnames = set()
-    current_edge_alns = []
+    current_edge_alns = {}
+    primary_edge = [False, False]
     current_primary_aln = None
 
     # parse alignment file, assuming that all alignments of a read are grouped together
     for aln in in_sam_file.fetch(until_eof=True):
-        if not aln.is_unmapped:
-            if aln.query_name != current_qname:
-                # a new read; evaluate all alignments for the previous read
-                is_circular = False
-                if len(current_start_rnames) > 0 and len(current_end_rnames) > 0:
-                    for rname in (current_start_rnames & current_end_rnames):
-                        is_circular = True
-                        # write alignments for this reference
-                        for a in current_edge_alns:
-                            flag = False
-                            if a.reference_name == rname:
-                                out_sam_file.write(a)
-                                if not flag:
-                                    num_aligned += 1
-                                    if aln.flag == 0:
-                                        pos_strand += 1
-                                    flag = True
-
-                if include_other_primary_alns and not is_circular and current_primary_aln is not None:
-                    out_sam_file.write(current_primary_aln)
-                    num_aligned += 1
-                    if aln.flag == 0:
-                        pos_strand += 1
-
-                # reset info for the new read
-                current_qname = aln.query_name
-                current_start_rnames = set()
-                current_end_rnames = set()
-                current_edge_alns = []
-                current_primary_aln = None
-
-            if not aln.is_secondary and not aln.is_supplementary:
-                # a primary alignment
-                current_primary_aln = aln
-
-            if aln.query_alignment_length >= query_min_aln_len:
-                if aln.reference_end >= ref_lengths[aln.reference_name] - 1 - ref_edge_max_dist:
-                    # read was aligned to reference end
-                    current_end_rnames.add(aln.reference_name)
-                    current_edge_alns.append(aln)
-                elif aln.reference_start <= ref_edge_max_dist:
-                    # read was aligned to reference start
-                    current_start_rnames.add(aln.reference_name)
-                    current_edge_alns.append(aln)
-
-        else:
+        if aln.is_unmapped:
             unaligned_len.append(aln.query_length)
+            continue
+        if aln.query_name != current_qname:
+            # a new read; evaluate all alignments for the previous read
+            is_circular = False
+            if current_qname == "ERR3152366.2599":
+                print(current_edge_alns, primary_edge)
+            if len(current_edge_alns) > 1 and any([x[0] for x in current_edge_alns.values()]) and \
+                    any(x[1] for x in current_edge_alns.values()) and any(primary_edge):
+                for a in current_edge_alns:
+                    if a != current_primary_aln and (current_edge_alns[a][0] ^ primary_edge[0]) and \
+                            (a.flag == aln_flag + 2048 or a.flag == aln_flag + 256):
+                        is_circular = True
+                        tmp.write(current_primary_aln.qname + '\t' + current_primary_aln.reference_name + '\t' +
+                                  str(current_primary_aln.reference_start) + '\t' +
+                                  str(current_primary_aln.reference_end) + '\t' + str(current_primary_aln.query_alignment_length) + '\t' +
+                                  str(current_primary_aln.flag) + '\t' + str(current_primary_aln.is_secondary) + '\t' +
+                                  str(current_primary_aln.is_supplementary) + '\t' +
+                                  ','.join(str(x) for x in current_primary_aln.cigartuples[0]) + '\t' +
+                                  ','.join(str(x) for x in current_primary_aln.cigartuples[-1]) + '\n')
+                        out_sam_file.write(current_primary_aln)
+                        tmp.write(a.qname + '\t' + a.reference_name + '\t' + str(a.reference_start) + '\t' +
+                                  str(a.reference_end) + '\t' + str(a.query_alignment_length) + '\t' +
+                                  str(a.flag) + '\t' + str(a.is_secondary) + '\t' +
+                                  str(a.is_supplementary) + '\t' +
+                                  ','.join(str(x) for x in a.cigartuples[0]) + '\t' +
+                                  ','.join(str(x) for x in a.cigartuples[-1]) + '\n')
+                        out_sam_file.write(a)
+                        num_aligned += 1
+                        if aln_flag == 0:
+                            pos_strand += 1
+
+                    else:
+                        continue
+
+            if include_other_primary_alns and not is_circular and current_primary_aln is not None:
+                out_sam_file.write(current_primary_aln)
+                num_aligned += 1
+                if current_primary_aln.flag == 0:
+                    pos_strand += 1
+
+            # reset info for the new read
+            current_qname = aln.query_name
+            current_edge_alns = {}
+            current_primary_aln = None
+            primary_edge = [False, False]
+
+        if not aln.is_secondary and not aln.is_supplementary:
+            # a primary alignment
+            current_primary_aln = aln
+            aln_flag = aln.flag
+
+        if aln.query_alignment_length >= query_min_aln_len and aln.reference_name == current_primary_aln.reference_name:
+            if aln.reference_end >= ref_lengths[aln.reference_name] - 1 - ref_edge_max_dist:
+                # read was aligned to reference end
+                current_edge_alns[aln] = [False, True]
+                if aln == current_primary_aln:
+                    primary_edge[1] = True
+            elif aln.reference_start <= ref_edge_max_dist:
+                # read was aligned to reference start
+                current_edge_alns[aln] = [True, False]
+                if aln == current_primary_aln:
+                    primary_edge[0] = True
 
     in_sam_file.close()
 
     # evaluate the final read
     is_circular = False
-    if len(current_start_rnames) > 0 and len(current_end_rnames) > 0:
-        for rname in (current_start_rnames & current_end_rnames):
-            is_circular = True
-            # write alignments for this reference
-            for a in current_edge_alns:
-                flag = False
-                if a.reference_name == rname:
-                    out_sam_file.write(aln)
-                    if not flag:
-                        num_aligned += 1
-                        if aln.flag == 0:
-                            pos_strand += 1
-                        flag = True
+    if len(current_edge_alns) > 1 and any([x[0] for x in current_edge_alns.values()]) and \
+            any(x[1] for x in current_edge_alns.values()) and any(primary_edge):
+        for a in current_edge_alns:
+            if a != current_primary_aln and (current_edge_alns[a][0] ^ primary_edge[0]) and \
+                    (a.flag == aln_flag + 2048 or a.flag == aln_flag + 256):
+                is_circular = True
+                tmp.write(current_primary_aln.qname + '\t' + current_primary_aln.reference_name + '\t' +
+                          str(current_primary_aln.reference_start) + '\t' +
+                          str(current_primary_aln.reference_end) + '\t' + str(
+                    current_primary_aln.query_alignment_length) + '\t' +
+                          str(current_primary_aln.flag) + '\t' + str(current_primary_aln.is_secondary) + '\t' +
+                          str(current_primary_aln.is_supplementary) + '\t' +
+                          ','.join(str(x) for x in current_primary_aln.cigartuples[0]) + '\t' +
+                          ','.join(str(x) for x in current_primary_aln.cigartuples[-1]) + '\n')
+                out_sam_file.write(current_primary_aln)
+                tmp.write(a.qname + '\t' + a.reference_name + '\t' + str(a.reference_start) + '\t' +
+                          str(a.reference_end) + '\t' + str(a.query_alignment_length) + '\t' +
+                          str(a.flag) + '\t' + str(a.is_secondary) + '\t' +
+                          str(a.is_supplementary) + '\t' +
+                          ','.join(str(x) for x in a.cigartuples[0]) + '\t' +
+                          ','.join(str(x) for x in a.cigartuples[-1]) + '\n')
+                out_sam_file.write(a)
+                num_aligned += 1
+                if aln_flag == 0:
+                    pos_strand += 1
+
+            else:
+                continue
 
     if include_other_primary_alns and not is_circular and current_primary_aln is not None:
         out_sam_file.write(current_primary_aln)
@@ -142,7 +174,6 @@ def primary_and_unaligned_circular(sam_alnm_file, prefix, ref_edge_max_dist=400,
     strandness = float(pos_strand) / num_aligned
 
     out_sam_file.close()
+    tmp.close()
 
     return unaligned_len, strandness
-
-
