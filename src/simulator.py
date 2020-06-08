@@ -683,7 +683,7 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
 
             new_read_name = str(ref_trx) + "_" + str(ref_start_pos) + "_aligned_" + str(sequence_index)
             if len(ir_list) > 0:
-                new_read_name += "Retained intron_"
+                new_read_name += "_RetainedIntron_"
                 for ir_tuple in ir_list:
                     new_read_name += '-'.join(str(x) for x in ir_tuple) + ';'
 
