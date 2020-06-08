@@ -161,6 +161,7 @@ def extract_read_pos(length, ref_len, ref_trx_structure, polya, buffer=10):
     start_pos = random.randint(0, min(ref_len - length, len_before))  # make sure the retained_intron is included
 
     list_intervals = []
+    ir_list = []
     for item in ref_trx_structure:
         if length == 0:
             break
@@ -176,6 +177,8 @@ def extract_read_pos(length, ref_len, ref_trx_structure, polya, buffer=10):
                 start_pos = 0
                 iv = HTSeq.GenomicInterval(chrom, start, end, item[5])
                 list_intervals.append(iv)
+                if item[0] == "retained_intron":
+                    ir_list.append((start, end))
             else:
                 start_pos -= item[4]
 
@@ -184,7 +187,7 @@ def extract_read_pos(length, ref_len, ref_trx_structure, polya, buffer=10):
     else:
         retain_polya = False
 
-    return list_intervals, retain_polya
+    return list_intervals, retain_polya, ir_list
 
 
 def read_ecdf(profile):
@@ -645,10 +648,11 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
                 sequence_index = total_simulated.value
                 total_simulated.value += 1
 
+            ir_list = []
             if model_ir:
                 ir_flag, ref_trx_structure_new = update_structure(dict_ref_structure[ref_trx], IR_markov_model)
                 if ir_flag:
-                    list_iv, retain_polya = extract_read_pos(middle_ref, ref_trx_len, ref_trx_structure_new,
+                    list_iv, retain_polya, ir_list = extract_read_pos(middle_ref, ref_trx_len, ref_trx_structure_new,
                                                              trx_has_polya)
                     new_read = ""
                     flag = False
@@ -678,6 +682,10 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
                 new_read, ref_start_pos, retain_polya = extract_read_trx(ref_trx, middle_ref, trx_has_polya)
 
             new_read_name = str(ref_trx) + "_" + str(ref_start_pos) + "_aligned_" + str(sequence_index)
+            if len(ir_list) > 0:
+                new_read_name += "Retained intron_"
+                for ir_tuple in ir_list:
+                    new_read_name += '-'.join(str(x) for x in ir_tuple) + ';'
 
             # start HD len simulation
             remainder = int(remainder_l[i])
