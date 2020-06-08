@@ -130,7 +130,6 @@ def update_structure(ref_trx_structure, IR_markov_model):
                 prev_state = flag
                 break
 
-    total_ir_size = 0
     if flag_ir:
         ref_trx_structure_temp = copy.deepcopy(ref_trx_structure)
         j = -1
@@ -245,7 +244,6 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp,
     global kde_aligned, kde_ht, kde_ht_ratio, kde_unaligned, kde_aligned_2d
     global seq_dict, seq_len, max_chrom
     global strandness_rate
-    global trx_with_polya
 
     if mode == "genome":
         global genome_len
@@ -355,15 +353,6 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp,
                 for line in trx_list.readlines():
                     transcript_id = line.strip().split(".")[0]
                     trx_with_polya[transcript_id] = 0
-
-        if polya:
-            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read in list of transcripts with polyA tails\n")
-            sys.stdout.flush()
-            trx_with_polya = []
-            with open(polya, "r") as trx_list:
-                for line in trx_list.readlines():
-                    transcript_id = line.strip().split(".")[0]
-                    trx_with_polya.append(transcript_id)
 
     if per:  # if parameter perfect is used, all reads should be aligned, number_aligned equals total number of reads
         number_aligned = number
@@ -1318,10 +1307,6 @@ def error_list(m_ref, m_model, m_ht_list, error_p, trans_p, fastq):
 
 
 def mutate_read(read, read_name, error_log, e_dict, e_count, basecaller, read_type, fastq, k):
-    # TODO spead
-
-
-def mutate_read(read, read_name, error_log, e_dict, e_count, basecaller, read_type, fastq, k, aligned=True):
     if k:  # First remove any errors that land in hp regions
         pattern = "A{" + re.escape(str(k)) + ",}|C{" + re.escape(str(k)) + ",}|G{" + re.escape(str(k)) + ",}|T{" + \
                   re.escape(str(k)) + ",}"
