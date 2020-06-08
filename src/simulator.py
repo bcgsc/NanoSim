@@ -130,6 +130,7 @@ def update_structure(ref_trx_structure, IR_markov_model):
                 prev_state = flag
                 break
 
+    total_ir_size = 0
     if flag_ir:
         ref_trx_structure_temp = copy.deepcopy(ref_trx_structure)
         j = -1
@@ -143,7 +144,7 @@ def update_structure(ref_trx_structure, IR_markov_model):
 
     return flag_ir, ref_trx_structure_temp
 
-
+  
 def extract_read_pos(length, ref_len, ref_trx_structure, polya, buffer=10):
     # The aim is to create a genomic interval object
     # example: iv = HTSeq.GenomicInterval( "chr3", 123203, 127245, "+" )
@@ -244,6 +245,7 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp,
     global kde_aligned, kde_ht, kde_ht_ratio, kde_unaligned, kde_aligned_2d
     global seq_dict, seq_len, max_chrom
     global strandness_rate
+    global trx_with_polya
 
     if mode == "genome":
         global genome_len
@@ -353,6 +355,15 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp,
                 for line in trx_list.readlines():
                     transcript_id = line.strip().split(".")[0]
                     trx_with_polya[transcript_id] = 0
+
+        if polya:
+            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read in list of transcripts with polyA tails\n")
+            sys.stdout.flush()
+            trx_with_polya = []
+            with open(polya, "r") as trx_list:
+                for line in trx_list.readlines():
+                    transcript_id = line.strip().split(".")[0]
+                    trx_with_polya.append(transcript_id)
 
     if per:  # if parameter perfect is used, all reads should be aligned, number_aligned equals total number of reads
         number_aligned = number
@@ -483,6 +494,7 @@ def mutate_homo(seq, base_quals, k, basecaller, read_type):
 
         mutated_hp_with_mis = ""
         mis_pos = []
+
         for i in xrange(size):
             p = random.random()
             if 0 < p <= mis_rate:
@@ -714,7 +726,7 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
 
         # Add head and tail region
         read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated + ''.join(np.random.choice(BASES, tail))
-
+        
         # Reverse complement according to strandness rate
         p = random.random()
         if p > strandness_rate:
@@ -883,6 +895,7 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
 
 def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, basecaller, read_type, fastq,
                          num_simulate, uracil):
+
     out_reads = open(out_reads, "w")
     out_error = open(out_error, "w")
 
@@ -1307,6 +1320,8 @@ def error_list(m_ref, m_model, m_ht_list, error_p, trans_p, fastq):
 def mutate_read(read, read_name, error_log, e_dict, e_count, basecaller, read_type, fastq, k):
     # TODO spead
 
+
+def mutate_read(read, read_name, error_log, e_dict, e_count, basecaller, read_type, fastq, k, aligned=True):
     if k:  # First remove any errors that land in hp regions
         pattern = "A{" + re.escape(str(k)) + ",}|C{" + re.escape(str(k)) + ",}|G{" + re.escape(str(k)) + ",}|T{" + \
                   re.escape(str(k)) + ",}"
