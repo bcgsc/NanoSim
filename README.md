@@ -1,9 +1,9 @@
 [![Release](https://img.shields.io/github/v/release/bcgsc/nanosim?include_prereleases)](https://github.com/bcgsc/NanoSim/releases)
-[![Downloads](https://img.shields.io/github/downloads/bcgsc/Nanosim/total?logo=github)](https://github.com/bcgsc/NanoSim/archive/v2.5.0.zip)
+[![Downloads](https://img.shields.io/github/downloads/bcgsc/Nanosim/total?logo=github)](https://github.com/bcgsc/NanoSim/archive/v2.6.0.zip)
 [![Conda](https://img.shields.io/conda/dn/bioconda/nanosim?label=Conda)](https://anaconda.org/bioconda/nanosim)
 [![Stars](https://img.shields.io/github/stars/bcgsc/NanoSim.svg)](https://github.com/bcgsc/NanoSim/stargazers)  
 
-![NanoSim](https://github.com/bcgsc/NanoSim/blob/master/NanoSim%20logo.png)
+![NanoSim](https://github.com/bcgsc/NanoSim/blob/master/NanoSim_logo.png)
 
 NanoSim is a fast and scalable read simulator that captures the technology-specific features of ONT data, and allows for adjustments upon improvement of nanopore sequencing technology.  
 
@@ -246,7 +246,7 @@ usage: simulator.py genome [-h] -rg REF_G [-c MODEL_PREFIX] [-o OUTPUT]
                            [-med MEDIAN_LEN] [-sd SD_LEN] [--seed SEED]
                            [-k KMERBIAS] [-b {albacore,guppy,guppy-flipflop}]
                            [-s STRANDNESS] [-dna_type {linear,circular}]
-                           [--perfect] [-t NUM_THREADS]
+                           [--perfect] [--fastq] [-t NUM_THREADS]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -285,6 +285,7 @@ optional arguments:
                         Specify the dna type: circular OR linear (Default =
                         linear)
   --perfect             Ignore error profiles and simulate perfect reads
+  --fastq               Output fastq files instead of fasta files
   -t NUM_THREADS, --num_threads NUM_THREADS
                         Number of threads for simulation (Default = 1)
 
@@ -298,10 +299,10 @@ __transcriptome mode usage:__
 usage: simulator.py transcriptome [-h] -rt REF_T [-rg REF_G] -e EXP
                                   [-c MODEL_PREFIX] [-o OUTPUT] [-n NUMBER]
                                   [-max MAX_LEN] [-min MIN_LEN] [--seed SEED]
-                                  [-k KMERBIAS] [-b {albacore, guppy}]
+                                  [-k KMERBIAS] [-b {albacore,guppy}]
                                   [-r {dRNA,cDNA_1D,cDNA_1D2}] [-s STRANDNESS]
-                                  [--no_model_ir] [--perfect] [-t NUM_THREADS]
-                                  [--uracil]
+                                  [--no_model_ir] [--perfect] [--polya POLYA]
+                                  [--fastq] [-t NUM_THREADS] [--uracil]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -340,6 +341,8 @@ optional arguments:
                         0 and 1
   --no_model_ir         Simulate intron retention events
   --perfect             Ignore profiles and simulate perfect reads
+  --polya POLYA         Simulate polyA tails for given list of transcripts
+  --fastq               Output fastq files instead of fasta files
   -t NUM_THREADS, --num_threads NUM_THREADS
                         Number of threads for simulation (Default = 1)
   --uracil              Converts the thymine (T) bases to uracil (U) in the
@@ -347,7 +350,9 @@ optional arguments:
 ```
 
 
-\* Notice: the use of `max_len` and `min_len` in genome mode will affect the read length distributions. If the range between `max_len` and `min_len` is too small, the program will run slowlier accordingly.
+\* Notice: the use of `max_len` and `min_len` in genome mode will affect the read length distributions. If the range between `max_len` and `min_len` is too small, the program will run slowlier accordingly.  
+
+\* Notice: the transcript name in the expression tsv file and the ones in th polyadenylated transcript list has to be consistent with the ones in the reference transcripts, otherwise the tool won't recognize them and don't know where to find them to extract reads for simulation.
 
 __Example runs:__  
 1 If you want to simulate _E. coli_ genome, then circular command must be chosen because it's a circular genome  
@@ -370,6 +375,9 @@ __Example runs:__
 
 7 If you want to simulate five thousands cDNA/directRNA reads from mouse reference transcriptome without modeling intron retention  
 `./simulator.py transcriptome -rt Mus_musculus.GRCm38.cdna.all.fa -c mouse_cdna -e abundance.tsv -n 5000 --no_model_ir`
+
+8 If you want to simulate two thousands cDNA/directRNA reads from human reference transcriptome with polya tails, mimicking homopolymer bias (starting from homopolymer length >= 6) and reads in fastq format  
+`./simulator.py transcriptome -rt Homo_sapiens.GRCh38.cdna.all.fa -c Homo_sapiens_model -e abundance.tsv -rg Homo_sapiens.GRCh38.dna.primary.assembly.fa --polya transcripts_with_polya_tails --fastq -k 6 --basecaller guppy -r dRNA`
 
 ## Explanation of output files
 ### 1. Characterization stage
@@ -424,6 +432,8 @@ __Example runs:__
     This is an aligned read coming from chromosome XI at position 115406. `16565` is the sequence index. `R` represents a reverse complement strand. `92_12710_2` means that this read has 92-base head region (cannot be aligned), followed by 12710 bases of middle region, and then 2-base tail region.  
   
   The information in the header can help users to locate the read easily.  
+  
+__Specific to transcriptome simulation__: for reads that include retained introns, the header contains the information starting from `Retained_intron`, each genomic interval is separated by `;`.
   
 2. `simulated_error_profile`
   Contains all the information of errors introduced into each reads, including error type, position, original bases and current bases.  
