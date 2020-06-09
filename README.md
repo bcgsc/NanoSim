@@ -11,6 +11,8 @@ The second version of NanoSim (v2.0.0) uses minimap2 as default aligner to align
 
 NanoSim [(v2.5)](https://github.com/bcgsc/NanoSim/releases/tag/v2.5.1) is able to simulate ONT transcriptome reads (cDNA / direct RNA) as well as genomic reads. It also models features of the library preparation protocols used, including intron retention (IR) events in cDNA and directRNA reads. Further, it has stand-alone modes which profiles transcript expression patterns and detects IR events in custom datasets. Additionally, we improved the homopolymer simulation option which simulates homopolymer expansion and contraction events with respect to chosen basecaller. Multiprocessing option allows for faster runtime for large library simulation.  
 
+NanoSim [(v2.6)](https://github.com/bcgsc/NanoSim/releases/tag/v2.6.0) i able to simulate ONT reads in fastq format. The base quality information is simulated with truncated log-normal distributions, learnt separately from match bases, mismatch bases, insertion bases, deletion bases, and unaligned bases, each from different basecaller and read type.  
+
 **We provide 6 pre-trained models in the latest release! Users can choose to download the whole package or only scripts without models to speed it up**
 
 ![Citation](https://img.shields.io/badge/NanoSim-manuscript-ff69b4)  
