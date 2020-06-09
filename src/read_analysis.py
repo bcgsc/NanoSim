@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-@author: Chen Yang & Saber HafezQorani
+@author: Chen Yang, Saber HafezQorani, Theodora Lo
 This script generates read profiles for Oxford Nanopore 2D reads (genomic and transcriptome).
 """
 
@@ -20,7 +20,7 @@ import joblib
 from sklearn.neighbors import KernelDensity
 import head_align_tail_dist as align
 import get_besthit_maf
-import get_primary_sam_circular
+import get_primary_sam
 import besthit_to_histogram as error_model
 import model_fitting
 import model_intron_retention as model_ir
@@ -29,7 +29,7 @@ import model_intron_retention as model_ir
 PYTHON_VERSION = sys.version_info
 VERSION = "3.0.0"
 PRORAM = "NanoSim"
-AUTHOR = "Chen Yang, Saber Hafezqorani (UBC & BCGSC)"
+AUTHOR = "Chen Yang, Saber Hafezqorani, Theodora Lo (UBC & BCGSC)"
 CONTACT = "cheny@bcgsc.ca; shafezqorani@bcgsc.ca"
 
 
@@ -68,7 +68,7 @@ def readfq(fp):  # this is a generator function
                 break
 
 
-def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm, ref_g, post=True):
+def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm, ref_g):
     if t_alnm == '':
         if aligner == "minimap2":
             t_alnm = prefix + "_transcriptome_alnm.sam"
@@ -90,7 +90,8 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g
             # Alignment to reference genome
             # [EDIT] I may change the options for minimap2 when dealing with cDNA and dRNA reads.
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with minimap2 to reference genome\n")
-            call("minimap2 --cs -ax splice -t " + num_threads + " " + ref_g + " " + in_fasta + " > " + g_alnm, shell=True)
+            call("minimap2 --cs -ax splice -t " + num_threads + " " + ref_g + " " + in_fasta + " > " + g_alnm,
+                 shell=True)
 
         elif aligner == "LAST":
             g_alnm = prefix + "_genome_alnm.maf"
@@ -99,9 +100,6 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g
             call("lastdb ref_genome " + ref_g, shell=True)
             call("lastal -a 1 -P " + num_threads + " ref_genome " + in_fasta + " > " + g_alnm, shell=True)
 
-    if not post:
-        return t_alnm, g_alnm
-
     # post-process
     t_alnm_filename, t_alnm_ext = os.path.splitext(t_alnm)
     t_alnm_ext = t_alnm_ext[1:]
@@ -109,7 +107,9 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g
     if t_alnm_ext == "maf":
         processed_maf_t = prefix + "_transcriptome_alnm_processed.maf"
         call("grep '^s ' " + t_alnm + " > " + processed_maf_t, shell=True)
-        unaligned_length, strandness = get_besthit_maf.besthit_and_unaligned(in_fasta, processed_maf_t, prefix + "_transcriptome")
+        unaligned_length, strandness = get_besthit_maf.besthit_and_unaligned(in_fasta, processed_maf_t,
+                                                                             prefix + "_transcriptome")
+
     elif t_alnm_ext == "sam":
         unaligned_length, strandness = get_primary_sam.primary_and_unaligned(t_alnm, prefix + "_transcriptome")
 
@@ -120,13 +120,14 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g
         processed_maf = prefix + "_processed.maf"
         call("grep '^s ' " + g_alnm + " > " + processed_maf, shell=True)
         get_besthit_maf.besthit_and_unaligned(in_fasta, processed_maf, prefix + "_genome")
+
     elif g_alnm_ext == "sam":
         get_primary_sam.primary_and_unaligned(g_alnm, prefix + "_genome")
 
     return t_alnm_ext, unaligned_length, g_alnm, t_alnm, strandness
 
 
-def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, circular, meta_list=None):
+def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, chimeric):
     # if an alignment file is not provided
     if g_alnm == '':
         if aligner == "minimap2":  # Align with minimap2 by default
@@ -154,9 +155,8 @@ def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, circular
 
     elif file_extension == "sam":
         # get the primary alignments and define unaligned reads.
-        if circular:
-            unaligned_length, strandness = get_primary_sam_circular.primary_and_unaligned_circular(g_alnm, prefix,
-                                                                                               meta_list)
+        if chimeric:
+            unaligned_length, strandness = get_primary_sam.primary_and_unaligned_circular(g_alnm, prefix)
         else:
             unaligned_length, strandness = get_primary_sam.primary_and_unaligned(g_alnm, prefix)
 
@@ -238,7 +238,7 @@ def main():
     parser_g.add_argument('-ga', '--g_alnm', help='Genome alignment file in sam or maf format (optional)', default='')
     parser_g.add_argument('-o', '--output', help='The location and prefix of outputting profiles (Default = training)',
                           default='training')
-    parser_g.add_argument('-c', '--circular', help='Circularity of the reference genome (Default = False)',
+    parser_g.add_argument('-c', '--chimeric', help='Detect chimeric and split reads (Default = False)',
                           action='store_true', default=False)
     parser_g.add_argument('--no_model_fit', help='Disable model fitting step', action='store_false', default=True)
     parser_g.add_argument('-t', '--num_threads', help='Number of threads for alignment and model fitting (Default = 1)',
@@ -275,8 +275,7 @@ def main():
                                                          '(optional)', default='')
     parser_m.add_argument('-o', '--output', help='The location and prefix of outputting profiles (Default = training)',
                           default='training')
-    parser_m.add_argument('-c', '--circular', help='Circularity of the reference genome, please set this flag even if '
-                                                   'only one of the genome is circular (Default = False)',
+    parser_m.add_argument('-c', '--chimeric', help='Detect chimeric and split reads (Default = False)',
                           action='store_true', default=False)
     parser_m.add_argument('--no_model_fit', help='Disable model fitting step', action='store_false', default=True)
     parser_m.add_argument('-t', '--num_threads', help='Number of threads for alignment and model fitting (Default = 1)',
@@ -415,7 +414,7 @@ def main():
         prefix = args.output
         num_threads = args.num_threads
         model_fit = args.no_model_fit
-        circularity = args.circular
+        chimeric = args.chimeric
 
         # check validity of parameters
         if g_alnm != '':
@@ -438,7 +437,7 @@ def main():
         print("prefix", prefix)
         print("num_threads", num_threads)
         print("model_fit", model_fit)
-        print("circularity", circularity)
+        print("chimeric", chimeric)
 
         dir_name = os.path.dirname(prefix)
         if dir_name != '':
@@ -458,7 +457,7 @@ def main():
         processed_fasta.close()
 
         alnm_ext, unaligned_length, strandness = align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g,
-                                                              circularity)
+                                                              chimeric)
 
         # Aligned reads analysis
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
@@ -472,7 +471,7 @@ def main():
         prefix = args.output
         num_threads = args.num_threads
         model_fit = args.no_model_fit
-        circularity = args.circular
+        chimeric = args.chimeric
 
         # check validity of parameters
         if g_alnm != '':
@@ -491,7 +490,7 @@ def main():
         print("prefix", prefix)
         print("num_threads", num_threads)
         print("model_fit", model_fit)
-        print("circularity", circularity)
+        print("chimeric", chimeric)
 
         dir_name = os.path.dirname(prefix)
         if dir_name != '':
@@ -519,7 +518,6 @@ def main():
                 species = '-'.join(info[0].split())
                 metagenome_list[species] = {'path': info[1]}
 
-        '''
         if exp_proportion != '':
             with open(exp_proportion, 'r') as f:
                 for line in f:
@@ -533,12 +531,10 @@ def main():
                     else:
                         metagenome_list[species]['exp'] = float(info[1])
 
-        '''
-
         ref_g = concatenate_genomes(metagenome_list)
 
         alnm_ext, unaligned_length, strandness = align_genome(in_fasta, prefix, 'minimap2', num_threads, g_alnm, ref_g,
-                                                              circularity, metagenome_list)
+                                                              chimeric)
 
         # Aligned reads analysis
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
