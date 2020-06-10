@@ -149,7 +149,7 @@ def head_align_tail(*args):
                         out7.write(str(tail) + '\n')
                         parsed += 1
                         if (parsed) % 1000 == 0:
-                            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
+                            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads processed >> " +
                                              str(parsed + 1) + "\r")
                             # +1 is just to ignore the zero index by python
                             sys.stdout.flush()

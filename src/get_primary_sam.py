@@ -60,12 +60,8 @@ def primary_and_unaligned(sam_alnm_file, prefix):
             out_sam_file.write(aln)
             if aln.flag == 0:
                 pos_strand += 1
-
         elif aln.is_unmapped:
             unaligned_len.append(aln.query_length)
-
-    strandness = float(pos_strand) / num_aligned
-    unaligned_len = numpy.array(unaligned_len)
 
     in_sam_file.close()
     out_sam_file.close()
@@ -92,6 +88,7 @@ def primary_and_unaligned_circular(sam_alnm_file, prefix, ref_edge_max_dist=400,
 
     in_sam_file = pysam.AlignmentFile(sam_alnm_file, 'r')
     out_sam_file = pysam.AlignmentFile(prefix + "_primary.sam", 'w', template=in_sam_file, add_sam_header=False)
+    tmp = open("chimeric", 'w')
     unaligned_len = []
     pos_strand = 0
     num_aligned = 0
@@ -111,7 +108,7 @@ def primary_and_unaligned_circular(sam_alnm_file, prefix, ref_edge_max_dist=400,
             # a primary alignment
             num_aligned += 1
 
-            # Define a list to store chimeric reads, each item is a interval (query_start, query_end)
+            # Define a list to store chimeric reads, each item is an interval (query_start, query_end)
             primary_direction = '+' if not aln.is_reverse else '-'
             NM_tag = int(aln.get_tag('NM'))
             primary_qstart = aln.query_alignment_start
@@ -146,15 +143,24 @@ def primary_and_unaligned_circular(sam_alnm_file, prefix, ref_edge_max_dist=400,
                     if not added:
                         compatible_list.append({"query": [(qstart, qend)],
                                                 "ref": [(ref_start, ref_start + rlen)],
-                                                "length": qlen,
+                                                "score": qlen - NM_tag,
                                                 "rname": [ref_name],
                                                 "direction": [direction]})
 
-                max_score = max([x['score'] for x in compatible_list])
+                max_score = max([x["score"] for x in compatible_list])
+                for seg in compatible_list:
+                    if seg["score"] == max_score:
+                        out_info = "Query " + ';'.join(str(x[0]) + '-' + str(x[1]) for x in seg["query"])
+                        out_info += '\t' + "Ref " + ';'.join(str(x[0]) + '-' + str(x[1]) for x in seg["ref"])
+                        out_info += '\t' + "Direction " + ';'.join(x for x in seg["direction"]) + '\n'
+
+                        tmp.write(aln.query_name + '\t' + out_info)
+
+                '''
                 edge_added = [False, False]
                 added_strand = ''
                 for seg in compatible_list:
-                    if seg['score'] == max_score:
+                    if seg["score"] == max_score:
                         for i in range(len(seg['query'])):
                             edge_info = edge_checker(seg['ref'][i][0], seg['ref'][i][1], seg['rname'][i], ref_lengths)
                             if seg['query'][i][0] == primary_qstart:
@@ -175,6 +181,7 @@ def primary_and_unaligned_circular(sam_alnm_file, prefix, ref_edge_max_dist=400,
                                 continue
                     else:
                         continue
+                '''
 
             except KeyError:
                 out_sam_file.write(aln)
@@ -182,14 +189,19 @@ def primary_and_unaligned_circular(sam_alnm_file, prefix, ref_edge_max_dist=400,
                     pos_strand += 1
 
         else:
+            continue
+            '''
             if aln.reference_start in supplementary_to_be_added:
                 out_sam_file.write(aln)
+            '''
 
     in_sam_file.close()
     out_sam_file.close()
 
     unaligned_len = numpy.array(unaligned_len)
     strandness = float(pos_strand) / num_aligned
+
+    tmp.close()
 
     return unaligned_len, strandness
 
