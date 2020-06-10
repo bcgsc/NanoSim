@@ -4,9 +4,9 @@ from __future__ import with_statement
 import numpy
 import HTSeq
 import sys
+import joblib
 from time import strftime
 from sklearn.neighbors import KernelDensity
-from sklearn.externals import joblib
 
 
 def kde2d(x, y):

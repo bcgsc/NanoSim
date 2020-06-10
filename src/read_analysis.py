@@ -519,7 +519,6 @@ def main():
                 species = '-'.join(info[0].split())
                 metagenome_list[species] = {'path': info[1]}
 
-        '''
         if exp_proportion != '':
             with open(exp_proportion, 'r') as f:
                 for line in f:
@@ -533,7 +532,6 @@ def main():
                     else:
                         metagenome_list[species]['exp'] = float(info[1])
 
-        '''
 
         ref_g = concatenate_genomes(metagenome_list)
 
