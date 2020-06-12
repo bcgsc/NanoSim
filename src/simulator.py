@@ -88,7 +88,6 @@ def make_cdf(dict_exp, dict_len):
     for i in xrange(len(ranged_cdf_list)):
         cdf_range = ranged_cdf_list[i]
         ecdf_dict[cdf_range] = (sorted_value_list[i][0], dict_len[sorted_value_list[i][0]])
-        # ecdf_dict[cdf_range] = dict_len[sorted_value_list[i][0]]
 
     return ecdf_dict
 
@@ -252,7 +251,7 @@ def get_length_kde(kde, num, log=False, flatten=True):
         return length_list
 
 
-def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp, model_ir, abun, dna_type):  # TODO: Added abundance parameter
+def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp, model_ir, abun, dna_type, add_abun_var):
     global number_aligned, number_unaligned
     global match_ht_list, error_par, trans_error_pr, match_markov_model
     global kde_aligned, kde_ht, kde_ht_ratio, kde_unaligned, kde_aligned_2d
@@ -287,6 +286,7 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp,
     sys.stdout.flush()
     seq_dict = {}
     seq_len = {}
+    total_len = {}  # Used when reading abundance profiles
 
     # Read in the reference genome/transcriptome
     if mode == "metagenome":
@@ -295,6 +295,7 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp,
             fq_path = ref[species]["ref_g"]
             seq_dict[species] = {}
             seq_len[species] = {}
+            total_len[species] = 0
 
             with open(fq_path, 'r') as infile:
                 for seqN, seqS, seqQ in readfq(infile):
@@ -302,6 +303,7 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp,
                     chr_name = "-".join(info)
                     seq_dict[species][chr_name.split(".")[0]] = seqS
                     seq_len[species][chr_name.split(".")[0]] = len(seqS)
+                    total_len[species] += len(seqS)
 
                 if max(seq_len[species].values()) > max_chrom:
                     max_chrom = max(seq_len[species].values())
@@ -336,14 +338,44 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp,
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read in abundance profile\n")
         sys.stdout.flush()
         dict_abun = {}
-        prev = 0
-        with open(abun, 'r') as abun_file:
-            for line in abun_file.readlines():
-                fields = line.split("\t")
-                species = fields[0]
-                abundance = fields[1].strip("\n")
-                dict_abun[(prev, prev + float(abundance))] = species
-                prev = prev + float(abundance)
+        if add_abun_var:
+            # Order species according to genome size and assign highest variation to species
+            # w/ largest genome and lowest variation to species w/ smallest genome
+            abun_var = []
+            for i in range(len(total_len.keys()) + 1):  # Generate % var for each species
+                abun_var.append(random.uniform(-0.5, 0.5))
+
+            abun_var_per_species_dict = {}
+            for var, species in zip(sorted(abun_var, key=abs), sorted(total_len, key=lambda k: total_len[k])):
+                abun_var_per_species_dict[species] = var
+
+            # Read expected abundances from profiles and add variation
+            with open(abun, 'r') as abun_file:
+                abun_with_var = {}
+                for line in abun_file.readlines():
+                    fields = line.split("\t")
+                    species = fields[0]
+                    expected = float(fields[1].strip("\n"))
+                    abundance = expected + expected * abun_var_per_species_dict[species]
+                    abun_with_var[species] = abundance
+
+                total = sum(abun_with_var.values())
+                prev = 0
+                for species in abun_with_var.keys():
+                    renormalized_abun = (abun_with_var[species] / total) * 100
+                    dict_abun[(prev, prev + renormalized_abun)] = species
+                    prev += renormalized_abun
+
+        else:
+            prev = 0
+            with open(abun, 'r') as abun_file:
+                for line in abun_file.readlines():
+                    fields = line.split("\t")
+                    species = fields[0]
+                    expected = float(fields[1].strip("\n"))
+                    dict_abun[(prev, prev + expected)] = species
+                    prev += expected
+
     else:
         if model_ir:
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read in reference genome and create .fai index file\n")
@@ -1460,6 +1492,8 @@ def main():
                           type=float, default=None)
     parser_mg.add_argument('--perfect', help='Ignore error profiles and simulate perfect reads', action='store_true',
                           default=False)
+    parser_mg.add_argument('--abun_var', help='Simulate random variation in abundance values', action='store_true',
+                           default=False)
     parser_mg.add_argument('-t', '--num_threads', help='Number of threads for simulation (Default = 1)', type=int,
                           default=1)
 
@@ -1529,7 +1563,8 @@ def main():
         if dir_name != '':
             call("mkdir -p " + dir_name, shell=True)
 
-        read_profile(ref_g, None, number, model_prefix, perfect, args.mode, strandness, None, False, None, dna_type)
+        read_profile(ref_g, None, number, model_prefix, perfect, args.mode, strandness, None, False, None, dna_type,
+                     False)
 
         if median_len and sd_len:
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Simulating read length with log-normal distribution\n")
@@ -1600,7 +1635,8 @@ def main():
         if dir_name != '':
             call("mkdir -p " + dir_name, shell=True)
 
-        read_profile(ref_g, ref_t, number, model_prefix, perfect, args.mode, strandness, exp, model_ir, None, "linear")
+        read_profile(ref_g, ref_t, number, model_prefix, perfect, args.mode, strandness, exp, model_ir, None, "linear",
+                     False)
 
         simulation(args.mode, out, dna_type, perfect, kmer_bias, max_len, min_len, num_threads, None, None, model_ir,
                    uracil)
@@ -1622,6 +1658,7 @@ def main():
         perfect = args.perfect
         kmer_bias = args.KmerBias
         strandness = args.strandness
+        abun_var = args.abun_var
         num_threads = max(args.num_threads, 1)
 
         if kmer_bias and kmer_bias < 0:
@@ -1658,6 +1695,7 @@ def main():
         print("median_len", median_len)
         print("max_len", max_len)
         print("min_len", min_len)
+        print("abun_var", abun_var)
         print("num_threads", num_threads)
 
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ': ' + ' '.join(sys.argv) + '\n')
@@ -1668,7 +1706,7 @@ def main():
             call("mkdir -p " + dir_name, shell=True)
 
         read_profile(genome_list, None, number, model_prefix, perfect, args.mode, strandness, None, False, abun,
-                     dna_type_list)
+                     dna_type_list, abun_var)
 
         if median_len and sd_len:
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Simulating read length with log-normal distribution\n")
@@ -1684,5 +1722,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
