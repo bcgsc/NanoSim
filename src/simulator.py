@@ -262,7 +262,7 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp,
         global genome_len
         ref = ref_g
     elif mode == "metagenome":
-        global dict_abun, ecdf_dict_ref_abun, dict_dna_type
+        global dict_abun, multi_dict_abun, dict_dna_type
         ref = {}
         with open(ref_g, 'r') as genome_list:
             list = genome_list.readlines()
@@ -286,7 +286,6 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp,
     sys.stdout.flush()
     seq_dict = {}
     seq_len = {}
-    total_len = {}  # Used when reading abundance profiles
 
     # Read in the reference genome/transcriptome
     if mode == "metagenome":
@@ -295,7 +294,6 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp,
             fq_path = ref[species]["ref_g"]
             seq_dict[species] = {}
             seq_len[species] = {}
-            total_len[species] = 0
 
             with open(fq_path, 'r') as infile:
                 for seqN, seqS, seqQ in readfq(infile):
@@ -303,7 +301,6 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp,
                     chr_name = "-".join(info)
                     seq_dict[species][chr_name.split(".")[0]] = seqS
                     seq_len[species][chr_name.split(".")[0]] = len(seqS)
-                    total_len[species] += len(seqS)
 
                 if max(seq_len[species].values()) > max_chrom:
                     max_chrom = max(seq_len[species].values())
@@ -338,42 +335,44 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp,
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read in abundance profile\n")
         sys.stdout.flush()
         dict_abun = {}
-        if add_abun_var:
-            # Order species according to genome size and assign highest variation to species
-            # w/ largest genome and lowest variation to species w/ smallest genome
-            abun_var = []
-            for i in range(len(total_len.keys()) + 1):  # Generate % var for each species
-                abun_var.append(random.uniform(-0.5, 0.5))
+        multi_dict_abun = {}
+        prev = 0
+        sample_type = ""
+        prev_sample = ""
+        with open(abun, 'r') as abun_file:
+            for line in abun_file.readlines():
+                fields = line.split("\t")
+                if len(fields) == 2:  # single sample
+                    if not sample_type:
+                        sample_type = "single"
+                    elif sample_type != "single":  # abundance file is incorrectly formatted
+                        print("\nAbundance file is incorrectly formatted. Check that each row has two columns "
+                              "if single-sample (i.e. species and abundance) or three columns if multi-sample "
+                              "(i.e. species, abundance, and sample/timepoint).\n")
+                        sys.exit(1)
 
-            abun_var_per_species_dict = {}
-            for var, species in zip(sorted(abun_var, key=abs), sorted(total_len, key=lambda k: total_len[k])):
-                abun_var_per_species_dict[species] = var
-
-            # Read expected abundances from profiles and add variation
-            with open(abun, 'r') as abun_file:
-                abun_with_var = {}
-                for line in abun_file.readlines():
-                    fields = line.split("\t")
-                    species = fields[0]
-                    expected = float(fields[1].strip("\n"))
-                    abundance = expected + expected * abun_var_per_species_dict[species]
-                    abun_with_var[species] = abundance
-
-                total = sum(abun_with_var.values())
-                prev = 0
-                for species in abun_with_var.keys():
-                    renormalized_abun = (abun_with_var[species] / total) * 100
-                    dict_abun[(prev, prev + renormalized_abun)] = species
-                    prev += renormalized_abun
-
-        else:
-            prev = 0
-            with open(abun, 'r') as abun_file:
-                for line in abun_file.readlines():
-                    fields = line.split("\t")
                     species = fields[0]
                     expected = float(fields[1].strip("\n"))
                     dict_abun[(prev, prev + expected)] = species
+                    prev += expected
+
+                elif len(fields) == 3:  # multi sample
+                    if not sample_type:
+                        sample_type = "multi"
+                    elif sample_type != "multi":  # abundance file is incorrectly formatted
+                        print("\nAbundance file is incorrectly formatted. Check that each row has two columns "
+                              "if single-sample (i.e. species and abundance) or three columns if multi-sample "
+                              "(i.e. species, abundance, and sample/timepoint).\n")
+                        sys.exit(1)
+
+                    species = fields[0]
+                    expected = float(fields[1])
+                    sample = fields[2].strip("\n")
+                    if sample != prev_sample:  # next sample
+                        multi_dict_abun[sample] = {}
+                        prev_sample = sample
+                        prev = 0
+                    multi_dict_abun[sample][(prev, prev + expected)] = species
                     prev += expected
 
     else:
@@ -512,11 +511,40 @@ def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp,
     if per:
         kde_aligned = joblib.load(model_prefix + "_aligned_reads.pkl")
     else:
-        if mode == "transriptome":
+        if mode == "transcriptome":
             kde_aligned_2d = joblib.load(model_prefix + "_aligned_region_2d.pkl")
         else:
             kde_aligned = joblib.load(model_prefix + "_aligned_region.pkl")
 
+
+def add_abundance_var(expected_abun, total_len):
+    # Order species according to genome size and assign highest variation to species
+    # w/ largest genome and lowest variation to species w/ smallest genome
+    abun_var = []
+    for i in range(len(total_len.keys()) + 1):  # Generate % var for each species
+        abun_var.append(random.uniform(-0.5, 0.5))
+
+    abun_var_per_species_dict = {}
+    for var, species in zip(sorted(abun_var, key=abs), sorted(total_len, key=lambda k: total_len[k])):
+        abun_var_per_species_dict[species] = var
+
+    # Add variation to expected abundances
+    abun_with_var = {}
+    for abun_interval in expected_abun.keys():
+        species = expected_abun[abun_interval]
+        expected = abun_interval[1] - abun_interval[0]
+        abun_with_var[species] = expected + expected * abun_var_per_species_dict[species]
+
+    # Renormalize abundances
+    renormalized_dict_abun = {}
+    total = sum(abun_with_var.values())
+    prev = 0
+    for species in abun_with_var.keys():
+        renormalized_abun = (abun_with_var[species] / total) * 100
+        renormalized_dict_abun[(prev, prev + renormalized_abun)] = species
+        prev += renormalized_abun
+
+    return renormalized_dict_abun
 
 
 def collapse_homo(seq, k):
@@ -1465,7 +1493,9 @@ def main():
                                                         "species/strain name, the second column is the reference "
                                                         "genome fasta/fastq file directory", required=True)
     parser_mg.add_argument('-a', '--abun', help="Abundance list, tsv file, the first column is species/strain name, "
-                                                "the second column is the abundance value", required=True)
+                                                "the second column is the abundance value, " 
+                                                "the third column is the sample/time-point (required only if simulating "
+                                                "multi-sample data sets)", required=True)
     parser_mg.add_argument('-dl', '--dna_type_list', help="DNA type list, tsv file, the first column is species/strain, "
                                                          "the second column is the chromosome name, the third column is "
                                                          "the DNA type: circular OR linear",
@@ -1708,13 +1738,45 @@ def main():
         read_profile(genome_list, None, number, model_prefix, perfect, args.mode, strandness, None, False, abun,
                      dna_type_list, abun_var)
 
-        if median_len and sd_len:
-            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Simulating read length with log-normal distribution\n")
-            sys.stdout.flush()
-            simulation(args.mode, out, "metagenome", perfect, kmer_bias, max_len, min_len, num_threads, median_len,
-                       sd_len)
-        else:
-            simulation(args.mode, out, "metagenome", perfect, kmer_bias, max_len, min_len, num_threads)
+        # Check if single or multi sample simulation
+        global dict_abun
+        if dict_abun:  # single
+            if abun_var:
+                # Determine genome size of each species/strain; needed for assigning variation
+                total_len = {}
+                for species in dict_abun.values():
+                    total_len[species] = sum(seq_len[species].values())
+                dict_abun = add_abundance_var(dict_abun, total_len)
+
+            if median_len and sd_len:
+                sys.stdout.write(
+                    strftime("%Y-%m-%d %H:%M:%S") + ": Simulating read length with log-normal distribution\n")
+                sys.stdout.flush()
+                simulation(args.mode, out, "metagenome", perfect, kmer_bias, max_len, min_len, num_threads, median_len,
+                           sd_len)
+            else:
+                simulation(args.mode, out, "metagenome", perfect, kmer_bias, max_len, min_len, num_threads)
+
+        elif multi_dict_abun:  # multi
+            for sample in multi_dict_abun.keys():
+                if abun_var:
+                    # Determine genome size of each species/strain; needed for assigning variation
+                    total_len = {}
+                    for species in multi_dict_abun[sample].values():
+                        total_len[species] = sum(seq_len[species].values())
+                    dict_abun = add_abundance_var(multi_dict_abun[sample], total_len)
+                else:
+                    dict_abun = multi_dict_abun[sample]
+
+                if median_len and sd_len:
+                    sys.stdout.write(
+                        strftime("%Y-%m-%d %H:%M:%S") + ": Simulating read length with log-normal distribution\n")
+                    sys.stdout.flush()
+                    simulation(args.mode, out + "_" + sample, "metagenome", perfect, kmer_bias, max_len, min_len,
+                               num_threads, median_len, sd_len)
+                else:
+                    simulation(args.mode, out + "_" + sample, "metagenome", perfect, kmer_bias, max_len, min_len,
+                               num_threads)
 
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
     sys.stdout.close()
@@ -1722,6 +1784,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
