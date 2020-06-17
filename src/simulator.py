@@ -242,7 +242,7 @@ def get_length_kde(kde, num, log=False, flatten=True):
 
 
 def read_profile(ref_g, ref_t, number, model_prefix, per, mode, strandness, exp, model_ir, abun, dna_type, add_abun_var,
-                 polya):
+                 polya):    
     global number_aligned, number_unaligned
     global match_ht_list, error_par, trans_error_pr, match_markov_model
     global kde_aligned, kde_ht, kde_ht_ratio, kde_unaligned, kde_aligned_2d
@@ -973,7 +973,7 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
 
         # Add head and tail region
         read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated + ''.join(np.random.choice(BASES, tail))
-
+        
         # Reverse complement according to strandness rate
         p = random.random()
         if p > strandness_rate:
@@ -1867,7 +1867,7 @@ def main():
                           default=False)
     parser_mg.add_argument('-t', '--num_threads', help='Number of threads for simulation (Default = 1)', type=int,
                            default=1)
-
+    
     args = parser.parse_args()
 
     if len(sys.argv) == 1:
@@ -2182,3 +2182,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

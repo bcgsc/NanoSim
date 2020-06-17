@@ -1,23 +1,41 @@
-![NanoSim](https://github.com/bcgsc/NanoSim/blob/master/NanoSim%20logo.png)
+[![Release](https://img.shields.io/github/v/release/bcgsc/nanosim?include_prereleases)](https://github.com/bcgsc/NanoSim/releases)
+[![Downloads](https://img.shields.io/github/downloads/bcgsc/Nanosim/total?logo=github)](https://github.com/bcgsc/NanoSim/archive/v2.6.0.zip)
+[![Conda](https://img.shields.io/conda/dn/bioconda/nanosim?label=Conda)](https://anaconda.org/bioconda/nanosim)
+[![Stars](https://img.shields.io/github/stars/bcgsc/NanoSim.svg)](https://github.com/bcgsc/NanoSim/stargazers)  
+
+![NanoSim](https://github.com/bcgsc/NanoSim/blob/master/NanoSim_logo.png)
 
 NanoSim is a fast and scalable read simulator that captures the technology-specific features of ONT data, and allows for adjustments upon improvement of nanopore sequencing technology.  
 
-The second version of NanoSim (v2.0) uses minimap2 as default aligner to align long genomic ONT reads to reference genome. It leads to much faster alignment step and reduces the overall runtime of NanoSim. We also utilize HTSeq, a python package, to read SAM alignment files efficiently.
+The second version of NanoSim (v2.0.0) uses minimap2 as default aligner to align long genomic ONT reads to reference genome. It leads to much faster alignment step and reduces the overall runtime of NanoSim. We also utilize HTSeq, a python package, to read SAM alignment files efficiently.
 
-The latest version of NanoSim [(v2.4-beta)](https://github.com/bcgsc/NanoSim/releases/tag/v2.4-beta) is able to simulate ONT transcriptome reads (cDNA / directRNA) as well as genomic reads. It also models features of the library preparation protocols used, including intron retention (IR) events in cDNA and directRNA reads. Further, it has stand-alone modes which profiles transcript expression patterns and detects IR events in custom datasets.
+NanoSim [(v2.5)](https://github.com/bcgsc/NanoSim/releases/tag/v2.5.1) is able to simulate ONT transcriptome reads (cDNA / direct RNA) as well as genomic reads. It also models features of the library preparation protocols used, including intron retention (IR) events in cDNA and directRNA reads. Further, it has stand-alone modes which profiles transcript expression patterns and detects IR events in custom datasets. Additionally, we improved the homopolymer simulation option which simulates homopolymer expansion and contraction events with respect to chosen basecaller. Multiprocessing option allows for faster runtime for large library simulation.  
 
-__Citation__: Chen Yang, Justin Chu, René L Warren, Inanç Birol; NanoSim: nanopore sequence read simulator based on statistical characterization. Gigascience 2017 gix010. doi: 10.1093/gigascience/gix010
+NanoSim [(v2.6)](https://github.com/bcgsc/NanoSim/releases/tag/v2.6.0) i able to simulate ONT reads in fastq format. The base quality information is simulated with truncated log-normal distributions, learnt separately from match bases, mismatch bases, insertion bases, deletion bases, and unaligned bases, each from different basecaller and read type.  
+
+**We provide 6 pre-trained models in the latest release! Users can choose to download the whole package or only scripts without models to speed it up**
+
+![Citation](https://img.shields.io/badge/NanoSim-manuscript-ff69b4)  
+**NanoSim**  
+Chen Yang, Justin Chu, René L Warren, and Inanç Birol; NanoSim: nanopore sequence read simulator based on statistical characterization. Gigascience 2017 gix010. doi: 10.1093/gigascience/gix010  
+
+
+**Trans-NanoSim**  
+Saber Hafezqorani, Chen Yang, Ka Ming Nip, René L. Warren, and Inanç Birol; Trans-NanoSim characterizes and simulates nanopore RNA-seq data. bioRxiv (2019): 800110.  
+
 
 ## Dependencies
-minimap2 (Tested with version 2.10)  
-LAST (Tested with version 581 and 916)  
-Python (2.7 or >= 3.4)  
+![Python}](https://img.shields.io/pypi/pyversions/py)  
 Python packages:  
 * six  
 * numpy (Tested with version 1.10.1 or above)
-* HTSeq  
+* HTSeq (Tested with version 0.9.1)  
+* Pysam (Tested with version 0.13)  
 * scipy (Tested with verson 1.0.0)  
 * scikit-learn (Tested with version 0.20.0)
+
+minimap2 (Tested with version 2.10 and 2.17)  
+LAST (Tested with version 581 and 916)  
 
 ## Usage
 NanoSim is implemented using Python for error model fitting, read length analysis, and simulation. The first step of NanoSim is read characterization, which provides a comprehensive alignment-based analysis, and generates a set of read profiles serving as the input to the next step, the simulation stage. The simulation tool uses the model built in the previous step to produce in silico reads for a given reference genome/transcriptome. It also outputs a list of introduced errors, consisting of the position on each read, error type and reference bases.
@@ -86,7 +104,7 @@ optional arguments:
 ```
 
 **transcriptome mode**  
-If you are interested in simulating ONT transcriptome reads (cDNA / directRNA), you need to run the characterization stage in "transcriptome" mode with following options. It takes a reference transcriptome and a training read set in FASTA or FASTQ format as input and aligns these reads to the reference using minimap2 (default) or LAST aligner. User can also provide their own alignment file in SAM or MAF formats. If the SAM file is provided, make sure that is MD flag in the SAM file. The output of this is a bunch of profiles which you should use in simulation stage.
+If you are interested in simulating ONT transcriptome reads (cDNA / directRNA), you need to run the characterization stage in "transcriptome" mode with following options. It takes a reference transcriptome, a reference genome, and a training read set in FASTA or FASTQ format as input and aligns these reads to the reference using minimap2 (default) or LAST aligner. User can also provide their own alignment file in SAM or MAF formats. If the SAM file is provided, make sure that is MD flag in the SAM file. The output of this is a bunch of profiles which you should use in simulation stage.
 
 __transcriptome mode usage:__
 ```
@@ -180,11 +198,14 @@ optional arguments:
 
 ```
 
-
 \* NOTICE: -ga/-ta option allows users to provide their own alignment file. Make sure that the name of query sequences are the same as appears in the FASTA files. For FASTA files, some headers have spaces in them and most aligners only take part of the header (before the first white space/tab) as the query name. However, the truncated headers may not be unique if using the output of poretools. We suggest users to pre-process the fasta files by concatenating all elements in the header via '\_' before alignment and feed the processed FASTA file as input of NanoSim.
 
-~~Some ONT read profiles are ready to use for users. With the profiles, users can run simulation tool directly. Please go to [ftp](ftp://ftp.bcgsc.ca/supplementary/NanoSim/) to download _E. coli_ or _S. cerevisiae_ datasets and profiles.~~  
-UPDATE: For release v2.2.0 onwards, there's no pre-trained profiles to download temporarily. We are working on this for now.
+### Downloads  
+**Some ONT read profiles are ready to use for users. With the profiles, users can run simulation tool directly.**  
+
+For **releases before v2.2.0**, we provide profiles trained for _E. coli_ or _S. cerevisiae_ datasets. Flowcell chemistry is R7.3 and R9, and they were basecalled by Metrichor. They can be downloaded from **[our ftp site](http://www.bcgsc.ca/downloads/supplementary)**
+
+For **release v2.5.0 and onwards**, we provide profiles trained for _H. sapiens_ NA12878 gDNA, cDNA 1D2, and directRNA datasets, and _Mus. musculus_ cDNA dataset. Flowcell chemistry is R9.4 for all datasets. NA12878 gDNA and directRNA was basecalled by Guppy 3.1.5; NA12878 cDNA 1D2 was basecalled by Albacore 2.3.1; mouse cDNA was basecalled by Metrichor. These models are available within **[pre-trained_models folder](https://github.com/bcgsc/NanoSim/tree/master/pre-trained_models)**.  
 
 ### 2. Simulation stage
 Simulation stage takes reference genome/transcriptome and read profiles as input and outputs simulated reads in FASTA format. Simulation stage runs in two modes: "genome" and "transcriptome" and you may use either of them based on your needs.
@@ -225,8 +246,9 @@ __genome mode usage:__
 usage: simulator.py genome [-h] -rg REF_G [-c MODEL_PREFIX] [-o OUTPUT]
                            [-n NUMBER] [-max MAX_LEN] [-min MIN_LEN]
                            [-med MEDIAN_LEN] [-sd SD_LEN] [--seed SEED]
-                           [-k KMERBIAS] [-s STRANDNESS]
-                           [-dna_type {linear,circular}] [--perfect]
+                           [-k KMERBIAS] [-b {albacore,guppy,guppy-flipflop}]
+                           [-s STRANDNESS] [-dna_type {linear,circular}]
+                           [--perfect] [--fastq] [-t NUM_THREADS]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -252,7 +274,11 @@ optional arguments:
                         (Default = None)
   --seed SEED           Manually seeds the pseudo-random number generator
   -k KMERBIAS, --KmerBias KMERBIAS
-                        Enable k-mer bias simulation
+                        Minimum homopolymer length to simulate homopolymer
+                        contraction andexpansion events in
+  -b {albacore,guppy,guppy-flipflop}, --basecaller {albacore,guppy,guppy-flipflop}
+                        Simulate homopolymers with respect to chosen
+                        basecaller: albacore, guppy, or guppy-flipflop
   -s STRANDNESS, --strandness STRANDNESS
                         Percentage of antisense sequences. Overrides the value
                         profiled in characterization stage. Should be between
@@ -261,6 +287,9 @@ optional arguments:
                         Specify the dna type: circular OR linear (Default =
                         linear)
   --perfect             Ignore error profiles and simulate perfect reads
+  --fastq               Output fastq files instead of fasta files
+  -t NUM_THREADS, --num_threads NUM_THREADS
+                        Number of threads for simulation (Default = 1)
 
 ```
 
@@ -272,8 +301,10 @@ __transcriptome mode usage:__
 usage: simulator.py transcriptome [-h] -rt REF_T [-rg REF_G] -e EXP
                                   [-c MODEL_PREFIX] [-o OUTPUT] [-n NUMBER]
                                   [-max MAX_LEN] [-min MIN_LEN] [--seed SEED]
-                                  [-k KMERBIAS] [-s STRANDNESS]
-                                  [--no_model_ir] [--perfect]
+                                  [-k KMERBIAS] [-b {albacore,guppy}]
+                                  [-r {dRNA,cDNA_1D,cDNA_1D2}] [-s STRANDNESS]
+                                  [--no_model_ir] [--perfect] [--polya POLYA]
+                                  [--fastq] [-t NUM_THREADS] [--uracil]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -300,16 +331,30 @@ optional arguments:
   --seed SEED           Manually seeds the pseudo-random number generator
   -k KMERBIAS, --KmerBias KMERBIAS
                         Enable k-mer bias simulation
+  -b {albacore,guppy}, --basecaller {albacore,guppy}
+                        Simulate homopolymers with respect to chosen  
+                        basecaller: albacore or guppy
+  -r {dRNA,cDNA_1D,cDNA_1D2}, --read_type {dRNA,cDNA_1D,cDNA_1D2}
+                        Simulate homopolymers with respect to chosen read
+                        type: dRNA, cDNA_1D or cDNA_1D2
   -s STRANDNESS, --strandness STRANDNESS
                         Percentage of antisense sequences. Overrides the value
                         profiled in characterization stage. Should be between
                         0 and 1
   --no_model_ir         Simulate intron retention events
   --perfect             Ignore profiles and simulate perfect reads
+  --polya POLYA         Simulate polyA tails for given list of transcripts
+  --fastq               Output fastq files instead of fasta files
+  -t NUM_THREADS, --num_threads NUM_THREADS
+                        Number of threads for simulation (Default = 1)
+  --uracil              Converts the thymine (T) bases to uracil (U) in the
+                        output fasta format
 ```
 
 
-\* Notice: the use of `max_len` and `min_len` in genome mode will affect the read length distributions. If the range between `max_len` and `min_len` is too small, the program will run slowlier accordingly.
+\* Notice: the use of `max_len` and `min_len` in genome mode will affect the read length distributions. If the range between `max_len` and `min_len` is too small, the program will run slowlier accordingly.  
+
+\* Notice: the transcript name in the expression tsv file and the ones in th polyadenylated transcript list has to be consistent with the ones in the reference transcripts, otherwise the tool won't recognize them and don't know where to find them to extract reads for simulation.
 
 __Example runs:__  
 1 If you want to simulate _E. coli_ genome, then circular command must be chosen because it's a circular genome  
@@ -332,6 +377,9 @@ __Example runs:__
 
 7 If you want to simulate five thousands cDNA/directRNA reads from mouse reference transcriptome without modeling intron retention  
 `./simulator.py transcriptome -rt Mus_musculus.GRCm38.cdna.all.fa -c mouse_cdna -e abundance.tsv -n 5000 --no_model_ir`
+
+8 If you want to simulate two thousands cDNA/directRNA reads from human reference transcriptome with polya tails, mimicking homopolymer bias (starting from homopolymer length >= 6) and reads in fastq format  
+`./simulator.py transcriptome -rt Homo_sapiens.GRCh38.cdna.all.fa -c Homo_sapiens_model -e abundance.tsv -rg Homo_sapiens.GRCh38.dna.primary.assembly.fa --polya transcripts_with_polya_tails --fastq -k 6 --basecaller guppy -r dRNA`
 
 ## Explanation of output files
 ### 1. Characterization stage
@@ -386,6 +434,8 @@ __Example runs:__
     This is an aligned read coming from chromosome XI at position 115406. `16565` is the sequence index. `R` represents a reverse complement strand. `92_12710_2` means that this read has 92-base head region (cannot be aligned), followed by 12710 bases of middle region, and then 2-base tail region.  
   
   The information in the header can help users to locate the read easily.  
+  
+__Specific to transcriptome simulation__: for reads that include retained introns, the header contains the information starting from `Retained_intron`, each genomic interval is separated by `;`.
   
 2. `simulated_error_profile`
   Contains all the information of errors introduced into each reads, including error type, position, original bases and current bases.  
