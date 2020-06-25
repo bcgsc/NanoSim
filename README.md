@@ -180,6 +180,7 @@ optional arguments:
   -rg REF_G, --ref_g REF_G
                         Reference genome, not required if genome alignment
                         file is provided
+                        
   -rt REF_T, --ref_t REF_T
                         Reference Transcriptome, not required if transcriptome
                         alignment file is provided
@@ -280,7 +281,7 @@ optional arguments:
                         Simulate homopolymers with respect to chosen
                         basecaller: albacore, guppy, or guppy-flipflop
   -s STRANDNESS, --strandness STRANDNESS
-                        Percentage of antisense sequences. Overrides the value
+                        Proportion of sense sequences. Overrides the value
                         profiled in characterization stage. Should be between
                         0 and 1
   -dna_type {linear,circular}
@@ -338,7 +339,7 @@ optional arguments:
                         Simulate homopolymers with respect to chosen read
                         type: dRNA, cDNA_1D or cDNA_1D2
   -s STRANDNESS, --strandness STRANDNESS
-                        Percentage of antisense sequences. Overrides the value
+                        Proportion of sense sequences. Overrides the value
                         profiled in characterization stage. Should be between
                         0 and 1
   --no_model_ir         Simulate intron retention events

@@ -1456,8 +1456,8 @@ def main():
     parser_g.add_argument('-b', '--basecaller', help='Simulate homopolymers and/or base qualities with respect to '
                                                      'chosen basecaller: albacore, guppy, or guppy-flipflop',
                           choices=["albacore", "guppy", "guppy-flipflop"], default=None)
-    parser_g.add_argument('-s', '--strandness', help='Percentage of antisense sequences. Overrides the value profiled '
-                                                     'in characterization stage. Should be between 0 and 1',
+    parser_g.add_argument('-s', '--strandness', help='Proportion of sense sequences. Overrides the value '
+                                                      'profiled in characterization stage. Should be between 0 and 1',
                           type=float, default=None)
     parser_g.add_argument('-dna_type', help='Specify the dna type: circular OR linear (Default = linear)',
                           choices=["linear", "circular"], default="linear")
@@ -1495,8 +1495,8 @@ def main():
     parser_t.add_argument('-r', '--read_type', help='Simulate homopolymers and/or base qualities with respect to '
                                                     'chosen read type: dRNA, cDNA_1D or cDNA_1D2',
                           choices=["dRNA", "cDNA_1D", "cDNA_1D2"], default=None)
-    parser_t.add_argument('-s', '--strandness', help='Percentage of antisense sequences. Overrides the value profiled '
-                                                     'in characterization stage. Should be between 0 and 1',
+    parser_t.add_argument('-s', '--strandness', help='Proportion of sense sequences. Overrides the value '
+                                                      'profiled in characterization stage. Should be between 0 and 1',
                           type=float, default=None)
     parser_t.add_argument('--no_model_ir', help='Ignore simulating intron retention events', action='store_false',
                           default=True)
