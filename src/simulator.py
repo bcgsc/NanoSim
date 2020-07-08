@@ -669,7 +669,7 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
                     if flag:
                         continue
                     ref_start_pos = list_iv[0].start
-
+ 
                     if interval.strand == '-':  # Keep the read direction the same as reference transcripts
                         new_read = reverse_complement(new_read)
 
@@ -1250,7 +1250,10 @@ def error_list(m_ref, m_model, m_ht_list, error_p, trans_p, fastq):
                 prev_match = 2
     pos += prev_match
     if fastq:
-        e_count["match"] += prev_match
+        if prev_match > middle_ref: 
+            e_count["match"] += middle_ref
+        else:
+            e_count["match"] += prev_match
 
     # Select an error, then the step size, and then a match and so on so forth.
     while pos < middle_ref:
