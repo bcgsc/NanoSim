@@ -4,11 +4,13 @@ from __future__ import with_statement
 import pysam
 import numpy
 import re
+import joblib
+from sklearn.neighbors import KernelDensity
 
 
 def cigar_parser(cigar):
     match = re.findall(r'(\d+)(\w)', cigar)
-    qstart = int(match[0][0])
+    qstart = int(match[0][0]) if match[0][1] in ('S', 'H') else 0
     qlen = 0
     rlen = 0
 
@@ -24,31 +26,19 @@ def cigar_parser(cigar):
     return qstart, qend, qlen, rlen
 
 
-def not_overlap(interval, interval_lst, overlap_base=10):
+def not_overlap(interval, interval_lst, interval_name=None, interval_name_list=None, overlap_base=10):
     # interval: (start, end)
     # overlap_base: a relaxed threshold reserved for a small stretch of bases shared by both alignments
-    for i in interval_lst:
-        if interval[0] < i[1] - overlap_base and interval[1] - overlap_base > i[0]:
-            return False
+    for i in range(len(interval_lst)):
+        if interval[0] < interval_lst[i][1] - overlap_base and interval[1] - overlap_base > interval_lst[i][0]:
+            if interval_name is None or (interval_name is not None and interval_name == interval_name_list[i]):
+                return False
     return True
-
-
-def edge_checker(rstart, rend, rname, ref_lengths, ref_edge_max_dist=400, query_min_aln_len=100):
-    is_edge = [False, False]
-    if rend - rstart >= query_min_aln_len:
-        if rend >= ref_lengths[rname] - 1 - ref_edge_max_dist:
-            # read was aligned to reference end
-            is_edge[1] = True
-        elif rstart <= ref_edge_max_dist:
-            # read was aligned to reference start
-            is_edge[0] = True
-
-    return is_edge
 
 
 def primary_and_unaligned(sam_alnm_file, prefix):
     in_sam_file = pysam.AlignmentFile(sam_alnm_file, 'r')
-    out_sam_file = pysam.AlignmentFile(prefix + "_primary.sam", 'w', template=in_sam_file, add_sam_header=False)
+    out_sam_file = pysam.AlignmentFile(prefix + "_primary.sam", 'w', template=in_sam_file, add_sam_header=True)
 
     unaligned_len = []
     pos_strand = 0
@@ -72,23 +62,20 @@ def primary_and_unaligned(sam_alnm_file, prefix):
     return unaligned_len, strandness
 
 
-def primary_and_unaligned_circular(sam_alnm_file, prefix, ref_edge_max_dist=400, query_min_aln_len=100,
-                                   overlap_base=10):
+def primary_and_unaligned_circular(sam_alnm_file, prefix):
     """
     Function to extract alignments of reads at extremities of circular genome references
     :param sam_alnm_file: path of input SAM file
     :param prefix: prefix of output SAM file
-    :param meta_list: a dictionary of metagenome information, including circularity
-    :param ref_edge_max_dist: max distance of alignments from extremities of references
-    :param query_min_aln_len: min length of split alignments
-    :return: Outputs a sam file that contains: 1) primary alignments for all reads that can be aligned and 2)
-             split alignments for reads that are aligned to both ends of a circular genome
-             Return unaligned_len list, and strandness information
+    :outputs: a sam file that contains: 1) primary alignments for all reads that can be aligned and 2)
+              split alignments for reads that are aligned to both ends of a circular genome,
+              A pickle KDE file of the gap sizes between alignment fragments
+    :returns: an unaligned_len list, and strandness information
     """
 
     in_sam_file = pysam.AlignmentFile(sam_alnm_file, 'r')
-    out_sam_file = pysam.AlignmentFile(prefix + "_primary.sam", 'w', template=in_sam_file, add_sam_header=False)
-    tmp = open("chimeric", 'w')
+    out_sam_file = pysam.AlignmentFile(prefix + "_primary.sam", 'w', template=in_sam_file, add_sam_header=True)
+    gap_length = []
     unaligned_len = []
     pos_strand = 0
     num_aligned = 0
@@ -102,9 +89,8 @@ def primary_and_unaligned_circular(sam_alnm_file, prefix, ref_edge_max_dist=400,
     for aln in in_sam_file.fetch(until_eof=True):
         if aln.is_unmapped:
             unaligned_len.append(aln.query_length)
-            continue
 
-        if not aln.is_secondary and not aln.is_supplementary:
+        elif not aln.is_secondary and not aln.is_supplementary:
             # a primary alignment
             num_aligned += 1
 
@@ -132,7 +118,7 @@ def primary_and_unaligned_circular(sam_alnm_file, prefix, ref_edge_max_dist=400,
                     added = False
                     for seg in compatible_list:
                         if not_overlap((qstart, qend), seg["query"]) and \
-                                not_overlap((ref_start, ref_start + rlen), seg["ref"]):
+                                not_overlap((ref_start, ref_start + rlen), seg["ref"], ref_name, seg['rname']):
                             seg["query"].append((qstart, qend))
                             seg["ref"].append((ref_start, ref_start + rlen))
                             seg["score"] += (qlen - NM_tag)
@@ -150,38 +136,29 @@ def primary_and_unaligned_circular(sam_alnm_file, prefix, ref_edge_max_dist=400,
                 max_score = max([x["score"] for x in compatible_list])
                 for seg in compatible_list:
                     if seg["score"] == max_score:
-                        out_info = "Query " + ';'.join(str(x[0]) + '-' + str(x[1]) for x in seg["query"])
-                        out_info += '\t' + "Ref " + ';'.join(str(x[0]) + '-' + str(x[1]) for x in seg["ref"])
-                        out_info += '\t' + "Direction " + ';'.join(x for x in seg["direction"]) + '\n'
+                        idx = [i[0] for i in sorted(enumerate(seg["query"]), key=lambda x:x[1])]
+                        seg["query"].sort()
+                        seg["ref"] = [seg["ref"][x] for x in idx]
+                        seg["rname"] = [seg["rname"][x] for x in idx]
 
-                        tmp.write(aln.query_name + '\t' + out_info)
-
-                '''
-                edge_added = [False, False]
-                added_strand = ''
-                for seg in compatible_list:
-                    if seg["score"] == max_score:
-                        for i in range(len(seg['query'])):
-                            edge_info = edge_checker(seg['ref'][i][0], seg['ref'][i][1], seg['rname'][i], ref_lengths)
-                            if seg['query'][i][0] == primary_qstart:
-                                out_sam_file.write(aln)
-                                edge_added = edge_info
-                                added_strand = seg['direction'][i]
-                                if seg['direction'][i] == '+':
+                        dir_added = False
+                        for i in range(len(seg["query"])):
+                            interval = seg["query"][i]
+                            if i > 0:
+                                gap = max(0, interval[0] - seg["query"][i - 1][1])  # Change negative gaps size to 0
+                                gap_length.append(gap)
+                            if interval[0] == primary_qstart:
+                                dir_added = True
+                                if primary_direction == '+':
                                     pos_strand += 1
-                                if not any(edge_added):
-                                    break
-                            elif (edge_info[0] and not edge_added[0]) or (edge_info[1] and not edge_added[1]):
-                                if added_strand == '' or added_strand == seg['direction'][i]:
-                                    if added_strand == '' and seg['direction'][i] == '+':
-                                        pos_strand += 1
-                                    added_strand = seg['direction'][i]
-                                supplementary_to_be_added.append(seg['ref'][i][0])
+                                out_sam_file.write(aln)
                             else:
-                                continue
-                    else:
-                        continue
-                '''
+                                supplementary_to_be_added.append((seg['rname'][i], seg['query'][i][0],
+                                                                 seg['ref'][i][0]))
+                        if not dir_added:
+                            if seg["direction"][0] == '+':
+                                pos_strand += 1
+                        break
 
             except KeyError:
                 out_sam_file.write(aln)
@@ -189,11 +166,9 @@ def primary_and_unaligned_circular(sam_alnm_file, prefix, ref_edge_max_dist=400,
                     pos_strand += 1
 
         else:
-            continue
-            '''
-            if aln.reference_start in supplementary_to_be_added:
+            qstart, _, _, _ = cigar_parser(aln.cigarstring)
+            if (aln.reference_name, qstart, aln.reference_start) in supplementary_to_be_added:
                 out_sam_file.write(aln)
-            '''
 
     in_sam_file.close()
     out_sam_file.close()
@@ -201,7 +176,12 @@ def primary_and_unaligned_circular(sam_alnm_file, prefix, ref_edge_max_dist=400,
     unaligned_len = numpy.array(unaligned_len)
     strandness = float(pos_strand) / num_aligned
 
-    tmp.close()
+    # Compute the KDE of gaps
+    gap_length = numpy.array(gap_length)
+    gap_log = numpy.log10(gap_length + 1)
+    gap_log_2d = gap_log[:, numpy.newaxis]
+    kde_gap = KernelDensity(bandwidth=0.01).fit(gap_log_2d)
+    joblib.dump(kde_gap, prefix + '_gap_length.pkl')
 
     return unaligned_len, strandness
 

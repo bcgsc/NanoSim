@@ -20,12 +20,12 @@ def main(argv):
     try:
         opts, args = getopt.getopt(argv, "hi:o:", ["ifile=", "ofile="])
     except getopt.GetoptError:
-        print 'pairwise2maf.py -i <inputfile> -o <outputfile>'
+        print('pairwise2maf.py -i <inputfile> -o <outputfile>')
         sys.exit(2)
 
     for opt, arg in opts:
         if opt == '-h':
-            print 'test.py -i <inputfile>'
+            print('test.py -i <inputfile>')
             sys.exit()
         elif opt in ("-i", "--ifile"):
             infile = arg

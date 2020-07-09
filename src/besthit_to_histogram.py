@@ -2,6 +2,7 @@
 
 from __future__ import with_statement
 import HTSeq
+# TODO Change HTSeq to Pysam
 import re
 
 try:
