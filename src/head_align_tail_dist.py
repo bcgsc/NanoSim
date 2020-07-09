@@ -2,7 +2,7 @@
 
 from __future__ import with_statement
 import numpy
-import HTSeq
+import pysam
 import sys
 import joblib
 from time import strftime
@@ -17,42 +17,44 @@ def kde2d(x, y):
     n = xy.shape[1]
     bw = (n * (d + 2) / 4.) ** (-1. / (d + 4))  # silverman
     kde_2d = KernelDensity(bandwidth=bw).fit(xy.T)
-    # xmin = x.min()
-    # xmax = x.max()
-    # ymin = y.min()
-    # ymax = y.max()
-    # X, Y = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
-    # positions = np.vstack([X.ravel(), Y.ravel()])
-    # Z = np.reshape(np.exp(kde_2d.score_samples(positions.T)), X.shape)
 
     return kde_2d
+
+
+def edge_checker(rstart, rend, ref_length, ref_edge_max_dist=400, query_min_aln_len=100):
+    is_edge = [False, False]
+    if rend - rstart >= query_min_aln_len:
+        if rend >= ref_length - 1 - ref_edge_max_dist:
+            # read was aligned to reference end
+            is_edge[1] = True
+        elif rstart <= ref_edge_max_dist:
+            # read was aligned to reference start
+            is_edge[0] = True
+
+    return is_edge
 
 
 def get_head_tail(cigar_string):
     head_info = cigar_string[0]
     tail_info = cigar_string[-1]
 
-    if head_info.type == "S" or head_info.type == "H":
-        head = head_info.size
+    if head_info[0] in (4, 5):  # soft clip is 4, hard clip is 5
+        head = head_info[1]
     else:
         head = 0
 
-    if tail_info.type == "S" or tail_info.type == "H":
-        tail = tail_info.size
+    if tail_info[0] in (4, 5):
+        tail = tail_info[1]
     else:
         tail = 0
 
     return head, tail
 
 
-def head_align_tail(*args):
-    prefix = args[0]
-    alnm_ext = args[1]
-    mode = args[2]
+def head_align_tail(prefix, alnm_ext, mode):
     alnm_file_prefix = prefix
     if mode == "transcriptome":
         total_ref_length = []  # total length of reference
-        dict_ref_len = args[3]
         prefix = prefix[:-14]
 
     aligned_ref_length = []  # aligned length of reference
@@ -60,6 +62,7 @@ def head_align_tail(*args):
     ht_length = []
     head_vs_ht_ratio = []
 
+    '''
     # For debugging
     out1 = open(prefix + "_total.txt", 'w')
     out2 = open(prefix + "_middle.txt", 'w')
@@ -68,6 +71,7 @@ def head_align_tail(*args):
     out5 = open(prefix + "_ht.txt", 'w')
     out6 = open(prefix + "_ratio.txt", 'w')
     out7 = open(prefix + "_tail.txt", 'w')
+    '''
 
     parsed = 0
 
@@ -92,6 +96,7 @@ def head_align_tail(*args):
                     r = float(head) / ht
                     head_vs_ht_ratio.append(r)
 
+                '''
                 tail = int(query[5])-int(query[2])-int(query[3])
                 ratio = float(query[3])/float(query[5])
                 out1.write(query[5] + '\n')
@@ -101,82 +106,104 @@ def head_align_tail(*args):
                 out5.write(str(ht) + '\n')
                 out6.write(str(ratio) + '\n')
                 out7.write(str(tail) + '\n')
+                '''
     else:
-        sam_reader = HTSeq.SAM_Reader
-        alnm_file = alnm_file_prefix + "_primary.sam"
-        alignments = sam_reader(alnm_file)
         last_read = ''
+        last_ref = ''
         aligned_ref = 0
-        for alnm in alignments:
-            read = alnm.read.name
-            ref = alnm.iv.chrom
+        in_sam_file = pysam.AlignmentFile(alnm_file_prefix + "_primary.sam", 'r')
+
+        # extract the lengths of all reference sequences
+        dict_ref_len = {}
+        for info in in_sam_file.header['SQ']:
+            dict_ref_len[info['SN']] = info['LN']
+
+        for alnm in in_sam_file.fetch(until_eof=True):
+            read = alnm.query_name
+            ref = alnm.reference_name
             if mode == "transcriptome":
                 total_ref = dict_ref_len[ref]
                 total_ref_length.append(total_ref)
-                aligned_ref_length.append(alnm.iv.length)
-                read_len_total = len(alnm.read.seq)
-                total_length.append(read_len_total)
-                head, tail = get_head_tail(alnm.cigar)
+
+            if read == last_read:
+                # head and tail of a read with split alignments are considered together
+                # aligned regions of a read with split alignments are considered separately
+                # aligned regions of a circular read are considered are considered together
+
+                head_new, tail_new = get_head_tail(alnm.cigartuples)
+                head = min(head, head_new)
+                tail = min(tail, tail_new)
+                is_edge = edge_checker(alnm.reference_start, alnm.reference_end, dict_ref_len[ref])
+
+                # Check for "circular" reads
+                if ref == last_ref and \
+                        ((last_is_edge[0] and is_edge[1]) or (last_is_edge[1] and is_edge[0])):
+                    aligned_ref += alnm.reference_length
+                    middle += alnm.query_alignment_length
+                else:
+                    aligned_ref_length.append(aligned_ref)
+                    # out2.write(str(last_read) + '\t' + str(middle) + '\n')
+                    # out4.write(str(last_read) + '\t' + str(aligned_ref) + '\n')
+                    aligned_ref = alnm.reference_length
+                    middle = alnm.query_alignment_length
+                last_ref = ref
 
             else:
-                if read == last_read:
-                    flag = False
-                    aligned_ref += alnm.iv.length
-                    head_new, tail_new = get_head_tail(alnm.cigar)
-                    head = min(head, head_new)
-                    tail = min(tail, tail_new)
-                else:
-                    flag = True
-                    if aligned_ref != 0:
-                        aligned_ref_length.append(aligned_ref)
-                        total_length.append(read_len_total)
-                        middle = read_len_total - head - tail
+                if aligned_ref != 0:
+                    aligned_ref_length.append(aligned_ref)
+                    total_length.append(read_len_total)
 
-                        # ratio aligned part over total length of the read
-                        ratio = float(middle) / read_len_total
-                        ht = head + tail
-                        ht_length.append(ht)
-                        if head != 0:
-                            r = float(head) / ht
-                            head_vs_ht_ratio.append(r)
+                    # ratio aligned part over total length of the read
+                    ratio = float(middle) / read_len_total
+                    ht = head + tail
+                    ht_length.append(ht)
+                    if head != 0:
+                        r = float(head) / ht
+                        head_vs_ht_ratio.append(r)
 
-                        out1.write(str(read_len_total) + '\n')
-                        out2.write(str(middle) + '\n')
-                        out3.write(str(last_read) + '\t' + str(head) + '\n')
-                        out4.write(str(aligned_ref) + '\n')
-                        out5.write(str(ht) + '\n')
-                        out6.write(str(ratio) + '\n')
-                        out7.write(str(tail) + '\n')
-                        parsed += 1
-                        if (parsed) % 1000 == 0:
-                            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads processed >> " +
-                                             str(parsed + 1) + "\r")
-                            # +1 is just to ignore the zero index by python
-                            sys.stdout.flush()
+                    '''
+                    out1.write(str(last_read) + '\t' + str(read_len_total) + '\n')
+                    out2.write(str(last_read) + '\t' + str(middle) + '\n')
+                    out3.write(str(last_read) + '\t' + str(head) + '\n')
+                    out4.write(str(last_read) + '\t' + str(aligned_ref) + '\n')
+                    out5.write(str(last_read) + '\t' + str(ht) + '\n')
+                    out6.write(str(last_read) + '\t' + str(ratio) + '\n')
+                    out7.write(str(last_read) + '\t' + str(tail) + '\n')
+                    '''
 
-                    last_read = alnm.read.name
-                    aligned_ref = alnm.iv.length
-                    read_len_total = len(alnm.read.seq)
-                    head, tail = get_head_tail(alnm.cigar)
+                    parsed += 1
+                    if (parsed) % 1000 == 0:
+                        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads processed >> " +
+                                         str(parsed + 1) + "\r")
+                        # +1 is just to ignore the zero index by python
+                        sys.stdout.flush()
 
-    if not flag:
+                last_read = read
+                aligned_ref = alnm.reference_length
+                read_len_total = alnm.query_length
+                middle = alnm.query_alignment_length
+                head, tail = get_head_tail(alnm.cigartuples)
+                if mode != "transcriptome":
+                    last_is_edge = edge_checker(alnm.reference_start, alnm.reference_end, dict_ref_len[ref])
+                last_ref = ref
+
         aligned_ref_length.append(aligned_ref)
         total_length.append(read_len_total)
-        middle = read_len_total - head - tail
         ratio = float(middle) / read_len_total
         ht = head + tail
         ht_length.append(ht)
-        if head != 0:
+        if ht != 0:
             r = float(head) / ht
             head_vs_ht_ratio.append(r)
 
-        out1.write(str(read_len_total) + '\n')
-        out2.write(str(middle) + '\n')
-        out3.write(str(alnm.read.name) + '\t' + str(head) + '\n')
-        out4.write(str(aligned_ref) + '\n')
-        out5.write(str(ht) + '\n')
-        out6.write(str(ratio) + '\n')
-        out7.write(str(tail) + '\n')
+    '''
+        out1.write(str(last_read) + '\t' + str(read_len_total) + '\n')
+        out2.write(str(last_read) + '\t' + str(middle) + '\n')
+        out3.write(str(alnm.query_name) + '\t' + str(head) + '\n')
+        out4.write(str(last_read) + '\t' + str(aligned_ref) + '\n')
+        out5.write(str(last_read) + '\t' + str(ht) + '\n')
+        out6.write(str(last_read) + '\t' + str(ratio) + '\n')
+        out7.write(str(last_read) + '\t' + str(tail) + '\n')
 
     out1.close()
     out2.close()
@@ -185,6 +212,7 @@ def head_align_tail(*args):
     out5.close()
     out6.close()
     out7.close()
+    '''
 
     if mode == "transcriptome":
         kde_2d = kde2d(total_ref_length, aligned_ref_length)

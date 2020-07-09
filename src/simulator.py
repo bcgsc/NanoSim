@@ -14,7 +14,7 @@ import sys
 import os
 import HTSeq
 import pysam
-import numpy
+# TODO change HTSeq to pysam
 import random
 import re
 import copy
@@ -40,7 +40,7 @@ import norm_distr as nd
 import math
 
 PYTHON_VERSION = sys.version_info
-VERSION = "2.6.0"
+VERSION = "3.0.0"
 PRORAM = "NanoSim"
 AUTHOR = "Chen Yang, Saber Hafezqorani, Theodora Lo (UBC & BCGSC)"
 CONTACT = "cheny@bcgsc.ca; shafezqorani@bcgsc.ca"
@@ -84,7 +84,7 @@ def make_cdf(dict_exp, dict_len):
 
     sorted_value_list = sorted(list_value, key=lambda x: x[1])
     sorted_only_values = [x[1] for x in sorted_value_list]
-    list_cdf = numpy.cumsum(sorted_only_values)
+    list_cdf = np.cumsum(sorted_only_values)
     ranged_cdf_list = list_to_range(list_cdf, 0)
 
     ecdf_dict = {}

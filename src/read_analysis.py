@@ -500,7 +500,7 @@ def main():
         # READ PRE-PROCESS AND ALIGNMENT ANALYSIS
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process\n")
         in_fasta = prefix + "_processed.fasta"
-
+        '''
         processed_fasta = open(in_fasta, 'w')
 
         # Replace spaces in sequence headers with dashes to create unique header for each read
@@ -510,6 +510,7 @@ def main():
                 chr_name = "-".join(info)
                 processed_fasta.write('>' + chr_name + '\n' + seqS + '\n')
         processed_fasta.close()
+        '''
 
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Processing reference genome\n")
         metagenome_list = {}
@@ -525,18 +526,18 @@ def main():
                     info = line.split('\t')
                     species = '-'.join(info[0].split())
                     if species not in metagenome_list:
-                        print(species)
+                        sys.stderr.write(species + '\n')
                         sys.stderr.write("The species name in the expected proportion list has to match the one in the "
                                          "reference genome list!\n")
                         sys.exit(1)
                     else:
                         metagenome_list[species]['exp'] = float(info[1])
-
+        '''
         ref_g = concatenate_genomes(metagenome_list)
-
+        '''
+        ref_g = "/projects/cheny_prj/nanopore/dev/reference_metagenome.fasta"
         alnm_ext, unaligned_length, strandness = align_genome(in_fasta, prefix, 'minimap2', num_threads, g_alnm, ref_g,
                                                               chimeric)
-
         # Aligned reads analysis
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
         num_aligned = align.head_align_tail(prefix, alnm_ext, args.mode)
@@ -612,15 +613,6 @@ def main():
                 processed_fasta.write('>' + chr_name + '\n' + seqS + '\n')
         processed_fasta.close()
 
-        # Read the length of reference transcripts from the reference transcriptome
-        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read the length of reference transcripts \n")
-        dict_ref_len = {}
-        with open(ref_t) as f:
-            for seqN, seqS, seqQ in readfq(f):
-                info = re.split(r'[_\s]\s*', seqN)
-                chr_name = "-".join(info)
-                dict_ref_len[chr_name] = len(seqS)
-
         alnm_ext, unaligned_length, g_alnm, t_alnm, strandness = \
             align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm, ref_g)
 
@@ -633,7 +625,7 @@ def main():
 
         # Aligned reads analysis
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
-        num_aligned = align.head_align_tail(prefix + "_transcriptome", alnm_ext, args.mode, dict_ref_len)
+        num_aligned = align.head_align_tail(prefix + "_transcriptome", alnm_ext, args.mode)
 
     # strandness of the aligned reads
     strandness_rate = open(prefix + "_strandness_rate", 'w')
@@ -666,6 +658,7 @@ def main():
     if model_fit:
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Model fitting\n")
         model_fitting.model_fitting(prefix, int(num_threads))
+
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
 
 

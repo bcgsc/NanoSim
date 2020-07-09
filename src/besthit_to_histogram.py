@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from __future__ import with_statement
-import HTSeq
+import pysam
 import re
 
 try:
@@ -137,18 +137,17 @@ def conv_op_to_word(op):
         return "skip"
 
 
-def hist(outfile, alnm_ftype):
-    infile = outfile
-    if "_genome" in outfile:
-        outfile = outfile[:-7]
+def hist(prefix, alnm_ftype):
+    if "_genome" in prefix:
+        outfile = prefix[:-7]
 
-    out_match = open(outfile + "_match.hist", 'w')
-    out_mis = open(outfile + "_mis.hist", 'w')
-    out_ins = open(outfile + "_ins.hist", 'w')
-    out_del = open(outfile + "_del.hist", 'w')
-    out1 = open(outfile + "_error_markov_model", 'w')
-    out2 = open(outfile + "_match_markov_model", 'w')
-    out3 = open(outfile + "_first_match.hist", 'w')
+    out_match = open(prefix + "_match.hist", 'w')
+    out_mis = open(prefix + "_mis.hist", 'w')
+    out_ins = open(prefix + "_ins.hist", 'w')
+    out_del = open(prefix + "_del.hist", 'w')
+    out1 = open(prefix + "_error_markov_model", 'w')
+    out2 = open(prefix + "_match_markov_model", 'w')
+    out3 = open(prefix + "_first_match.hist", 'w')
 
     dic_match = {}
     dic_first_match = {}
@@ -178,7 +177,7 @@ def hist(outfile, alnm_ftype):
         dic_del[x] = 0
 
     if alnm_ftype == "maf":
-        with open(infile + "_besthit.maf", 'r') as f:
+        with open(prefix + "_besthit.maf", 'r') as f:
             for line in f:
                 prev_match = 0
                 prev_error = ""
@@ -306,17 +305,15 @@ def hist(outfile, alnm_ftype):
                             prev_error = "del0"
                         mismatch += 1
     else:
-        sam_reader = HTSeq.SAM_Reader
-        alnm_file_sam = infile + "_primary.sam"
-        alignments = sam_reader(alnm_file_sam)
+        in_sam_file = pysam.AlignmentFile(prefix + "_primary.sam", 'r')
 
-        for alnm in alignments:
+        for alnm in in_sam_file.fetch(until_eof=True):
             # if cs tag is provided, continue, else calculate it from MD and cigar first.
             try:
-                list_hist, list_op_unique = parse_cs(alnm.optional_field('cs'))
-            except:
-                cs_string = get_cs(alnm.original_sam_line.split()[5], alnm.optional_field('MD'))
-                list_hist, list_op_unique = parse_cs(cs_string)
+                cs_string = alnm.get_tag('cs')
+            except KeyError:
+                cs_string = get_cs(alnm.original_sam_line.split()[5], alnm.get_tag('MD'))
+            list_hist, list_op_unique = parse_cs(cs_string)
 
             flag = True
             for i in range(0, len(list_op_unique)):
