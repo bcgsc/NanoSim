@@ -1514,7 +1514,6 @@ def extract_read_trx(key, length, trx_has_polya, buffer=10):
 def extract_read(dna_type, length, s=None):
     if dna_type == "transcriptome":
         while True:
-            new_read = ""
             key = random.choice(list(seq_len.keys()))  # added "list" thing to be compatible with Python v3
             if length < seq_len[key]:
                 ref_pos = random.randint(0, seq_len[key] - length)
@@ -1524,18 +1523,21 @@ def extract_read(dna_type, length, s=None):
         return new_read, new_read_name
     elif dna_type == "metagenome":
         while True:
-            new_read = ""
             if not s or length > max(seq_len[s].values()):  # if the length is too long, change to a different species
                 s = random.choice(list(seq_len.keys()))  # added "list" thing to be compatible with Python v3
             key = random.choice(list(seq_len[s].keys()))
             if length < seq_len[s][key]:
-                ref_pos = random.randint(0, seq_len[s][key] - length)
-                new_read_name = s + '-' + key + "_" + str(ref_pos)
-                if dict_dna_type[s][key] == "circular" and length + ref_pos > seq_len[s][key]:
-                    new_read = seq_dict[s][key][ref_pos:]
-                    new_read = new_read + seq_dict[s][key][0: length - seq_len[s][key] + ref_pos]
+                if dict_dna_type[s][key] == "circular":
+                    ref_pos = random.randint(0, seq_len[s][key])
+                    if length + ref_pos > seq_len[s][key]:
+                        new_read = seq_dict[s][key][ref_pos:]
+                        new_read = new_read + seq_dict[s][key][0: length - seq_len[s][key] + ref_pos]
+                    else:
+                        new_read = seq_dict[s][key][ref_pos: ref_pos + length]
                 else:
+                    ref_pos = random.randint(0, seq_len[s][key] - length)
                     new_read = seq_dict[s][key][ref_pos: ref_pos + length]
+                new_read_name = s + '-' + key + "_" + str(ref_pos)
                 break
         return new_read, new_read_name
     else:
@@ -2261,7 +2263,6 @@ def main():
                 dict_abun = add_abundance_var(multi_dict_abun[sample], total_len, var_low, var_high)
             else:
                 dict_abun = multi_dict_abun[sample]
-            print(dict_abun)
 
             # when simulating chimeric reads, the source species for succedent segments have an inflated abundance dist
             if chimeric:
