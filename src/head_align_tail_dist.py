@@ -62,7 +62,6 @@ def head_align_tail(prefix, alnm_ext, mode):
     ht_length = []
     head_vs_ht_ratio = []
 
-    '''
     # For debugging
     out1 = open(prefix + "_total.txt", 'w')
     out2 = open(prefix + "_middle.txt", 'w')
@@ -71,7 +70,6 @@ def head_align_tail(prefix, alnm_ext, mode):
     out5 = open(prefix + "_ht.txt", 'w')
     out6 = open(prefix + "_ratio.txt", 'w')
     out7 = open(prefix + "_tail.txt", 'w')
-    '''
 
     parsed = 0
 
@@ -133,6 +131,7 @@ def head_align_tail(prefix, alnm_ext, mode):
                 head_new, tail_new = get_head_tail(alnm.cigartuples)
                 head = min(head, head_new)
                 tail = min(tail, tail_new)
+                read_len_total = max(read_len_total, alnm.infer_read_length())
                 is_edge = edge_checker(alnm.reference_start, alnm.reference_end, dict_ref_len[ref])
 
                 # Check for "circular" reads
@@ -142,8 +141,8 @@ def head_align_tail(prefix, alnm_ext, mode):
                     middle += alnm.query_alignment_length
                 else:
                     aligned_ref_length.append(aligned_ref)
-                    # out2.write(str(last_read) + '\t' + str(middle) + '\n')
-                    # out4.write(str(last_read) + '\t' + str(aligned_ref) + '\n')
+                    out2.write(str(last_read) + '\t' + str(middle) + '\n')
+                    out4.write(str(last_read) + '\t' + str(aligned_ref) + '\n')
                     aligned_ref = alnm.reference_length
                     middle = alnm.query_alignment_length
                 last_ref = ref
@@ -161,7 +160,6 @@ def head_align_tail(prefix, alnm_ext, mode):
                         r = float(head) / ht
                         head_vs_ht_ratio.append(r)
 
-                    '''
                     out1.write(str(last_read) + '\t' + str(read_len_total) + '\n')
                     out2.write(str(last_read) + '\t' + str(middle) + '\n')
                     out3.write(str(last_read) + '\t' + str(head) + '\n')
@@ -169,7 +167,6 @@ def head_align_tail(prefix, alnm_ext, mode):
                     out5.write(str(last_read) + '\t' + str(ht) + '\n')
                     out6.write(str(last_read) + '\t' + str(ratio) + '\n')
                     out7.write(str(last_read) + '\t' + str(tail) + '\n')
-                    '''
 
                     parsed += 1
                     if (parsed) % 1000 == 0:
@@ -180,7 +177,7 @@ def head_align_tail(prefix, alnm_ext, mode):
 
                 last_read = read
                 aligned_ref = alnm.reference_length
-                read_len_total = alnm.query_length
+                read_len_total = alnm.infer_read_length()
                 middle = alnm.query_alignment_length
                 head, tail = get_head_tail(alnm.cigartuples)
                 if mode != "transcriptome":
@@ -196,10 +193,9 @@ def head_align_tail(prefix, alnm_ext, mode):
             r = float(head) / ht
             head_vs_ht_ratio.append(r)
 
-    '''
         out1.write(str(last_read) + '\t' + str(read_len_total) + '\n')
         out2.write(str(last_read) + '\t' + str(middle) + '\n')
-        out3.write(str(alnm.query_name) + '\t' + str(head) + '\n')
+        out3.write(str(last_read) + '\t' + str(head) + '\n')
         out4.write(str(last_read) + '\t' + str(aligned_ref) + '\n')
         out5.write(str(last_read) + '\t' + str(ht) + '\n')
         out6.write(str(last_read) + '\t' + str(ratio) + '\n')
@@ -212,9 +208,11 @@ def head_align_tail(prefix, alnm_ext, mode):
     out5.close()
     out6.close()
     out7.close()
-    '''
 
+    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Computing KDE\n")
     if mode == "transcriptome":
+        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Computing 2D KDE for transcriptome ref length\n")
+        sys.stdout.flush()
         kde_2d = kde2d(total_ref_length, aligned_ref_length)
         joblib.dump(kde_2d, prefix + '_aligned_region_2d.pkl')
 
@@ -224,22 +222,30 @@ def head_align_tail(prefix, alnm_ext, mode):
     head_vs_ht_ratio = numpy.array(head_vs_ht_ratio)
 
     # Kernel density function for the length of aligned regions
+    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Computing KDE for aligned region\n")
+    sys.stdout.flush()
     aligned_2d = numpy.array(aligned_length)[:, numpy.newaxis]
     kde_aligned = KernelDensity(bandwidth=10).fit(aligned_2d)
     joblib.dump(kde_aligned, prefix + '_aligned_region.pkl')
 
     # Kernel density function for the length of aligned reads
+    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Computing KDE for aligned reads\n")
+    sys.stdout.flush()
     total_2d = numpy.array(total_length)[:, numpy.newaxis]
     kde_total = KernelDensity(bandwidth=10).fit(total_2d)
     joblib.dump(kde_total, prefix + '_aligned_reads.pkl')
 
     # Kernel density function for the length of ht
+    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Computing KDE for unaligned length\n")
+    sys.stdout.flush()
     ht_log = numpy.log10(ht_length + 1)
     ht_log_2d = ht_log[:, numpy.newaxis]
     kde_ht = KernelDensity(bandwidth=0.01).fit(ht_log_2d)
     joblib.dump(kde_ht, prefix + '_ht_length.pkl')
 
     # Kernel density function for the head/total ratio
+    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Computing KDE for ht ratio\n")
+    sys.stdout.flush()
     head_vs_ht_ratio_2d = head_vs_ht_ratio[:, numpy.newaxis]
     kde_ht_ratio = KernelDensity(bandwidth=0.01).fit(head_vs_ht_ratio_2d)
     joblib.dump(kde_ht_ratio, prefix + '_ht_ratio.pkl')

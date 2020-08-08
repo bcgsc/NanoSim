@@ -114,6 +114,7 @@ def model_fitting(prefix, threads):
 
     # Fit mismatches to Poisson-Geometric distribution
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Mismatch fitting start\n")
+    sys.stdout.flush()
     pool = mp.Pool(threads)
     TASKS = [(l, p, w) for l in np.arange(0.1, 0.9, 0.1) for p in np.arange(0.1, 0.9, 0.1)
              for w in np.arange(0.1, 0.9, 0.1)]
@@ -133,16 +134,20 @@ def model_fitting(prefix, threads):
             mis_params = params
             out.write("mismatch\t" + str(mis_params[0]) + '\t0\t' + str(mis_params[1]) + '\t' +
                       str(mis_params[2]) + '\n')
+            info = ' '.join([str(x) for x in mis_params]) + ' Residual ' + str(diff) + '\n'
             if diff <= precision:
-                print("Mismatch parameters: ", mis_params, diff)
+                sys.stdout.write("Mismatch parameters: " + info)
+                sys.stdout.flush()
                 break
             else:
-                print("WARNING! Mismatch parameters may not be optimal!\n", params, diff)
+                sys.stdout.write("WARNING! Mismatch parameters may not be optimal! " + info)
+                sys.stdout.flush()
                 break
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Mismatch fitting done\n")
 
     # Fit insertions to Weibull-Geometric distribution
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Insertion fitting start\n")
+    sys.stdout.flush()
     pool = mp.Pool(threads)
     TASKS = [(l, p, k, w) for l in np.arange(0.1, 1.3, 0.1) for p in np.arange(0.1, 1.3, 0.1)
              for k in np.arange(0.1, 0.9, 0.1) for w in np.arange(0.1, 0.9, 0.1)]
@@ -155,24 +160,27 @@ def model_fitting(prefix, threads):
     results.sort(key=lambda x: x[2])
     for res in results:
         params = res[1]
-        if params[0] <= 0 or params[1] <= 0 or \
-                params[2] <= 0 or params[2] >= 1 or params[3] <= 0 or params[3] >= 1:
+        if params[0] <= 0 or params[1] <= 0 or params[2] <= 0 or params[2] >= 1 or params[3] <= 0 or params[3] >= 1:
             continue
         else:
             diff = res[2]
             ins_params = params
             out.write("insertion\t" + str(ins_params[0]) + '\t' + str(ins_params[1]) + '\t' +
                       str(ins_params[2]) + '\t' + str(ins_params[3]) + '\n')
+            info = ' '.join([str(x) for x in ins_params]) + ' Residual ' + str(diff) + '\n'
             if diff <= precision:
-                print("Insertion parameters: ", ins_params, diff)
+                sys.stdout.write("Insertion parameters: " + info)
+                sys.stdout.flush()
                 break
             else:
-                print("WARNING! Insertion parameters may not be optimal!\n", params, diff)
+                sys.stdout.write("WARNING! Insertion parameters may not be optimal! " + info)
+                sys.stdout.flush()
                 break
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Insertion fitting done\n")
 
     # Fit deletions to Weibull-Geometric distribution
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Deletion fitting start\n")
+    sys.stdout.flush()
     pool = mp.Pool(threads)
     TASKS = [(l, p, k, w) for l in np.arange(0.1, 1.3, 0.1) for p in np.arange(0.1, 1.3, 0.1)
              for k in np.arange(0.1, 0.9, 0.1) for w in np.arange(0.1, 0.9, 0.1)]
@@ -186,20 +194,23 @@ def model_fitting(prefix, threads):
     results.sort(key=lambda x: x[2])
     for res in results:
         params = res[1]
-        if params[0] <= 0 or params[1] <= 0 or \
-           params[2] <= 0 or params[2] >= 1 or params[3] <= 0 or params[3] >= 1:
+        if params[0] <= 0 or params[1] <= 0 or params[2] <= 0 or params[2] >= 1 or params[3] <= 0 or params[3] >= 1:
             continue
         else:
             diff = res[2]
             del_params = params
             out.write("deletion\t" + str(del_params[0]) + '\t' + str(del_params[1]) + '\t' +
                       str(del_params[2]) + '\t' + str(del_params[3]) + '\n')
+            info = ' '.join([str(x) for x in del_params]) + ' Residual ' + str(diff) + '\n'
             if diff <= precision:
-                print("Deletion parameters: ", del_params, diff)
+                sys.stdout.write("Deletion parameters: " + info)
+                sys.stdout.flush()
                 break
             else:
-                print("WARNING! Deletion parameters may not be optimal!\n", params, diff)
+                sys.stdout.write("WARNING! Deletion parameters may not be optimal! " + info)
+                sys.stdout.flush()
                 break
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Deletion fitting done\n")
+    sys.stdout.flush()
 
     out.close()

@@ -11,11 +11,14 @@ except ImportError:
 
 
 def add_dict(error, dic):
+    if error > 1000:  # to speed up fitting process
+        return
     if error not in dic:
         last_element = len(dic)
         for i in xrange(last_element, error + 1):
             dic[i] = 0
     dic[error] += 1
+    return
 
 
 def add_match(prev, succ, match_list):
@@ -138,8 +141,9 @@ def conv_op_to_word(op):
 
 
 def hist(prefix, alnm_ftype):
+    alignment_file = prefix
     if "_genome" in prefix:
-        outfile = prefix[:-7]
+        prefix = prefix[:-7]
 
     out_match = open(prefix + "_match.hist", 'w')
     out_mis = open(prefix + "_mis.hist", 'w')
@@ -177,7 +181,7 @@ def hist(prefix, alnm_ftype):
         dic_del[x] = 0
 
     if alnm_ftype == "maf":
-        with open(prefix + "_besthit.maf", 'r') as f:
+        with open(alignment_file + "_besthit.maf", 'r') as f:
             for line in f:
                 prev_match = 0
                 prev_error = ""
@@ -305,7 +309,7 @@ def hist(prefix, alnm_ftype):
                             prev_error = "del0"
                         mismatch += 1
     else:
-        in_sam_file = pysam.AlignmentFile(prefix + "_primary.sam", 'r')
+        in_sam_file = pysam.AlignmentFile(alignment_file + "_primary.sam", 'r')
 
         for alnm in in_sam_file.fetch(until_eof=True):
             # if cs tag is provided, continue, else calculate it from MD and cigar first.
@@ -384,7 +388,7 @@ def hist(prefix, alnm_ftype):
         total_del += key * dic_del[key]
     out_del.close()
 
-    out_error_rate = open(outfile + "_error_rate.tsv", 'w')
+    out_error_rate = open(prefix + "_error_rate.tsv", 'w')
     out_error_rate.write("Mismatch rate:\t" + str(total_mis * 1.0 / (total_mis + total_match + total_del)) + '\n')
     out_error_rate.write("Insertion rate:\t" + str(total_ins * 1.0 / (total_mis + total_match + total_del)) + '\n')
     out_error_rate.write("Deletion rate:\t" + str(total_del * 1.0 / (total_mis + total_match + total_del)) + '\n')

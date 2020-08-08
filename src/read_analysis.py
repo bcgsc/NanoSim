@@ -74,6 +74,7 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g
             t_alnm = prefix + "_transcriptome_alnm.sam"
             # Alignment to reference transcriptome
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with minimap2 to reference transcriptome\n")
+            sys.stdout.flush()
             call("minimap2 --cs -ax map-ont -t " + num_threads + " " + ref_t + " " + in_fasta + " > " + t_alnm,
                  shell=True)
 
@@ -81,6 +82,7 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g
             t_alnm = prefix + "_transcriptome_alnm.maf"
             # Alignment to reference transcriptome
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with LAST to reference transcriptome\n")
+            sys.stdout.flush()
             call("lastdb ref_transcriptome " + ref_t, shell=True)
             call("lastal -a 1 -P " + num_threads + " ref_transcriptome " + in_fasta + " > " + t_alnm, shell=True)
 
@@ -90,6 +92,7 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g
             # Alignment to reference genome
             # [EDIT] I may change the options for minimap2 when dealing with cDNA and dRNA reads.
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with minimap2 to reference genome\n")
+            sys.stdout.flush()
             call("minimap2 --cs -ax splice -t " + num_threads + " " + ref_g + " " + in_fasta + " > " + g_alnm,
                  shell=True)
 
@@ -97,6 +100,7 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g
             g_alnm = prefix + "_genome_alnm.maf"
             # Alignment to reference genome
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with LAST to reference genome\n")
+            sys.stdout.flush()
             call("lastdb ref_genome " + ref_g, shell=True)
             call("lastal -a 1 -P " + num_threads + " ref_genome " + in_fasta + " > " + g_alnm, shell=True)
 
@@ -104,6 +108,7 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g
     t_alnm_filename, t_alnm_ext = os.path.splitext(t_alnm)
     t_alnm_ext = t_alnm_ext[1:]
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Processing transcriptome alignment file: " + t_alnm_ext + '\n')
+    sys.stdout.flush()
     if t_alnm_ext == "maf":
         processed_maf_t = prefix + "_transcriptome_alnm_processed.maf"
         call("grep '^s ' " + t_alnm + " > " + processed_maf_t, shell=True)
@@ -116,6 +121,7 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g
     g_alnm_filename, g_alnm_ext = os.path.splitext(g_alnm)
     g_alnm_ext = g_alnm_ext[1:]
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Processing genome alignment file: " + g_alnm_ext + '\n')
+    sys.stdout.flush()
     if g_alnm_ext == "maf":
         processed_maf = prefix + "_processed.maf"
         call("grep '^s ' " + g_alnm + " > " + processed_maf, shell=True)
@@ -127,18 +133,20 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g
     return t_alnm_ext, unaligned_length, g_alnm, t_alnm, strandness
 
 
-def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, chimeric):
+def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, chimeric, quantification=None):
     # if an alignment file is not provided
     if g_alnm == '':
         if aligner == "minimap2":  # Align with minimap2 by default
             g_alnm = prefix + "_genome_alnm.sam"
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with minimap2\n")
+            sys.stdout.flush()
             call("minimap2 --cs -ax map-ont -t " + num_threads + " " + ref_g + " " + in_fasta + " > " + g_alnm,
                  shell=True)
 
         elif aligner == "LAST":
             g_alnm = prefix + "_genome_alnm.maf"
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with LAST\n")
+            sys.stdout.flush()
             call("lastdb ref_genome " + ref_g, shell=True)
             call("lastal -a 1 -P " + num_threads + " ref_genome " + in_fasta + " " + g_alnm, shell=True)
 
@@ -146,6 +154,7 @@ def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, chimeric
     pre, file_ext = os.path.splitext(g_alnm)
     file_extension = file_ext[1:]
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Processing alignment file: " + file_extension + "\n")
+    sys.stdout.flush()
     if file_extension == "maf":
         processed_maf = prefix + "_processed.maf"
         call("grep '^s ' " + g_alnm + " > " + processed_maf, shell=True)
@@ -156,9 +165,10 @@ def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, chimeric
     elif file_extension == "sam":
         # get the primary alignments and define unaligned reads.
         if chimeric:
-            unaligned_length, strandness = get_primary_sam.primary_and_unaligned_circular(g_alnm, prefix)
+            unaligned_length, strandness = get_primary_sam.primary_and_unaligned_chimeric(g_alnm, prefix,
+                                                                                          quantification)
         else:
-            unaligned_length, strandness = get_primary_sam.primary_and_unaligned(g_alnm, prefix)
+            unaligned_length, strandness = get_primary_sam.primary_and_unaligned(g_alnm, prefix, quantification)
 
     return file_extension, unaligned_length, strandness
 
@@ -166,6 +176,7 @@ def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, chimeric
 def add_intron(annot, prefix):
     # Read the annotation GTF/GFF3 file
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Parse the annotation file (GTF/GFF3)\n")
+    sys.stdout.flush()
     # If gtf provided, convert to GFF3 (gt gtf_to_gff3)
     annot_filename, annot_file_extension = os.path.splitext(annot)
     annot_file_extension = annot_file_extension[1:]
@@ -196,18 +207,12 @@ def concatenate_genomes(g_list):
             path = info['path']
             with open(path, 'r') as g_f:
                 chr = 0
-                gc = 0
-                total = 0
                 for line in g_f:
                     if line[0] == '>':
                         f.write('>' + g + '_chr' + str(chr) +'\n')
                         chr += 1
                     else:
                         f.write(line)
-                        total += len(line.strip())
-                        # gc += len(re.findall(r"C|G", line))
-            # info['GC'] = gc / total
-
     return metagenome
 
 
@@ -267,15 +272,18 @@ def main():
     parser_m.add_argument('-i', '--read', help='Input read for training', required=True)
     parser_m.add_argument('-gl', '--genome_list', help='Reference metagenome list, tsv file, the first column is '
                                                        'species/strain name, the second column is the reference genome '
-                                                       'fasta/fastq file directory', required=True)
+                                                       'fasta/fastq file directory, the third column is optional, if '
+                                                       'provided, it contains the expected abundance (sum up to 100)',
+                          required=True)
     parser_m.add_argument('-ga', '--g_alnm', help='Genome alignment file in sam format, the header of each species '
                                                   'should match the metagenome list provided above (optional)',
                           default='')
-    parser_m.add_argument('-e', '--exp_proportion', help='Expected proportion of each species/strain, tsv file'
-                                                         '(optional)', default='')
     parser_m.add_argument('-o', '--output', help='The location and prefix of outputting profiles (Default = training)',
                           default='training')
     parser_m.add_argument('-c', '--chimeric', help='Detect chimeric and split reads (Default = False)',
+                          action='store_true', default=False)
+    parser_m.add_argument('-q', '--quantification', help='Perform Salmon quantification and compute the variation in '
+                                                         'abundance when compared to expected values (Default = False)',
                           action='store_true', default=False)
     parser_m.add_argument('--no_model_fit', help='Disable model fitting step', action='store_false', default=True)
     parser_m.add_argument('-t', '--num_threads', help='Number of threads for alignment and model fitting (Default = 1)',
@@ -286,8 +294,7 @@ def main():
     parser_e.add_argument('-rt', '--ref_t', help='Reference Transcriptome', required=True)
     parser_e.add_argument('-o', '--output', help='The location and prefix of outputting profile (Default = expression)',
                           default='expression')
-    parser_e.add_argument('-t', '--num_threads', help='Number of threads for alignment (Default = 1)', type=int,
-                          default=1)
+    parser_e.add_argument('-t', '--num_threads', help='Number of threads for alignment (Default = 1)', default='1')
 
     parser_ir = subparsers.add_parser('detect_ir', help="Detect Intron Retention events using the alignment file")
     parser_ir.add_argument('-annot', '--annotation', help='Annotation file in ensemble GTF/GFF formats', required=True)
@@ -330,6 +337,7 @@ def main():
 
         # Quantifying the transcript abundance from input read
         sys.stdout.write('Quantifying transcripts abundance: \n')
+        sys.stdout.flush()
         map_file = prefix + '_mapping.paf'
         call("minimap2 -t " + num_threads + " -x map-ont -p0 " + ref_t + " " + infile + " > " + map_file,
              shell=True)
@@ -402,6 +410,7 @@ def main():
         add_intron(annot, prefix)
 
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Modeling Intron Retention\n")
+        sys.stdout.flush()
         model_ir.intron_retention(prefix, prefix + "_added_intron_final.gff3", g_alnm, t_alnm)
 
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
@@ -446,6 +455,7 @@ def main():
 
         # READ PRE-PROCESS AND ALIGNMENT ANALYSIS
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process\n")
+        sys.stdout.flush()
         in_fasta = prefix + "_processed.fasta"
         processed_fasta = open(in_fasta, 'w')
 
@@ -459,16 +469,16 @@ def main():
 
         alnm_ext, unaligned_length, strandness = align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g,
                                                               chimeric)
-
         # Aligned reads analysis
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
+        sys.stdout.flush()
         num_aligned = align.head_align_tail(prefix, alnm_ext, args.mode)
 
     if args.mode == "metagenome":
         infile = args.read
         genome_list = args.genome_list
         g_alnm = args.g_alnm
-        exp_proportion = args.exp_proportion
+        quantification = args.quantification
         prefix = args.output
         num_threads = args.num_threads
         model_fit = args.no_model_fit
@@ -487,11 +497,11 @@ def main():
         print("infile", infile)
         print("genome_list", genome_list)
         print("g_alnm", g_alnm)
-        print("exp_proportion", exp_proportion)
         print("prefix", prefix)
         print("num_threads", num_threads)
         print("model_fit", model_fit)
         print("chimeric", chimeric)
+        print("quantification", quantification)
 
         dir_name = os.path.dirname(prefix)
         if dir_name != '':
@@ -499,10 +509,10 @@ def main():
 
         # READ PRE-PROCESS AND ALIGNMENT ANALYSIS
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process\n")
+        sys.stdout.flush()
         in_fasta = prefix + "_processed.fasta"
-        '''
-        processed_fasta = open(in_fasta, 'w')
 
+        processed_fasta = open(in_fasta, 'w')
         # Replace spaces in sequence headers with dashes to create unique header for each read
         with open(infile, 'r') as f:
             for seqN, seqS, seqQ in readfq(f):
@@ -510,36 +520,25 @@ def main():
                 chr_name = "-".join(info)
                 processed_fasta.write('>' + chr_name + '\n' + seqS + '\n')
         processed_fasta.close()
-        '''
 
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Processing reference genome\n")
+        sys.stdout.flush()
         metagenome_list = {}
         with open(genome_list, 'r') as f:
             for line in f:
-                info = line.split('\t')
+                info = line.strip().split('\t')
                 species = '-'.join(info[0].split())
                 metagenome_list[species] = {'path': info[1]}
-
-        if exp_proportion != '':
-            with open(exp_proportion, 'r') as f:
-                for line in f:
-                    info = line.split('\t')
-                    species = '-'.join(info[0].split())
-                    if species not in metagenome_list:
-                        sys.stderr.write(species + '\n')
-                        sys.stderr.write("The species name in the expected proportion list has to match the one in the "
-                                         "reference genome list!\n")
-                        sys.exit(1)
-                    else:
-                        metagenome_list[species]['exp'] = float(info[1])
-        '''
+                if len(info) == 3:  # expected abundance
+                    metagenome_list[species]['expected'] = float(info[2])
         ref_g = concatenate_genomes(metagenome_list)
-        '''
-        ref_g = "/projects/cheny_prj/nanopore/dev/reference_metagenome.fasta"
+
+        metagenome_list = None if not quantification else metagenome_list
         alnm_ext, unaligned_length, strandness = align_genome(in_fasta, prefix, 'minimap2', num_threads, g_alnm, ref_g,
-                                                              chimeric)
+                                                              chimeric, metagenome_list)
         # Aligned reads analysis
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
+        sys.stdout.flush()
         num_aligned = align.head_align_tail(prefix, alnm_ext, args.mode)
 
     if args.mode == "transcriptome":
@@ -604,6 +603,7 @@ def main():
 
         # READ PRE-PROCESS AND ALIGNMENT ANALYSIS
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process and unaligned reads analysis\n")
+        sys.stdout.flush()
         in_fasta = prefix + "_processed.fasta"
         processed_fasta = open(in_fasta, 'w')
         with open(infile, 'r') as f:
@@ -621,10 +621,12 @@ def main():
             add_intron(annot, prefix)
 
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Modeling Intron Retention\n")
+            sys.stdout.flush()
             model_ir.intron_retention(prefix, prefix + "_added_intron_final.gff3", g_alnm, t_alnm)
 
         # Aligned reads analysis
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
+        sys.stdout.flush()
         num_aligned = align.head_align_tail(prefix + "_transcriptome", alnm_ext, args.mode)
 
     # strandness of the aligned reads
@@ -634,6 +636,7 @@ def main():
 
     # Length distribution of unaligned reads
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Unaligned reads analysis\n")
+    sys.stdout.flush()
     alignment_rate = open(prefix + "_reads_alignment_rate", 'w')
 
     num_unaligned = len(unaligned_length)
@@ -650,6 +653,7 @@ def main():
 
     # MATCH AND ERROR MODELS
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": match and error models\n")
+    sys.stdout.flush()
     if args.mode == "transcriptome":
         error_model.hist(prefix + "_genome", alnm_ext)  # Use primary genome alignment for error profiling
     else:
@@ -657,8 +661,8 @@ def main():
 
     if model_fit:
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Model fitting\n")
+        sys.stdout.flush()
         model_fitting.model_fitting(prefix, int(num_threads))
-
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
 
 
