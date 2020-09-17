@@ -16,12 +16,14 @@ NanoSim [(v2.6)](https://github.com/bcgsc/NanoSim/releases/tag/v2.6.0) i able to
 **We provide 6 pre-trained models in the latest release! Users can choose to download the whole package or only scripts without models to speed it up**
 
 ![Citation](https://img.shields.io/badge/NanoSim-manuscript-ff69b4)  
+If you use NanoSim to simulate genomic reads, please cite the following manuscript:
 **NanoSim**  
-Chen Yang, Justin Chu, René L Warren, and Inanç Birol; NanoSim: nanopore sequence read simulator based on statistical characterization. Gigascience 2017 gix010. doi: 10.1093/gigascience/gix010  
+Chen Yang, Justin Chu, René L Warren, and Inanç Birol; NanoSim: nanopore sequence read simulator based on statistical characterization. GigaScience, Volume 6, Issue 4, April 2017, gix010, https://doi.org/10.1093/gigascience/gix010
 
 
+If you use NanoSim to simulate transcriptomic reads, please cite the following manuscript:
 **Trans-NanoSim**  
-Saber Hafezqorani, Chen Yang, Ka Ming Nip, René L. Warren, and Inanç Birol; Trans-NanoSim characterizes and simulates nanopore RNA-seq data. bioRxiv (2019): 800110.  
+Saber Hafezqorani, Chen Yang, Theodora Lo, Ka Ming Nip, René L. Warren, and Inanç Birol; Trans-NanoSim characterizes and simulates nanopore RNA-sequencing data. GigaScience, Volume 9, Issue 6, June 2020, giaa061, https://doi.org/10.1093/gigascience/giaa061
 
 
 ## Dependencies
