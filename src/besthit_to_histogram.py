@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 
 from __future__ import with_statement
-import numpy
-import HTSeq
+import pysam
 import re
-import itertools
 
 try:
     from six.moves import xrange
@@ -13,11 +11,14 @@ except ImportError:
 
 
 def add_dict(error, dic):
+    if error > 1000:  # to speed up fitting process
+        return
     if error not in dic:
         last_element = len(dic)
         for i in xrange(last_element, error + 1):
             dic[i] = 0
     dic[error] += 1
+    return
 
 
 def add_match(prev, succ, match_list):
@@ -139,18 +140,18 @@ def conv_op_to_word(op):
         return "skip"
 
 
-def hist(outfile, alnm_ftype):
-    infile = outfile
-    if "_genome" in outfile:
-        outfile = outfile[:-7]
+def hist(prefix, alnm_ftype):
+    alignment_file = prefix
+    if "_genome" in prefix:
+        prefix = prefix[:-7]
 
-    out_match = open(outfile + "_match.hist", 'w')
-    out_mis = open(outfile + "_mis.hist", 'w')
-    out_ins = open(outfile + "_ins.hist", 'w')
-    out_del = open(outfile + "_del.hist", 'w')
-    out1 = open(outfile + "_error_markov_model", 'w')
-    out2 = open(outfile + "_match_markov_model", 'w')
-    out3 = open(outfile + "_first_match.hist", 'w')
+    out_match = open(prefix + "_match.hist", 'w')
+    out_mis = open(prefix + "_mis.hist", 'w')
+    out_ins = open(prefix + "_ins.hist", 'w')
+    out_del = open(prefix + "_del.hist", 'w')
+    out1 = open(prefix + "_error_markov_model", 'w')
+    out2 = open(prefix + "_match_markov_model", 'w')
+    out3 = open(prefix + "_first_match.hist", 'w')
 
     dic_match = {}
     dic_first_match = {}
@@ -180,7 +181,7 @@ def hist(outfile, alnm_ftype):
         dic_del[x] = 0
 
     if alnm_ftype == "maf":
-        with open(infile + "_besthit.maf", 'r') as f:
+        with open(alignment_file + "_besthit.maf", 'r') as f:
             for line in f:
                 prev_match = 0
                 prev_error = ""
@@ -308,17 +309,15 @@ def hist(outfile, alnm_ftype):
                             prev_error = "del0"
                         mismatch += 1
     else:
-        sam_reader = HTSeq.SAM_Reader
-        alnm_file_sam = infile + "_primary.sam"
-        alignments = sam_reader(alnm_file_sam)
+        in_sam_file = pysam.AlignmentFile(alignment_file + "_primary.sam", 'r')
 
-        for alnm in alignments:
+        for alnm in in_sam_file.fetch(until_eof=True):
             # if cs tag is provided, continue, else calculate it from MD and cigar first.
             try:
-                list_hist, list_op_unique = parse_cs(alnm.optional_field('cs'))
-            except:
-                cs_string = get_cs(alnm.original_sam_line.split()[5], alnm.optional_field('MD'))
-                list_hist, list_op_unique = parse_cs(cs_string)
+                cs_string = alnm.get_tag('cs')
+            except KeyError:
+                cs_string = get_cs(alnm.original_sam_line.split()[5], alnm.get_tag('MD'))
+            list_hist, list_op_unique = parse_cs(cs_string)
 
             flag = True
             for i in range(0, len(list_op_unique)):
@@ -389,7 +388,7 @@ def hist(outfile, alnm_ftype):
         total_del += key * dic_del[key]
     out_del.close()
 
-    out_error_rate = open(outfile + "_error_rate.tsv", 'w')
+    out_error_rate = open(prefix + "_error_rate.tsv", 'w')
     out_error_rate.write("Mismatch rate:\t" + str(total_mis * 1.0 / (total_mis + total_match + total_del)) + '\n')
     out_error_rate.write("Insertion rate:\t" + str(total_ins * 1.0 / (total_mis + total_match + total_del)) + '\n')
     out_error_rate.write("Deletion rate:\t" + str(total_del * 1.0 / (total_mis + total_match + total_del)) + '\n')
