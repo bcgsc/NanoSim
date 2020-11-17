@@ -1823,14 +1823,14 @@ def main():
         description=dedent('''
         Simulation step
         -----------------------------------------------------------
-        Given error profiles, reference genome and/or transcriptome,
-        simulate ONT DNA or RNA reads
+        Given error profiles, reference genome, metagenome,
+        and/or transcriptome, simulate ONT DNA or RNA reads
         '''),
         formatter_class=argparse.RawDescriptionHelpFormatter)
 
     parser.add_argument('-v', '--version', action='version', version='NanoSim ' + VERSION)
-    subparsers = parser.add_subparsers(help="You may run the simulator on transcriptome or genome mode.", dest='mode',
-                                       description=dedent('''
+    subparsers = parser.add_subparsers(help="You may run the simulator on genome, transcriptome, or metagenome mode.",
+                                       dest='mode', description=dedent('''
         There are two modes in read_analysis.
         For detailed usage of each mode:
             simulator.py mode -h
@@ -1854,11 +1854,11 @@ def main():
                                                        'is not compatible with chimeric reads simulation',
                           type=int, default=None)
     parser_g.add_argument('-sd', '--sd_len', help='The standard deviation of read length in log scale (Default = None),'
-                                                  'Note: this simulation is not compatible with chimeric reads '
+                                                  ' Note: this simulation is not compatible with chimeric reads '
                                                   'simulation', type=float, default=None)
     parser_g.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
     parser_g.add_argument('-k', '--KmerBias', help='Minimum homopolymer length to simulate homopolymer contraction and '
-                                                   'expansion events in',
+                                                   'expansion events in, a typical k is 6',
                           type=int, default=None)
     parser_g.add_argument('-b', '--basecaller', help='Simulate homopolymers and/or base qualities with respect to '
                                                      'chosen basecaller: albacore, guppy, or guppy-flipflop',
@@ -1878,8 +1878,8 @@ def main():
 
     parser_t = subparsers.add_parser('transcriptome', help="Run the simulator on transcriptome mode")
     parser_t.add_argument('-rt', '--ref_t', help='Input reference transcriptome', required=True)
-    parser_t.add_argument('-rg', '--ref_g', help='Input reference genome, required if intron retention simulatin is on',
-                          default='')
+    parser_t.add_argument('-rg', '--ref_g', help='Input reference genome, required if intron retention simulation is '
+                                                 'on', default='')
     parser_t.add_argument('-e', '--exp', help='Expression profile in the specified format as described in README',
                           required=True)
     parser_t.add_argument('-c', '--model_prefix', help='Location and prefix of error profiles generated from '
@@ -1895,7 +1895,7 @@ def main():
                           type=int, default=50)
     parser_t.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
     parser_t.add_argument('-k', '--KmerBias', help='Minimum homopolymer length to simulate homopolymer contraction and '
-                                                   'expansion events in',
+                                                   'expansion events in, a typical k is 6',
                           type=int, default=None)
     parser_t.add_argument('-b', '--basecaller', help='Simulate homopolymers and/or base qualities with respect to '
                                                      'chosen basecaller: albacore or guppy',
@@ -1922,11 +1922,9 @@ def main():
     parser_mg.add_argument('-gl', '--genome_list', help="Reference metagenome list, tsv file, the first column is "
                                                         "species/strain name, the second column is the reference "
                                                         "genome fasta/fastq file directory", required=True)
-    parser_mg.add_argument('-a', '--abun', help="Abundance list, tsv file with header, the abundance for each sample "
-                                                "need to sum up to 100. Example: "
-                                                "Header: 'Size'   size_sample1    size_sample2 ..."
-                                                "Row: Species name  abundance_sample1   abundance_sample2 ...",
-                           required=True)
+    parser_mg.add_argument('-a', '--abun', help="Abundance list, tsv file with header, the abundance of all species in "
+                                                "each sample need to sum up to 100. See example in README and provided "
+                                                "config files", required=True)
     parser_mg.add_argument('-dl', '--dna_type_list',
                            help="DNA type list, tsv file, the first column is species/strain, "
                                 "the second column is the chromosome name, the third column is "
@@ -1951,7 +1949,7 @@ def main():
                            type=float, default=None)
     parser_mg.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
     parser_mg.add_argument('-k', '--KmerBias', help='Minimum homopolymer length to simulate homopolymer contraction and'
-                                                    'expansion events in',
+                                                    'expansion events in, a typical k is 6',
                           type=int, default=None)
     parser_mg.add_argument('-b', '--basecaller', help='Simulate homopolymers and/or base qualities with respect to '
                                                       'chosen basecaller: albacore, guppy, or guppy-flipflop',
