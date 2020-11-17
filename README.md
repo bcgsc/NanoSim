@@ -18,13 +18,13 @@ NanoSim [(v3.0)](https://github.com/bcgsc/NanoSim/releases/tag/v3.0.0) is able t
 **We provide 9 pre-trained models in the latest release! Users can choose to download the whole package or only scripts without models to speed it up**
 
 ![Citation](https://img.shields.io/badge/NanoSim-manuscript-ff69b4)  
-If you use NanoSim to simulate genomic reads, please cite the following manuscript:
+If you use NanoSim to simulate genomic reads, please cite the following paper:
 
 **NanoSim**  
 Chen Yang, Justin Chu, René L Warren, and Inanç Birol; NanoSim: nanopore sequence read simulator based on statistical characterization. GigaScience, Volume 6, Issue 4, April 2017, gix010, https://doi.org/10.1093/gigascience/gix010
 
 
-If you use NanoSim to simulate transcriptomic reads, please cite the following manuscript:
+If you use NanoSim to simulate transcriptomic reads, please cite the following paper:
 
 **Trans-NanoSim**  
 Saber Hafezqorani, Chen Yang, Theodora Lo, Ka Ming Nip, René L. Warren, and Inanç Birol; Trans-NanoSim characterizes and simulates nanopore RNA-sequencing data. GigaScience, Volume 9, Issue 6, June 2020, giaa061, https://doi.org/10.1093/gigascience/giaa061
@@ -65,7 +65,7 @@ optional arguments:
 
 subcommands:
   
-  There are four modes in read_analysis.
+  There are five modes in read_analysis.
   For detailed usage of each mode:
       read_analysis.py mode -h
   -------------------------------------------------------
@@ -86,7 +86,7 @@ If you are interested in simulating ONT genomic reads, you need to run the chara
 __genome mode usage:__
 ```
 usage: read_analysis.py genome [-h] -i READ [-rg REF_G] [-a {minimap2,LAST}]
-                               [-ga G_ALNM] [-o OUTPUT] [--no_model_fit]
+                               [-ga G_ALNM] [-o OUTPUT] [-c] [--no_model_fit]
                                [-t NUM_THREADS]
 
 optional arguments:
@@ -103,6 +103,7 @@ optional arguments:
   -o OUTPUT, --output OUTPUT
                         The location and prefix of outputting profiles
                         (Default = training)
+  -c, --chimeric        Detect chimeric and split reads (Default = False)
   --no_model_fit        Disable model fitting step
   -t NUM_THREADS, --num_threads NUM_THREADS
                         Number of threads for alignment and model fitting
@@ -249,7 +250,7 @@ optional arguments:
 
 For **releases before v2.2.0**, we provide profiles trained for _E. coli_ or _S. cerevisiae_ datasets. Flowcell chemistry is R7.3 and R9, and they were basecalled by Metrichor. They can be downloaded from **[our ftp site](http://www.bcgsc.ca/downloads/supplementary)**
 
-For **release v2.5.0 and onwards**, we provide profiles trained for _H. sapiens_ NA12878 gDNA, cDNA 1D2, and directRNA datasets, and _Mus. musculus_ cDNA dataset. Flowcell chemistry is R9.4 for all datasets. NA12878 gDNA and directRNA was basecalled by Guppy 3.1.5; NA12878 cDNA 1D2 was basecalled by Albacore 2.3.1; mouse cDNA was basecalled by Metrichor. These models are available within **[pre-trained_models folder](https://github.com/bcgsc/NanoSim/tree/master/pre-trained_models)**.  
+For **release v2.5.0 and onwards**, we provide profiles trained for _H. sapiens_ NA12878 gDNA, cDNA 1D2, and directRNA datasets, _Mus. musculus_ cDNA dataset, and the ZymoBIOMICS mock community datasets with 10 species and two abundance levels. Flowcell chemistry is R9.4 for all datasets. NA12878 gDNA and directRNA was basecalled by Guppy 3.1.5; NA12878 cDNA 1D2 was basecalled by Albacore 2.3.1; mouse cDNA was basecalled by Metrichor. These models are available within **[pre-trained_models folder](https://github.com/bcgsc/NanoSim/tree/master/pre-trained_models)**.  
 
 ### 2. Simulation stage
 Simulation stage takes reference genome/transcriptome and read profiles as input and outputs simulated reads in FASTA format. Simulation stage runs in two modes: "genome" and "transcriptome" and you may use either of them based on your needs.
@@ -260,8 +261,8 @@ usage: simulator.py [-h] [-v] {genome,transcriptome,metagenome} ...
 
 Simulation step
 -----------------------------------------------------------
-Given error profiles, reference genome and/or transcriptome,
-simulate ONT DNA or RNA reads
+Given error profiles, reference genome, metagenome,
+and/or transcriptome, simulate ONT DNA or RNA reads
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -275,8 +276,8 @@ subcommands:
   -------------------------------------------------------
 
   {genome,transcriptome}
-                        You may run the simulator on transcriptome or genome
-                        mode.
+                        You may run the simulator on genome, transcriptome,
+                        or metagenome mode.
     genome              Run the simulator on genome mode
     transcriptome       Run the simulator on transcriptome mode
     metagenome          Run the simulator on metagenome mode
@@ -313,14 +314,17 @@ optional arguments:
   -min MIN_LEN, --min_len MIN_LEN
                         The minimum length for simulated reads (Default = 50)
   -med MEDIAN_LEN, --median_len MEDIAN_LEN
-                        The median read length (Default = None)
+                        The median read length (Default = None), Note: this
+                        simulation is not compatible with chimeric reads
+                        simulation
   -sd SD_LEN, --sd_len SD_LEN
                         The standard deviation of read length in log scale
-                        (Default = None)
+                        (Default = None), Note: this simulation is not
+                        compatible with chimeric reads simulation
   --seed SEED           Manually seeds the pseudo-random number generator
   -k KMERBIAS, --KmerBias KMERBIAS
                         Minimum homopolymer length to simulate homopolymer
-                        contraction andexpansion events in
+                        contraction and expansion events in, a typical k is 6
   -b {albacore,guppy,guppy-flipflop}, --basecaller {albacore,guppy,guppy-flipflop}
                         Simulate homopolymers with respect to chosen
                         basecaller: albacore, guppy, or guppy-flipflop
@@ -358,7 +362,7 @@ optional arguments:
                         Input reference transcriptome
   -rg REF_G, --ref_g REF_G
                         Input reference genome, required if intron retention
-                        simulatin is on
+                        simulation is on
   -e EXP, --exp EXP     Expression profile in the specified format as
                         described in README
   -c MODEL_PREFIX, --model_prefix MODEL_PREFIX
@@ -376,7 +380,8 @@ optional arguments:
                         The minimum length for simulated reads (Default = 50)
   --seed SEED           Manually seeds the pseudo-random number generator
   -k KMERBIAS, --KmerBias KMERBIAS
-                        Enable k-mer bias simulation
+                        Minimum homopolymer length to simulate homopolymer contraction and
+                        expansion events in, a typical k is 6
   -b {albacore,guppy}, --basecaller {albacore,guppy}
                         Simulate homopolymers with respect to chosen  
                         basecaller: albacore or guppy
@@ -387,7 +392,7 @@ optional arguments:
                         Proportion of sense sequences. Overrides the value
                         profiled in characterization stage. Should be between
                         0 and 1
-  --no_model_ir         Simulate intron retention events
+  --no_model_ir         Ignore simulating intron retention events
   --perfect             Ignore profiles and simulate perfect reads
   --polya POLYA         Simulate polyA tails for given list of transcripts
   --fastq               Output fastq files instead of fasta files
@@ -417,10 +422,9 @@ optional arguments:
                         Reference metagenome list, tsv file, the first column
                         is species/strain name, the second column is the
                         reference genome fasta/fastq file directory
-  -a ABUN, --abun ABUN  Abundance list, tsv file with header, the abundance
-                        for each sample need to sum up to 100. Example:
-                        Header: 'Size' size_sample1 size_sample2 ...Row:
-                        Species name abundance_sample1 abundance_sample2 ...
+  -a ABUN, --abun ABUN  Abundance list, tsv file with header, the abundance of all species in
+                        each sample need to sum up to 100. See example in README and provided
+                        config files
   -dl DNA_TYPE_LIST, --dna_type_list DNA_TYPE_LIST
                         DNA type list, tsv file, the first column is
                         species/strain, the second column is the chromosome
@@ -448,7 +452,7 @@ optional arguments:
   --seed SEED           Manually seeds the pseudo-random number generator
   -k KMERBIAS, --KmerBias KMERBIAS
                         Minimum homopolymer length to simulate homopolymer
-                        contraction andexpansion events in
+                        contraction andexpansion events in, a typical k is 6
   -b {albacore,guppy,guppy-flipflop}, --basecaller {albacore,guppy,guppy-flipflop}
                         Simulate homopolymers and/or base qualities with
                         respect to chosen basecaller: albacore, guppy, or
@@ -468,6 +472,30 @@ optional arguments:
                         Number of threads for simulation (Default = 1)
 ```
 
+__sample abundance file for metagenome_simulation__  
+
+The abundance file is a tsv file, with rows representing the abundance of each sample and columns representing each sample. Each column (except for the first row) needs to sum up to 100, because the total abundance of each sample needs to be 100.  
+
+The first row is header row to specify the number of reads in each sample. The format of the first row is:  
+`Size  total_reads_in_sample1  total_reads_in_sample2  ...`  
+The following rows are in the format as:  
+`Species abundance_in_sample1  abundance_in_sample2  ...`    
+
+| Size | 200000 | 100 |  
+| ------------- |:-------------:| -----:|  
+| Bacillus subtilis | 12 | 0.89 |  
+| Cryptococcus neoformans | 2 | 0.00089 |  
+| Enterococcus faecalis | 12 | 0.00089 |  
+| Escherichia coli|	12 | 0.089 |  
+| Lactobacillus fermentum |	12 |	0.0089 |  
+| Listeria monocytogenes |	12 |	89.1 |  
+| Pseudomonas aeruginosa	| 12 |	8.9 |  
+| Saccharomyces cerevisiae |	2 |	0.89 |  
+| Salmonella enterica	| 12 |	0.089 |  
+| Staphylococcus aureus	| 12 |	0.000089 |  
+
+
+In the above example, there are two samples. The first sample will contain 20,0000 reads, while the second sample will contain 100 reads. The abundances in sample 1 and 2 are as shown in th table, and both of them add up to 100.  
 
 \* Notice: the use of `max_len` and `min_len` in genome mode will affect the read length distributions. If the range between `max_len` and `min_len` is too small, the program will run slowlier accordingly.  
 
