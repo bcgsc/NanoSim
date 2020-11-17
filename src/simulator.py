@@ -321,6 +321,7 @@ def read_profile(ref_g, number_list, model_prefix, per, mode, strandness, ref_t=
                 if len(seqS) > max_chrom:
                     max_chrom = len(seqS)
 
+    # Special files for each mode
     if mode == "genome":
         genome_len = sum(seq_len.values())
         if len(seq_dict) > 1 and dna_type == "circular":
@@ -430,7 +431,7 @@ def read_profile(ref_g, number_list, model_prefix, per, mode, strandness, ref_t=
 
     if per:  # if parameter perfect is used, all reads should be aligned, number_aligned equals total number of reads
         number_aligned_l = number_list
-        number_unaligned_l = [0]
+        number_unaligned_l = [0] * len(number_list)
     else:
         # Read model profile for match, mismatch, insertion and deletions
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read error profile\n")
@@ -774,7 +775,7 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
         for each_read in xrange(remaining_reads):
             segments = remaining_segments[each_read]
             # In case too many ref length was filtered previously
-            if each_read >= min(len(head_vs_ht_ratio_list), len(remainder_lengths)) or \
+            if not per and each_read >= min(len(head_vs_ht_ratio_list), len(remainder_lengths)) or \
                 seg_pointer + segments > len(ref_lengths):
                 break
             ref_length_list = [int(round(ref_lengths[seg_pointer + x])) for x in range(segments)]
@@ -2252,6 +2253,7 @@ def main():
 
         # Add abundance variation
         global dict_abun, dict_abun_inflated
+        print(number_aligned_l, number_unaligned_l)
         for s in range(len(multi_dict_abun)):
             sample = list(multi_dict_abun.keys())[s]
             if abun_var:
