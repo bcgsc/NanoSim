@@ -775,7 +775,7 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
         for each_read in xrange(remaining_reads):
             segments = remaining_segments[each_read]
             # In case too many ref length was filtered previously
-            if not per and each_read >= min(len(head_vs_ht_ratio_list), len(remainder_lengths)) or \
+            if (not per and each_read >= min(len(head_vs_ht_ratio_list), len(remainder_lengths))) or \
                 seg_pointer + segments > len(ref_lengths):
                 break
             ref_length_list = [int(round(ref_lengths[seg_pointer + x])) for x in range(segments)]
@@ -1148,7 +1148,8 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
         for each_read in xrange(remaining_reads):
             # check if the total length fits the criteria
             segments = remaining_segments[each_read]
-            if seg_pointer + segments > len(ref_lengths):  # In case too many ref length was filtered previously
+            # In case too many ref length was filtered previously
+            if seg_pointer + segments > len(ref_lengths):
                 break
             ref_length_list = [int(ref_lengths[seg_pointer + x]) for x in range(segments)]
             gap_length_list = [int(gap_lengths[gap_pointer + x]) for x in range(segments - 1)]
