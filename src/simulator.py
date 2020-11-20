@@ -1486,6 +1486,7 @@ def simulation(mode, out, dna_type, per, kmer_bias, basecaller, read_type, max_l
         for fname in unaligned_subfiles:
             os.remove(fname)
 
+        '''
         with open(out + "_unaligned_error_profile", 'w') as out_error:
             out_error.write("Seq_name\tSeq_pos\terror_type\terror_length\tref_base\tseq_base\n")
             for fname in unaligned_error_subfiles:
@@ -1493,6 +1494,7 @@ def simulation(mode, out, dna_type, per, kmer_bias, basecaller, read_type, max_l
                     out_error.write(infile.read())
         for fname in unaligned_error_subfiles:
             os.remove(fname)
+        '''
 
 
 def reverse_complement(seq):
