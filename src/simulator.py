@@ -699,8 +699,9 @@ def assign_species(length_list, seg_list, current_species_base_dict):
     total_bases = bases_to_add + current_bases
 
     base_quota = {}
+    total_abun = sum(dict_abun.values())
     for species, abun in dict_abun.items():
-        base_quota[species] = total_bases * abun / 100 - current_species_base_dict[species]
+        base_quota[species] = total_bases * abun / total_abun - current_species_base_dict[species]
 
     length_list_pointer = 0
     pre_species = ''
@@ -1286,10 +1287,10 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
     out_error.close()
 
 
-def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, basecaller, read_type, fastq,
+def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, basecaller, read_type, fastq,
                          num_simulate, uracil):
     out_reads = open(out_reads, "w")
-    out_error = open(out_error, "w")
+    # out_error = open(out_error, "w")
 
     if fastq:
         id_begin = "@"
@@ -1321,7 +1322,7 @@ def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_
             # Change lowercase to uppercase and replace N with any base
             new_read = case_convert(new_read)
             # no quals returned here since unaligned quals are not based on mis/ins/match qual distributions
-            read_mutated, _ = mutate_read(new_read, new_read_name, out_error, error_dict, error_count, basecaller,
+            read_mutated, _ = mutate_read(new_read, new_read_name, None, error_dict, error_count, basecaller,
                                           read_type, False, False)
 
             if fastq:
@@ -1357,7 +1358,7 @@ def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_
 
         remaining_reads = num_simulate - passed
     out_reads.close()
-    out_error.close()
+    # out_error.close()
 
 
 def simulation_gap(ref, basecaller, read_type, dna_type, fastq):
@@ -1456,20 +1457,20 @@ def simulation(mode, out, dna_type, per, kmer_bias, basecaller, read_type, max_l
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of random reads\n")
         sys.stdout.flush()
         unaligned_subfiles = []
-        unaligned_error_subfiles = []
+        # unaligned_error_subfiles = []
         num_simulate = int(number_unaligned / num_threads)
         for i in range(num_threads):
             unaligned_subfile = out + "_unaligned_reads{}".format(i) + ext
-            unaligned_error_subfile = out + "_unaligned_error_profile{}".format(i) + ext
+            # unaligned_error_subfile = out + "_unaligned_error_profile{}".format(i) + ext
             unaligned_subfiles.append(unaligned_subfile)
-            unaligned_error_subfiles.append(unaligned_error_subfile)
+            # unaligned_error_subfiles.append(unaligned_error_subfile)
             if i == num_threads - 1:
                 num_simulate += number_unaligned % num_threads
 
             # Dividing number of unaligned reads that need to be simulated amongst the number of processes
             p = mp.Process(target=simulation_unaligned,
                            args=(dna_type, min_l, max_l, median_l, sd_l, unaligned_subfile,
-                                 unaligned_error_subfile, basecaller, read_type, fastq, num_simulate, uracil))
+                                 basecaller, read_type, fastq, num_simulate, uracil))
             procs.append(p)
             p.start()
 

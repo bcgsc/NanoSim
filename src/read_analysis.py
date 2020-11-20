@@ -282,8 +282,9 @@ def main():
                           default='training')
     parser_m.add_argument('-c', '--chimeric', help='Detect chimeric and split reads (Default = False)',
                           action='store_true', default=False)
-    parser_m.add_argument('-q', '--quantification', help='Perform Salmon quantification and compute the variation in '
-                                                         'abundance when compared to expected values (Default = False)',
+    parser_m.add_argument('-q', '--quantification', help='Perform abundance quantification and compute the deviation '
+                                                         'between calculated abundance and expected values '
+                                                         '(Default = False)',
                           action='store_true', default=False)
     parser_m.add_argument('--no_model_fit', help='Disable model fitting step', action='store_false', default=True)
     parser_m.add_argument('-t', '--num_threads', help='Number of threads for alignment and model fitting (Default = 1)',
