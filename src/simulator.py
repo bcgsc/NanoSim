@@ -1234,7 +1234,7 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
                         seg_mutated, seg_base_quals = mutate_homo(seg_mutated, seg_base_quals, kmer_bias, basecaller,
                                                                   None)
                     new_read_name += new_seg_name + ';'
-                    read_mutated += new_seg
+                    read_mutated += seg_mutated
                     base_quals.extend(seg_base_quals)
                     if seg_idx < len(gap_list):
                         read_mutated += gap_list[seg_idx]
