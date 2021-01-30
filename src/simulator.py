@@ -871,6 +871,7 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
                     if seg_idx < len(gap_list):
                         read_mutated += gap_list[seg_idx]
                         base_quals.extend(gap_base_qual_list[seg_idx])
+                        new_read_name += "gap_" + str(len(gap_list[seg_idx])) + ';'
 
                     # Update base level abundance info
                     current_species_bases[species_list[seg_idx]] += len(new_seg)
@@ -898,8 +899,8 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
             if per:
                 out_reads.write(id_begin + new_read_name + "_0_" + str(sum(ref_length_list)) + "_0" + '\n')
             else:
-                out_reads.write(id_begin + new_read_name + "_" + str(head) + "_" + str(sum(ref_length_list)) + "_" +
-                                str(tail) + '\n')
+                out_reads.write(id_begin + new_read_name + "_" + str(head) + "_" + ";".join(str(x) for x in ref_length_list) 
+                                + "_" + str(tail) + '\n')
             out_reads.write(read_mutated + '\n')
 
             if fastq:
