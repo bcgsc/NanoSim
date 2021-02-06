@@ -25,7 +25,6 @@ import scipy.stats
 
 if sys.version_info[0] < 3:
     from string import maketrans
-
     trantab = maketrans("T", "U")
 else:
     trantab = str.maketrans("T", "U")
@@ -507,22 +506,12 @@ def read_profile(ref_g, number_list, model_prefix, per, mode, strandness, ref_t=
 
     # Read chimeric reads information
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read chimeric simulation information\n")
-    number_segment_list = []
-    sys.stdout.flush()
-    if per or not chimeric:
-        for each_number in number_aligned_l:
-            number_segments = np.ones((each_number,), dtype=int)
-            number_segment_list.append(number_segments)
-    else:
-        global abun_inflation, kde_gap
+    if chimeric:
+        global abun_inflation, kde_gap, segment_mean
         with open(model_prefix + "_chimeric_info") as chimeric_info:
             segment_mean = float(chimeric_info.readline().split('\t')[1])
             if mode == "metagenome":
                 abun_inflation = float(chimeric_info.readline().split('\t')[1])
-        for each_number in number_aligned_l:
-            number_segments = np.random.geometric(1/segment_mean, each_number)
-            number_segments.tolist()
-            number_segment_list.append(number_segments)
         kde_gap = joblib.load(model_prefix + "_gap_length.pkl")
 
 
@@ -735,7 +724,7 @@ def assign_species(length_list, seg_list, current_species_base_dict):
 
 
 def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias, basecaller,
-                                  read_type, fastq, num_simulate, num_segment, per=False):
+                                  read_type, fastq, num_simulate, per=False, chimeric=False):
     # Simulate aligned reads
     out_reads = open(out_reads, "w")
     out_error = open(out_error, "w")
@@ -743,6 +732,10 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
     id_begin = '@' if fastq else '>'
 
     remaining_reads = num_simulate
+    if chimeric:
+        num_segment = np.random.geometric(1 / segment_mean, num_simulate)
+    else:
+        num_segment = np.ones(num_simulate, dtype=int)
     remaining_segments = num_segment
     remaining_gaps = remaining_segments - 1
     passed = 0
@@ -899,8 +892,8 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
             if per:
                 out_reads.write(id_begin + new_read_name + "_0_" + str(sum(ref_length_list)) + "_0" + '\n')
             else:
-                out_reads.write(id_begin + new_read_name + "_" + str(head) + "_" + ";".join(str(x) for x in ref_length_list) 
-                                + "_" + str(tail) + '\n')
+                out_reads.write(id_begin + new_read_name + "_" + str(head) + "_" +
+                                ";".join(str(x) for x in ref_length_list) + "_" + str(tail) + '\n')
             out_reads.write(read_mutated + '\n')
 
             if fastq:
@@ -1114,7 +1107,8 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
 
 
 def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias, basecaller,
-                              read_type, fastq, num_simulate, num_segment, per=False):
+                              read_type, fastq, num_simulate, per=False, chimeric=False):
+
     # Simulate aligned reads
     out_reads = open(out_reads, "w")
     out_error = open(out_error, "w")
@@ -1122,6 +1116,10 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
     id_begin = '@' if fastq else '>'
 
     remaining_reads = num_simulate
+    if chimeric:
+        num_segment = np.random.geometric(1/segment_mean, num_simulate)
+    else:
+        num_segment = np.ones(num_simulate, dtype=int)
     remaining_segments = num_segment
     remaining_gaps = remaining_segments - 1
     passed = 0
@@ -1263,8 +1261,8 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
             if per:
                 out_reads.write(id_begin + new_read_name + "_0_" + str(sum(ref_length_list)) + "_0" + '\n')
             else:
-                out_reads.write(id_begin + new_read_name + "_" + str(head) + "_" + str(sum(ref_length_list)) + "_" +
-                                str(tail) + '\n')
+                out_reads.write(id_begin + new_read_name + "_" + str(head) + "_" +
+                                ";".join(str(x) for x in ref_length_list) + "_" + str(tail) + '\n')
             out_reads.write(read_mutated + '\n')
 
             if fastq:
@@ -1291,7 +1289,6 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
 def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, basecaller, read_type, fastq,
                          num_simulate, uracil):
     out_reads = open(out_reads, "w")
-    # out_error = open(out_error, "w")
 
     if fastq:
         id_begin = "@"
@@ -1359,7 +1356,6 @@ def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, base
 
         remaining_reads = num_simulate - passed
     out_reads.close()
-    # out_error.close()
 
 
 def simulation_gap(ref, basecaller, read_type, dna_type, fastq):
@@ -1383,7 +1379,7 @@ def simulation_gap(ref, basecaller, read_type, dna_type, fastq):
 
 
 def simulation(mode, out, dna_type, per, kmer_bias, basecaller, read_type, max_l, min_l, num_threads, fastq,
-               median_l=None, sd_l=None, model_ir=False, uracil=False, polya=None, number_segments=None):
+               median_l=None, sd_l=None, model_ir=False, uracil=False, polya=None, chimeric=False):
     global total_simulated  # Keeps track of number of reads that have been simulated so far
     total_simulated = mp.Value("i", 0, lock=True)
 
@@ -1405,24 +1401,20 @@ def simulation(mode, out, dna_type, per, kmer_bias, basecaller, read_type, max_l
         error_subfile = out + "_error_profile{}".format(i)
         aligned_subfiles.append(aligned_subfile)
         error_subfiles.append(error_subfile)
-        if mode != "transcriptome":
-            num_segment = number_segments[i * num_simulate: (i + 1) * num_simulate]
         if i == num_threads - 1:  # Last process will simulate the remaining reads
-            if mode != "transcriptome":
-                num_segment = number_segments[i * num_simulate:]
             num_simulate += number_aligned % num_threads
 
         if mode == "genome":
             p = mp.Process(target=simulation_aligned_genome,
                            args=(dna_type, min_l, max_l, median_l, sd_l, aligned_subfile, error_subfile,
-                                 kmer_bias, basecaller, read_type, fastq, num_simulate, num_segment, per))
+                                 kmer_bias, basecaller, read_type, fastq, num_simulate, per, chimeric))
             procs.append(p)
             p.start()
 
         elif mode == "metagenome":
             p = mp.Process(target=simulation_aligned_metagenome,
                            args=(min_l, max_l, median_l, sd_l, aligned_subfile, error_subfile, kmer_bias,
-                                 basecaller, read_type, fastq, num_simulate, num_segment, per))
+                                 basecaller, read_type, fastq, num_simulate, per, chimeric))
             procs.append(p)
             p.start()
 
@@ -1486,16 +1478,6 @@ def simulation(mode, out, dna_type, per, kmer_bias, basecaller, read_type, max_l
                     out_unaligned_reads.write(infile.read())
         for fname in unaligned_subfiles:
             os.remove(fname)
-
-        '''
-        with open(out + "_unaligned_error_profile", 'w') as out_error:
-            out_error.write("Seq_name\tSeq_pos\terror_type\terror_length\tref_base\tseq_base\n")
-            for fname in unaligned_error_subfiles:
-                with open(fname) as infile:
-                    out_error.write(infile.read())
-        for fname in unaligned_error_subfiles:
-            os.remove(fname)
-        '''
 
 
 def reverse_complement(seq):
@@ -2029,6 +2011,11 @@ def main():
             parser_g.print_help(sys.stderr)
             sys.exit(1)
 
+        if perfect and chimeric:
+            print("\nPerfect reads cannot be chimeric\n")
+            parser_g.print_help(sys.stderr)
+            sys.exit(1)
+
         if fastq and basecaller == "guppy-flipflop":
             print("\nBase quality simulation isn't supported for guppy-flipflop. Please choose either albacore "
                   "or guppy as the basecaller.\n")
@@ -2068,10 +2055,9 @@ def main():
 
         number_aligned = number_aligned_l[0]
         number_unaligned = number_unaligned_l[0]
-        number_segments = number_segment_list[0]
         max_len = min(max_len, max_chrom)
         simulation(args.mode, out, dna_type, perfect, kmer_bias, basecaller, "DNA", max_len, min_len, num_threads,
-                   fastq, median_len, sd_len, number_segments=number_segments)
+                   fastq, median_len, sd_len, chimeric=chimeric)
 
     elif args.mode == "transcriptome":
         ref_g = args.ref_g
@@ -2256,7 +2242,6 @@ def main():
 
         # Add abundance variation
         global dict_abun, dict_abun_inflated
-        print(number_aligned_l, number_unaligned_l)
         for s in range(len(multi_dict_abun)):
             sample = list(multi_dict_abun.keys())[s]
             if abun_var:
@@ -2284,10 +2269,9 @@ def main():
 
             number_aligned = number_aligned_l[s]
             number_unaligned = number_unaligned_l[s]
-            number_segments = number_segment_list[s]  # treat each segment as an individual middle_ref
             max_len = min(max_len, max(max_chrom.values()))
             simulation(args.mode, out + "_" + sample, "metagenome", perfect, kmer_bias, basecaller, "DNA", max_len,
-                       min_len, num_threads, fastq, median_len, sd_len, number_segments=number_segments)
+                       min_len, num_threads, fastq, median_len, sd_len, chimeric=chimeric)
 
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
     sys.stdout.close()
