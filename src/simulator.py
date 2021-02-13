@@ -681,7 +681,16 @@ def case_convert(seq):
 
 
 def assign_species(length_list, seg_list, current_species_base_dict):
-    length_list.sort(reverse=True)  # Sort lengths first to fit in species quota better
+    # Deal with chimeric reads first
+    seg_list_sorted = sorted(seg_list, reverse=True)
+    segs_chimera = sum([x for x in seg_list if x > 1])
+
+    # Sort lengths for non-chimeras to fit in species quota better
+    length_list_nonchimera = length_list[segs_chimera:]
+    length_list_sorted = length_list[:segs_chimera] + sorted(length_list_nonchimera, reverse=True)
+    nonchimera_idx = sorted(range(len(length_list_nonchimera)), key=length_list_nonchimera.__getitem__, reverse=True)
+    length_list_idx = list(range(segs_chimera)) + [x + segs_chimera for x in nonchimera_idx]
+
     species_list = [''] * len(length_list)
     bases_to_add = sum(length_list)
     current_bases = sum(current_species_base_dict.values())
@@ -694,29 +703,31 @@ def assign_species(length_list, seg_list, current_species_base_dict):
 
     length_list_pointer = 0
     pre_species = ''
-    for seg in seg_list:
+    for seg in seg_list_sorted:
         for each_seg in range(seg):
             if each_seg == 0:
-                available_species = [s for s, q in base_quota.items() if q - length_list[length_list_pointer] > 0]
+                available_species = [s for s, q in base_quota.items()
+                                     if q - length_list_sorted[length_list_pointer] > 0]
                 if len(available_species) == 0:
                     available_species = [s for s, q in base_quota.items() if q > 0]
                 species = random.choice(available_species)
             else:
-                available_species = [s for s, q in base_quota.items() if q - length_list[length_list_pointer] > 0 and \
-                                     s != pre_species]
+                available_species = [s for s, q in base_quota.items()
+                                     if q - length_list_sorted[length_list_pointer] > 0 and s != pre_species]
                 p = random.uniform(0, 100)
                 if p <= dict_abun_inflated[pre_species] and base_quota[pre_species] > 0:
                     species = pre_species
                 elif p > dict_abun_inflated[pre_species] and len(available_species) > 0:
                     species = random.choice(available_species)
                 else:
-                    available_species = [s for s, q in base_quota.items() if q - length_list[length_list_pointer] > 0]
+                    available_species = [s for s, q in base_quota.items()
+                                         if q - length_list_sorted[length_list_pointer] > 0]
                     if len(available_species) == 0:
                         available_species = [s for s, q in base_quota.items() if q > 0]
                     species = random.choice(available_species)
 
-            species_list[length_list_pointer] = species
-            base_quota[species] -= length_list[length_list_pointer]
+            species_list[length_list_idx[length_list_pointer]] = species
+            base_quota[species] -= length_list_sorted[length_list_pointer]
             length_list_pointer += 1
             pre_species = species
 
