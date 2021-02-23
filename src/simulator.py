@@ -20,6 +20,8 @@ import copy
 import argparse
 import joblib
 from time import strftime
+from urllib.request import Request, urlopen
+from gzip import GzipFile
 import numpy as np
 import scipy.stats
 
@@ -287,15 +289,37 @@ def read_profile(ref_g, number_list, model_prefix, per, mode, strandness, ref_t=
             dict_dna_type[species] = {}
             max_chrom[species] = 0
 
-            with open(fq_path, 'r') as infile:
-                for seqN, seqS, seqQ in readfq(infile):
-                    info = re.split(r'[_\s]\s*', seqN)
-                    chr_name = "-".join(info)
-                    seq_dict[species][chr_name.split(".")[0]] = seqS
-                    seq_len[species][chr_name.split(".")[0]] = len(seqS)
-                    dict_dna_type[species][chr_name.split(".")[0]] = "linear"
-                    if len(seqS) > max_chrom[species]:
-                        max_chrom[species] = len(seqS)
+            if fq_path.startswith(("ftp", "http")):
+                http_addr = fq_path.replace("ftp://", "http://")
+                dir_name = fq_path.strip().split('/')[-1]
+                http_complete = http_addr.strip() + '/' + dir_name + '_genomic.fna.gz'
+                url_req = Request(http_complete)
+                url_req.add_header('Accept-Encoding', 'gzip')
+                response = urlopen(url_req)
+                with GzipFile(fileobj=response) as f:
+                    for line in f:
+                        line = str(line, 'utf-8').strip()
+                        if line[0] == '>':
+                            info = re.split(r'[_\s]\s*', line)
+                            chr_name = "-".join(info[1:])
+                            seq_dict[species][chr_name.split(".")[0]] = ''
+                            seq_len[species][chr_name.split(".")[0]] = 0
+                            dict_dna_type[species][chr_name.split(".")[0]] = "linear"  # linear as default
+                        else:
+                            seq_dict[species][chr_name.split(".")[0]] += line
+                            seq_len[species][chr_name.split(".")[0]] += len(line)
+                            if seq_len[species][chr_name.split(".")[0]] > max_chrom[species]:
+                                max_chrom[species] = seq_len[species][chr_name.split(".")[0]]
+            else:
+                with open(fq_path, 'r') as infile:
+                    for seqN, seqS, seqQ in readfq(infile):
+                        info = re.split(r'[_\s]\s*', seqN)
+                        chr_name = "-".join(info)
+                        seq_dict[species][chr_name.split(".")[0]] = seqS
+                        seq_len[species][chr_name.split(".")[0]] = len(seqS)
+                        dict_dna_type[species][chr_name.split(".")[0]] = "linear"  # linear as default
+                        if len(seqS) > max_chrom[species]:
+                            max_chrom[species] = len(seqS)
 
         with open(dna_type, 'r') as dna_type_list:
             for line in dna_type_list.readlines():
