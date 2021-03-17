@@ -133,7 +133,7 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g
     return t_alnm_ext, unaligned_length, g_alnm, t_alnm, strandness
 
 
-def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, chimeric, quantification=None):
+def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, chimeric, quantification=None, q_mode=False):
     # if an alignment file is not provided
     if g_alnm == '':
         if aligner == "minimap2":  # Align with minimap2 by default
@@ -166,7 +166,7 @@ def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, chimeric
         # get the primary alignments and define unaligned reads.
         if chimeric:
             unaligned_length, strandness = get_primary_sam.primary_and_unaligned_chimeric(g_alnm, prefix,
-                                                                                          quantification)
+                                                                                          quantification, q_mode)
         else:
             unaligned_length, strandness = get_primary_sam.primary_and_unaligned(g_alnm, prefix, quantification)
 
@@ -290,9 +290,18 @@ def main():
     parser_m.add_argument('-t', '--num_threads', help='Number of threads for alignment and model fitting (Default = 1)',
                           default='1')
 
-    parser_e = subparsers.add_parser('quantify', help="Quantify expression profile of transcripts")
+    parser_e = subparsers.add_parser('quantify', help="Quantify transcriptome expression or metagenome abundance")
+    parser_e.add_argument('-e', help='Select from (trans, meta)', default=None, required=True)
     parser_e.add_argument('-i', '--read', help='Input reads for quantification', required=True)
-    parser_e.add_argument('-rt', '--ref_t', help='Reference Transcriptome', required=True)
+    parser_e.add_argument('-rt', '--ref_t', help='Reference Transcriptome', default='')
+    parser_e.add_argument('-gl', '--genome_list', help='Reference metagenome list, tsv file, the first column is '
+                                                       'species/strain name, the second column is the reference genome '
+                                                       'fasta/fastq file directory, the third column is optional, if '
+                                                       'provided, it contains the expected abundance (sum up to 100)',
+                          default='')
+    parser_e.add_argument('-ga', '--g_alnm', help='Genome alignment file in sam format, the header of each species '
+                                                  'should match the metagenome list provided above (optional)',
+                          default='')
     parser_e.add_argument('-o', '--output', help='The location and prefix of outputting profile (Default = expression)',
                           default='expression')
     parser_e.add_argument('-t', '--num_threads', help='Number of threads for alignment (Default = 1)', default='1')
@@ -322,13 +331,19 @@ def main():
     # parse quantify mode arguments
     if args.mode == "quantify":
         infile = args.read
-        ref_t = args.ref_t
+        mode = args.e
         prefix = args.output
         num_threads = args.num_threads
+        ref_t = args.ref_t
+        genome_list = args.genome_list
+        g_alnm = args.g_alnm
 
-        print("\nrunning the code with following parameters:\n")
+        print("\nrunning the code with following parameters\n")
+        print("mode", mode)
         print("infile", infile)
         print("ref_t", ref_t)
+        print("genome_list", genome_list)
+        print("g_alnm", g_alnm)
         print("prefix", prefix)
         print("num_threads", num_threads)
 
@@ -336,18 +351,45 @@ def main():
         if dir_name != '':
             call("mkdir -p " + dir_name, shell=True)
 
-        # Quantifying the transcript abundance from input read
-        sys.stdout.write('Quantifying transcripts abundance: \n')
-        sys.stdout.flush()
-        map_file = prefix + '_mapping.paf'
-        call("minimap2 -t " + num_threads + " -x map-ont -p0 " + ref_t + " " + infile + " > " + map_file,
-             shell=True)
+        if mode == "trans":
+            # Quantifying the transcript abundance from input read
+            sys.stdout.write('Quantifying transcripts abundance: \n')
+            sys.stdout.flush()
+            map_file = prefix + '_mapping.paf'
+            call("minimap2 -t " + num_threads + " -x map-ont -p0 " + ref_t + " " + infile + " > " + map_file,
+                 shell=True)
 
-        # Get the script path
-        script_path = os.path.realpath(__file__)
-        script_dir = os.path.dirname(script_path)
-        out_file = prefix + '_abundance.tsv'
-        call("python " + script_dir + "/nanopore_transcript_abundance.py -i " + map_file + " > " + out_file, shell=True)
+            # Get the script path
+            script_path = os.path.realpath(__file__)
+            script_dir = os.path.dirname(script_path)
+            out_file = prefix + '_abundance.tsv'
+            call("python " + script_dir + "/nanopore_transcript_abundance.py -i " + map_file + " > " + out_file,
+                 shell=True)
+
+        elif mode == "meta":
+            # check validity of parameters
+            if g_alnm != '':
+                pre, file_ext = os.path.splitext(g_alnm)
+                file_extension = file_ext[1:]
+                if file_extension != 'sam':
+                    print("Please specify an acceptable alignment format! (.sam)\n")
+                    parser_g.print_help(sys.stderr)
+                    sys.exit(1)
+
+            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Processing reference genome\n")
+            sys.stdout.flush()
+            metagenome_list = {}
+            with open(genome_list, 'r') as f:
+                for line in f:
+                    info = line.strip().split('\t')
+                    species = '-'.join(info[0].split())
+                    metagenome_list[species] = {'path': info[1]}
+                    if len(info) == 3:  # expected abundance
+                        metagenome_list[species]['expected'] = float(info[2])
+            ref_g = concatenate_genomes(metagenome_list)
+
+            align_genome(infile, prefix, 'minimap2', num_threads, g_alnm, ref_g, True, metagenome_list, True)
+
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
         return
 

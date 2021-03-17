@@ -261,6 +261,7 @@ def read_profile(ref_g, number_list, model_prefix, per, mode, strandness, ref_t=
             for genome in list:
                 fields = genome.split("\t")
                 species = fields[0]
+                species = '_'.join(species.split())
                 genome = fields[1].strip("\n")
                 ref[species] = genome
     else:
@@ -317,14 +318,14 @@ def read_profile(ref_g, number_list, model_prefix, per, mode, strandness, ref_t=
                         chr_name = "-".join(info)
                         seq_dict[species][chr_name.split(".")[0]] = seqS
                         seq_len[species][chr_name.split(".")[0]] = len(seqS)
-                        dict_dna_type[species][chr_name.split(".")[0]] = "linear"  # linear as default
+                        dict_dna_type[species][chr_name.split(".")[0]] = "circular"  # circular as default
                         if len(seqS) > max_chrom[species]:
                             max_chrom[species] = len(seqS)
 
         with open(dna_type, 'r') as dna_type_list:
             for line in dna_type_list.readlines():
                 fields = line.split("\t")
-                species = fields[0]
+                species = '_'.join(fields[0].split())
                 chr = re.split(r'[_\s]\s*', fields[1].partition(" ")[0])
                 chr_name = "-".join(chr)
                 type = fields[2].strip("\n")
@@ -366,7 +367,7 @@ def read_profile(ref_g, number_list, model_prefix, per, mode, strandness, ref_t=
                                      "of columns\n")
                     sys.exit(1)
 
-                species = fields[0]
+                species = '_'.join(fields[0].split())
                 if species not in ref:
                     sys.stderr.write("You didn't provide a reference genome for " + species + '\n')
                     sys.exit(1)
