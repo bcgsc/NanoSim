@@ -74,7 +74,8 @@ subcommands:
     genome              Run the simulator on genome mode
     transcriptome       Run the simulator on transcriptome mode
     metagenome          Run the simulator on metagenome mode
-    quantify            Quantify expression profile of transcripts
+    quantify            Quantify transcriptome expression or metagenome
+                        abundance
     detect_ir           Detect Intron Retention events using the alignment
                         file
 
@@ -188,19 +189,31 @@ optional arguments:
 ```
 
 
-**quantify mode and detect_ir mode**  
-The "transcriptome" mode of the NanoSim is able to model features of the library preparation protocols used, including intron retention (IR) events in cDNA and directRNA reads. Further, it optionally profiles transcript expression patterns. However, if you are interested in only detecting Intron Retention events or quantifying expression patterns of transcripts without running other analysis in the characterization stage, you may use two modes we introduced for this purpose: "quantify" and "detect_ir". Details are as follows:
+**quantify mode**  
+If you are interested in quantifying the expression levels of transcriptome or abundance of metagenome, you can run this mode with following options. This mode is independent from the other features in characterization stage, and the output is not used for simulation stage.
 
 __quantifty mode usage:__
 ```
-usage: read_analysis.py quantify [-h] -i READ -rt REF_T [-o OUTPUT]
+usage: read_analysis.py quantify [-h] -e E -i READ [-rt REF_T]
+                                 [-gl GENOME_LIST] [-ga G_ALNM] [-o OUTPUT]
                                  [-t NUM_THREADS]
 
 optional arguments:
   -h, --help            show this help message and exit
+  -e E                  Select from (trans, meta)
   -i READ, --read READ  Input reads for quantification
   -rt REF_T, --ref_t REF_T
                         Reference Transcriptome
+  -gl GENOME_LIST, --genome_list GENOME_LIST
+                        Reference metagenome list, tsv file, the first column
+                        is species/strain name, the second column is the
+                        reference genome fasta/fastq file directory, the third
+                        column is optional, if provided, it contains the
+                        expected abundance (sum up to 100)
+  -a G_ALNM, --alnm G_ALNM
+                        Genome alignment file in sam format, the header of
+                        each species should match the metagenome list provided
+                        above (optional)
   -o OUTPUT, --output OUTPUT
                         The location and prefix of outputting profile (Default
                         = expression)
@@ -208,6 +221,11 @@ optional arguments:
                         Number of threads for alignment (Default = 1)
 
 ```
+
+If `-e trans` is used, users need to provide the reference transcriptome through `-rt` parameter; if `-e meta` is used, users need to provide a genome list containing all reference genome and the path to them through `-gl` parameter OR provide genome alignment file through `-a` parameter.
+
+**detect_ir mode usage**  
+The "transcriptome" mode of the NanoSim is able to model features of the library preparation protocols used, including intron retention (IR) events in cDNA and directRNA reads. Further, it optionally profiles transcript expression patterns. However, if you are interested in only detecting Intron Retention events without running other analysis in the characterization stage, you may use the "detect_ir" mode. Details are as follows:
 
 __detect_ir mode usage:__
 ```
