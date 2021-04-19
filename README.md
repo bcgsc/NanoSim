@@ -420,6 +420,22 @@ optional arguments:
                         output fasta format
 ```
 
+__sample expression file for transcriptome simulation__  
+The expression profile is a tsv file containing expression levels of each isoform to be simulated. Users can use the output of `quantify` mode as template for modify or use the following format for constructing a new expression profile. 
+
+The first row is header row specifying the format of the file. `target_id` is the id of each transcript. The `tpm` column is used for simulating, while the `est_count` is just a placeholder to be compatible with the output of the `quantify` mode and other quantification tools such as Salmon.
+
+The following rows are entries for each transcript isoform and the id of which needs to exist in the provided reference transcriptome. The id should start with `ENS`.
+
+Example:  
+| target_id | est_counts | tpm |
+| --------- |:----------:|----:|
+| ENST00000222247.9 | 2307.2992 | 3145.3749 |  
+| ENST00000274065.8 | 2641.9534 | 3601.5848 |  
+| ENST00000400259.5 | 623.6130 | 850.1268 |  
+| ENST00000344548.7 | 1828.3466 | 2492.4533 |  
+| ENST00000484610.5 | 766.3528 | 1044.7137 |
+
 **metagenome mode**  
 If you are interested in simulating ONT metagenome reads, you need to run the simulation stage in "metagenome" mode with following options. We have provided sample config files for users to construct their own `-gl`, `-a`, and `-dl` config files correctly.
 
@@ -490,7 +506,7 @@ optional arguments:
                         Number of threads for simulation (Default = 1)
 ```
 
-__sample abundance file for metagenome_simulation__  
+__sample abundance file for metagenome simulation__  
 
 The abundance file is a tsv file, with rows representing the abundance of each sample and columns representing each sample. Each column (except for the first row) needs to sum up to 100, because the total abundance of each sample needs to be 100.  
 
