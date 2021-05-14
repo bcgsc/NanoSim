@@ -41,7 +41,8 @@ Python packages:
 * scikit-learn (Tested with version 0.20.0)
 
 minimap2 (Tested with version 2.10 and 2.17)  
-LAST (Tested with version 581 and 916)  
+LAST (Tested with version 581 and 916)
+samtools (Tested with version 1.12)  
 
 ## Usage
 NanoSim is implemented using Python for error model fitting, read length analysis, and simulation. The first step of NanoSim is read characterization, which provides a comprehensive alignment-based analysis, and generates a set of read profiles serving as the input to the next step, the simulation stage. The simulation tool uses the model built in the previous step to produce in silico reads for a given reference genome/transcriptome. It also outputs a list of introduced errors, consisting of the position on each read, error type and reference bases.
@@ -100,7 +101,7 @@ optional arguments:
                         The aligner to be used, minimap2 or LAST (Default =
                         minimap2)
   -ga G_ALNM, --g_alnm G_ALNM
-                        Genome alignment file in sam or maf format (optional)
+                        Genome alignment file in sam/bam or maf format (optional)
   -o OUTPUT, --output OUTPUT
                         The location and prefix of outputting profiles
                         (Default = training)
@@ -137,9 +138,9 @@ optional arguments:
                         The aligner to be used: minimap2 or LAST (Default =
                         minimap2)
   -ga G_ALNM, --g_alnm G_ALNM
-                        Genome alignment file in sam or maf format (optional)
+                        Genome alignment file in sam/bam or maf format (optional)
   -ta T_ALNM, --t_alnm T_ALNM
-                        Transcriptome alignment file in sam or maf format
+                        Transcriptome alignment file in sam/bam or maf format
                         (optional)
   -o OUTPUT, --output OUTPUT
                         The location and prefix of outputting profiles
@@ -172,7 +173,7 @@ optional arguments:
                         column is optional, if provided, it contains the
                         expected abundance (sum up to 100)
   -ga G_ALNM, --g_alnm G_ALNM
-                        Genome alignment file in sam format, the header of
+                        Genome alignment file in sam/bam format, the header of
                         each species should match the metagenome list provided
                         above (optional)
   -o OUTPUT, --output OUTPUT
@@ -252,9 +253,9 @@ optional arguments:
   -o OUTPUT, --output OUTPUT
                         The output name and location
   -ga G_ALNM, --g_alnm G_ALNM
-                        Genome alignment file in sam or maf format (optional)
+                        Genome alignment file in sam/bam or maf format (optional)
   -ta T_ALNM, --t_alnm T_ALNM
-                        Transcriptome alignment file in sam or maf format
+                        Transcriptome alignment file in sam/bam or maf format
                         (optional)
   -t NUM_THREADS, --num_threads NUM_THREADS
                         Number of threads for alignment (Default = 1)
