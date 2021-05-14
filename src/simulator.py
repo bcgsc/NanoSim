@@ -24,6 +24,7 @@ from urllib.request import Request, urlopen
 from gzip import GzipFile
 import numpy as np
 import scipy.stats
+from file_handler import gzopen as open
 
 if sys.version_info[0] < 3:
     from string import maketrans

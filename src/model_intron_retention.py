@@ -5,6 +5,8 @@ from __future__ import with_statement
 import sys
 from time import strftime
 import HTSeq
+from file_handler import gzopen as open
+
 # TODO change HTSeq to Pysam
 
 stranded = "no"

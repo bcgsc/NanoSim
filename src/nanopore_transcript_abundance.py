@@ -3,6 +3,8 @@
 import sys
 import argparse
 import collections
+from file_handler import gzopen as open
+
 
 
 def parse_paf(line):
@@ -113,14 +115,14 @@ transcript_compatibility = collections.defaultdict(list)
 prev_read_name = ""
 curr_records = list()
 
-fh = open(args.input)
-for line in fh:
-    alignment = parse_paf(line)
-    if alignment["query_name"] != prev_read_name and len(curr_records) > 0:
-        get_compatibility(curr_records)
-        curr_records = list()
-    prev_read_name = alignment["query_name"]
-    curr_records.append(alignment)
+with open(args.input) as fh:
+    for line in fh:
+        alignment = parse_paf(line)
+        if alignment["query_name"] != prev_read_name and len(curr_records) > 0:
+            get_compatibility(curr_records)
+            curr_records = list()
+        prev_read_name = alignment["query_name"]
+        curr_records.append(alignment)
 
 # Process last batch
 get_compatibility(curr_records)

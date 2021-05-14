@@ -2,6 +2,7 @@
 
 from __future__ import with_statement
 import numpy
+from file_handler import gzopen as open
 
 
 def besthit_and_unaligned(infile, outmaf, prefix):

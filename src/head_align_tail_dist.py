@@ -7,6 +7,7 @@ import sys
 import joblib
 from time import strftime
 from sklearn.neighbors import KernelDensity
+from file_handler import gzopen as open
 
 
 def kde2d(x, y):
@@ -109,7 +110,7 @@ def head_align_tail(prefix, alnm_ext, mode):
         last_read = ''
         last_ref = ''
         aligned_ref = 0
-        in_sam_file = pysam.AlignmentFile(alnm_file_prefix + "_primary.sam", 'r')
+        in_sam_file = pysam.AlignmentFile(alnm_file_prefix + "_primary.bam", 'rb')
 
         # extract the lengths of all reference sequences
         dict_ref_len = {}

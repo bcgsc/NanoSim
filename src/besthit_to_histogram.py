@@ -3,6 +3,7 @@
 from __future__ import with_statement
 import pysam
 import re
+from file_handler import gzopen as open
 
 try:
     from six.moves import xrange
@@ -309,7 +310,7 @@ def hist(prefix, alnm_ftype):
                             prev_error = "del0"
                         mismatch += 1
     else:
-        in_sam_file = pysam.AlignmentFile(alignment_file + "_primary.sam", 'r')
+        in_sam_file = pysam.AlignmentFile(alignment_file + "_primary.bam", 'rb')
 
         for alnm in in_sam_file.fetch(until_eof=True):
             # if cs tag is provided, continue, else calculate it from MD and cigar first.

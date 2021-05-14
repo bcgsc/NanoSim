@@ -17,6 +17,7 @@ from math import sqrt, ceil
 from scipy.optimize import minimize
 from itertools import chain
 from mixed_model import *
+from file_handler import gzopen as open
 
 poisgeom = poisgeom_gen(name="poisgeom")
 weigeom = weigeom_gen(name="weigeom", a=1)
