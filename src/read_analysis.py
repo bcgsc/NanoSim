@@ -373,7 +373,7 @@ def main():
                 pre, file_ext = os.path.splitext(g_alnm)
                 file_extension = file_ext[1:]
                 if file_extension not in ['sam', 'bam']:
-                    print("Please specify an acceptable alignment format! (.sam)\n")
+                    print("Please specify an acceptable alignment format! (.sam/.bam)\n")
                     parser_g.print_help(sys.stderr)
                     sys.exit(1)
 
