@@ -116,7 +116,7 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g
         unaligned_length, strandness = get_besthit_maf.besthit_and_unaligned(in_fasta, processed_maf_t,
                                                                              prefix + "_transcriptome")
 
-    elif t_alnm_ext == "bam":
+    elif t_alnm_ext in ["sam", "bam"]:
         unaligned_length, strandness = get_primary_sam.primary_and_unaligned(t_alnm, prefix + "_transcriptome")
 
     g_alnm_filename, g_alnm_ext = os.path.splitext(g_alnm)
@@ -128,7 +128,7 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g
         call("grep '^s ' " + g_alnm + " > " + processed_maf, shell=True)
         get_besthit_maf.besthit_and_unaligned(in_fasta, processed_maf, prefix + "_genome")
 
-    elif g_alnm_ext == "bam":
+    elif g_alnm_ext in ["sam", "bam"]:
         get_primary_sam.primary_and_unaligned(g_alnm, prefix + "_genome")
 
     return t_alnm_ext, unaligned_length, g_alnm, t_alnm, strandness
@@ -163,7 +163,7 @@ def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, chimeric
         # get best hit and unaligned reads
         unaligned_length, strandness = get_besthit_maf.besthit_and_unaligned(in_fasta, processed_maf, prefix)
 
-    elif file_extension == "bam":
+    elif file_extension in ["sam", "bam"]:
         # get the primary alignments and define unaligned reads.
         if chimeric:
             unaligned_length, strandness = get_primary_sam.primary_and_unaligned_chimeric(g_alnm, prefix,
@@ -371,10 +371,8 @@ def main():
             # check validity of parameters
             if g_alnm != '':
                 pre, file_ext = os.path.splitext(g_alnm)
-                if file_ext == '.gz':
-                    pre, file_ext = os.path.splitext(pre)
                 file_extension = file_ext[1:]
-                if file_extension != 'sam':
+                if file_extension not in ['sam', 'bam']:
                     print("Please specify an acceptable alignment format! (.sam)\n")
                     parser_g.print_help(sys.stderr)
                     sys.exit(1)
@@ -421,20 +419,16 @@ def main():
         # check validity of parameters
         if g_alnm != '':
             pre, file_ext = os.path.splitext(g_alnm)
-            if file_ext == '.gz':
-                pre, file_ext = os.path.splitext(pre)
             file_extension = file_ext[1:]
-            if file_extension not in ['maf', 'sam']:
-                print("Please specify an acceptable alignment format! (.maf or .sam)\n")
+            if file_extension not in ['maf', 'sam', 'bam']:
+                print("Please specify an acceptable alignment format! (.maf/.sam /.bam)\n")
                 parser_ir.print_help(sys.stderr)
                 sys.exit(1)
         if t_alnm != '':
             pre, file_ext = os.path.splitext(t_alnm)
-            if file_ext == '.gz':
-                pre, file_ext = os.path.splitext(pre)
             file_extension = file_ext[1:]
-            if file_extension not in ['maf', 'sam']:
-                print("Please specify an acceptable alignment format! (.maf or .sam)\n")
+            if file_extension not in ['maf', 'sam', 'bam']:
+                print("Please specify an acceptable alignment format! (.maf/.sam/.bam)\n")
                 parser_ir.print_help(sys.stderr)
                 sys.exit(1)
 
@@ -479,11 +473,9 @@ def main():
         # check validity of parameters
         if g_alnm != '':
             pre, file_ext = os.path.splitext(g_alnm)
-            if file_ext == '.gz':
-                pre, file_ext = os.path.splitext(pre)
             file_extension = file_ext[1:]
-            if file_extension not in ['maf', 'sam']:
-                print("Please specify an acceptable alignment format! (.maf or .sam)\n")
+            if file_extension not in ['maf', 'sam', 'bam']:
+                print("Please specify an acceptable alignment format! (.maf/.sam/.bam)\n")
                 parser_g.print_help(sys.stderr)
                 sys.exit(1)
         if g_alnm == '' and ref_g == '':
@@ -542,11 +534,9 @@ def main():
         # check validity of parameters
         if g_alnm != '':
             pre, file_ext = os.path.splitext(g_alnm)
-            if file_ext == '.gz':
-                pre, file_ext = os.path.splitext(file_ext)
             file_extension = file_ext[1:]
-            if file_extension != 'sam':
-                print("Please specify an acceptable alignment format! (.sam)\n")
+            if file_extension not in ['sam', 'bam']:
+                print("Please specify an acceptable alignment format! (.sam/.bam)\n")
                 parser_g.print_help(sys.stderr)
                 sys.exit(1)
 
@@ -626,8 +616,8 @@ def main():
             t_alnm_filename, t_alnm_ext = os.path.splitext(t_alnm)
             g_alnm_ext = g_alnm_ext[1:]
             t_alnm_ext = t_alnm_ext[1:]
-            if g_alnm_ext != t_alnm_ext or g_alnm_ext not in ['maf', 'sam']:
-                print("\nPlease provide both alignments in a same format: sam OR maf\n")
+            if g_alnm_ext != t_alnm_ext or g_alnm_ext not in ['maf', 'sam', 'bam']:
+                print("\nPlease provide genome and transcriptome alignments in the same format: sam OR bam OR maf\n")
                 parser_t.print_help(sys.stderr)
                 sys.exit(1)
             # Development: model IR using MAF alignment formats as well
