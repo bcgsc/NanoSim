@@ -24,6 +24,7 @@ import get_primary_sam
 import besthit_to_histogram as error_model
 import model_fitting
 import model_intron_retention as model_ir
+from file_handler import gzopen as open
 
 
 PYTHON_VERSION = sys.version_info
@@ -71,11 +72,11 @@ def readfq(fp):  # this is a generator function
 def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm, ref_g):
     if t_alnm == '':
         if aligner == "minimap2":
-            t_alnm = prefix + "_transcriptome_alnm.sam"
+            t_alnm = prefix + "_transcriptome_alnm.bam"
             # Alignment to reference transcriptome
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with minimap2 to reference transcriptome\n")
             sys.stdout.flush()
-            call("minimap2 --cs -ax map-ont -t " + num_threads + " " + ref_t + " " + in_fasta + " > " + t_alnm,
+            call("minimap2 --cs -ax map-ont -t " + num_threads + " " + ref_t + " " + in_fasta + " | samtools view -b > " + t_alnm,
                  shell=True)
 
         elif aligner == "LAST":
@@ -88,12 +89,12 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g
 
     if g_alnm == '':
         if aligner == "minimap2":
-            g_alnm = prefix + "_genome_alnm.sam"
+            g_alnm = prefix + "_genome_alnm.bam"
             # Alignment to reference genome
             # [EDIT] I may change the options for minimap2 when dealing with cDNA and dRNA reads.
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with minimap2 to reference genome\n")
             sys.stdout.flush()
-            call("minimap2 --cs -ax splice -t " + num_threads + " " + ref_g + " " + in_fasta + " > " + g_alnm,
+            call("minimap2 --cs -ax splice -t " + num_threads + " " + ref_g + " " + in_fasta + " | samtools view -b > " + g_alnm,
                  shell=True)
 
         elif aligner == "LAST":
@@ -115,7 +116,7 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g
         unaligned_length, strandness = get_besthit_maf.besthit_and_unaligned(in_fasta, processed_maf_t,
                                                                              prefix + "_transcriptome")
 
-    elif t_alnm_ext == "sam":
+    elif t_alnm_ext in ["sam", "bam"]:
         unaligned_length, strandness = get_primary_sam.primary_and_unaligned(t_alnm, prefix + "_transcriptome")
 
     g_alnm_filename, g_alnm_ext = os.path.splitext(g_alnm)
@@ -127,7 +128,7 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g
         call("grep '^s ' " + g_alnm + " > " + processed_maf, shell=True)
         get_besthit_maf.besthit_and_unaligned(in_fasta, processed_maf, prefix + "_genome")
 
-    elif g_alnm_ext == "sam":
+    elif g_alnm_ext in ["sam", "bam"]:
         get_primary_sam.primary_and_unaligned(g_alnm, prefix + "_genome")
 
     return t_alnm_ext, unaligned_length, g_alnm, t_alnm, strandness
@@ -137,10 +138,10 @@ def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, chimeric
     # if an alignment file is not provided
     if g_alnm == '':
         if aligner == "minimap2":  # Align with minimap2 by default
-            g_alnm = prefix + "_genome_alnm.sam"
+            g_alnm = prefix + "_genome_alnm.bam"
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with minimap2\n")
             sys.stdout.flush()
-            call("minimap2 --cs -ax map-ont -t " + num_threads + " " + ref_g + " " + in_fasta + " > " + g_alnm,
+            call("minimap2 --cs -ax map-ont -t " + num_threads + " " + ref_g + " " + in_fasta + " | samtools view -b > " + g_alnm,
                  shell=True)
 
         elif aligner == "LAST":
@@ -162,7 +163,7 @@ def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, chimeric
         # get best hit and unaligned reads
         unaligned_length, strandness = get_besthit_maf.besthit_and_unaligned(in_fasta, processed_maf, prefix)
 
-    elif file_extension == "sam":
+    elif file_extension in ["sam", "bam"]:
         # get the primary alignments and define unaligned reads.
         if chimeric:
             unaligned_length, strandness = get_primary_sam.primary_and_unaligned_chimeric(g_alnm, prefix,
@@ -202,10 +203,10 @@ def add_intron(annot, prefix):
 
 def concatenate_genomes(g_list):
     metagenome = "reference_metagenome.fasta"
-    with open(metagenome, 'w') as f:
+    with open(metagenome, 'wt') as f:
         for g, info in g_list.items():
             path = info['path']
-            with open(path, 'r') as g_f:
+            with open(path, 'rt') as g_f:
                 chr = 0
                 for line in g_f:
                     if line[0] == '>':
@@ -371,15 +372,15 @@ def main():
             if g_alnm != '':
                 pre, file_ext = os.path.splitext(g_alnm)
                 file_extension = file_ext[1:]
-                if file_extension != 'sam':
-                    print("Please specify an acceptable alignment format! (.sam)\n")
+                if file_extension not in ['sam', 'bam']:
+                    print("Please specify an acceptable alignment format! (.sam/.bam)\n")
                     parser_g.print_help(sys.stderr)
                     sys.exit(1)
 
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Processing reference genome\n")
             sys.stdout.flush()
             metagenome_list = {}
-            with open(genome_list, 'r') as f:
+            with open(genome_list, 'rt') as f:
                 for line in f:
                     info = line.strip().split('\t')
                     species = '-'.join(info[0].split())
@@ -419,15 +420,15 @@ def main():
         if g_alnm != '':
             pre, file_ext = os.path.splitext(g_alnm)
             file_extension = file_ext[1:]
-            if file_extension not in ['maf', 'sam']:
-                print("Please specify an acceptable alignment format! (.maf or .sam)\n")
+            if file_extension not in ['maf', 'sam', 'bam']:
+                print("Please specify an acceptable alignment format! (.maf/.sam /.bam)\n")
                 parser_ir.print_help(sys.stderr)
                 sys.exit(1)
         if t_alnm != '':
             pre, file_ext = os.path.splitext(t_alnm)
             file_extension = file_ext[1:]
-            if file_extension not in ['maf', 'sam']:
-                print("Please specify an acceptable alignment format! (.maf or .sam)\n")
+            if file_extension not in ['maf', 'sam', 'bam']:
+                print("Please specify an acceptable alignment format! (.maf/.sam/.bam)\n")
                 parser_ir.print_help(sys.stderr)
                 sys.exit(1)
 
@@ -473,8 +474,8 @@ def main():
         if g_alnm != '':
             pre, file_ext = os.path.splitext(g_alnm)
             file_extension = file_ext[1:]
-            if file_extension not in ['maf', 'sam']:
-                print("Please specify an acceptable alignment format! (.maf or .sam)\n")
+            if file_extension not in ['maf', 'sam', 'bam']:
+                print("Please specify an acceptable alignment format! (.maf/.sam/.bam)\n")
                 parser_g.print_help(sys.stderr)
                 sys.exit(1)
         if g_alnm == '' and ref_g == '':
@@ -500,10 +501,13 @@ def main():
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process\n")
         sys.stdout.flush()
         in_fasta = prefix + "_processed.fasta"
-        processed_fasta = open(in_fasta, 'w')
+        if aligner == 'minimap2':
+            in_fasta += '.gz'
+        
+        processed_fasta = open(in_fasta, 'wt')
 
         # Replace spaces in sequence headers with dashes to create unique header for each read
-        with open(infile, 'r') as f:
+        with open(infile, 'rt') as f:
             for seqN, seqS, seqQ in readfq(f):
                 info = re.split(r'[_\s]\s*', seqN)
                 chr_name = "-".join(info)
@@ -531,8 +535,8 @@ def main():
         if g_alnm != '':
             pre, file_ext = os.path.splitext(g_alnm)
             file_extension = file_ext[1:]
-            if file_extension != 'sam':
-                print("Please specify an acceptable alignment format! (.sam)\n")
+            if file_extension not in ['sam', 'bam']:
+                print("Please specify an acceptable alignment format! (.sam/.bam)\n")
                 parser_g.print_help(sys.stderr)
                 sys.exit(1)
 
@@ -553,11 +557,11 @@ def main():
         # READ PRE-PROCESS AND ALIGNMENT ANALYSIS
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process\n")
         sys.stdout.flush()
-        in_fasta = prefix + "_processed.fasta"
+        in_fasta = prefix + "_processed.fasta.gz"
 
-        processed_fasta = open(in_fasta, 'w')
+        processed_fasta = open(in_fasta, 'wt')
         # Replace spaces in sequence headers with dashes to create unique header for each read
-        with open(infile, 'r') as f:
+        with open(infile, 'rt') as f:
             for seqN, seqS, seqQ in readfq(f):
                 info = re.split(r'[_\s]\s*', seqN)
                 chr_name = "-".join(info)
@@ -567,7 +571,7 @@ def main():
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Processing reference genome\n")
         sys.stdout.flush()
         metagenome_list = {}
-        with open(genome_list, 'r') as f:
+        with open(genome_list, 'rt') as f:
             for line in f:
                 info = line.strip().split('\t')
                 species = '-'.join(info[0].split())
@@ -612,8 +616,8 @@ def main():
             t_alnm_filename, t_alnm_ext = os.path.splitext(t_alnm)
             g_alnm_ext = g_alnm_ext[1:]
             t_alnm_ext = t_alnm_ext[1:]
-            if g_alnm_ext != t_alnm_ext or g_alnm_ext not in ['maf', 'sam']:
-                print("\nPlease provide both alignments in a same format: sam OR maf\n")
+            if g_alnm_ext != t_alnm_ext or g_alnm_ext not in ['maf', 'sam', 'bam']:
+                print("\nPlease provide genome and transcriptome alignments in the same format: sam OR bam OR maf\n")
                 parser_t.print_help(sys.stderr)
                 sys.exit(1)
             # Development: model IR using MAF alignment formats as well
@@ -648,8 +652,11 @@ def main():
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process and unaligned reads analysis\n")
         sys.stdout.flush()
         in_fasta = prefix + "_processed.fasta"
-        processed_fasta = open(in_fasta, 'w')
-        with open(infile, 'r') as f:
+        if aligner == 'minimap2':
+            in_fasta += '.gz'
+        
+        processed_fasta = open(in_fasta, 'wt')
+        with open(infile, 'rt') as f:
             for seqN, seqS, seqQ in readfq(f):
                 info = re.split(r'[_\s]\s*', seqN)
                 chr_name = "-".join(info)
@@ -673,14 +680,14 @@ def main():
         num_aligned = align.head_align_tail(prefix + "_transcriptome", alnm_ext, args.mode)
 
     # strandness of the aligned reads
-    strandness_rate = open(prefix + "_strandness_rate", 'w')
+    strandness_rate = open(prefix + "_strandness_rate", 'wt')
     strandness_rate.write("strandness:\t" + str(round(strandness, 3)))
     strandness_rate.close()
 
     # Length distribution of unaligned reads
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Unaligned reads analysis\n")
     sys.stdout.flush()
-    alignment_rate = open(prefix + "_reads_alignment_rate", 'w')
+    alignment_rate = open(prefix + "_reads_alignment_rate", 'wt')
 
     num_unaligned = len(unaligned_length)
     if num_unaligned != 0:

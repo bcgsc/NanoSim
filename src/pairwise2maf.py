@@ -11,6 +11,7 @@ This script transforms pairwise format alignment to maf format.
 
 import sys
 import getopt
+from file_handler import gzopen as open
 
 
 def main(argv):

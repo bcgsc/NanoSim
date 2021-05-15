@@ -10,6 +10,7 @@ from sklearn.neighbors import KernelDensity
 from head_align_tail_dist import edge_checker
 from statistics import median
 from time import strftime
+from file_handler import gzopen as open
 
 
 def cigar_parser(cigar):
@@ -86,8 +87,8 @@ def EM(read_list, all_species):
 
 
 def primary_and_unaligned(sam_alnm_file, prefix, metagenome_list=None):
-    in_sam_file = pysam.AlignmentFile(sam_alnm_file, 'r')
-    out_sam_file = pysam.AlignmentFile(prefix + "_primary.sam", 'w', template=in_sam_file, add_sam_header=True)
+    in_sam_file = pysam.AlignmentFile(sam_alnm_file)
+    out_sam_file = pysam.AlignmentFile(prefix + "_primary.bam", 'wb', template=in_sam_file, add_sam_header=True)
     if metagenome_list:
         quant_dic = {}
         for info in in_sam_file.header['SQ']:
@@ -152,7 +153,7 @@ def primary_and_unaligned_chimeric(sam_alnm_file, prefix, metagenome_list=None, 
     """
     Function to extract alignments of reads at extremities of circular genome references
     :param sam_alnm_file: path of input SAM file
-    :param prefix: prefix of output SAM file
+    :param prefix: prefix of output BAM file
     :param metagenome_list: metagenome dictionary containing expected abundance level in 100 scale
     :param q_mode: whether it is quantification only mode
     :outputs: a sam file that contains: 1) primary alignments for all reads that can be aligned and 2)
@@ -162,11 +163,11 @@ def primary_and_unaligned_chimeric(sam_alnm_file, prefix, metagenome_list=None, 
     :returns: an unaligned_len list, and strandness information
     """
 
-    in_sam_file = pysam.AlignmentFile(sam_alnm_file, 'r')
+    in_sam_file = pysam.AlignmentFile(sam_alnm_file)
     if metagenome_list:
         quant_dic = {}
     if not q_mode:
-        out_sam_file = pysam.AlignmentFile(prefix + "_primary.sam", 'w', template=in_sam_file, add_sam_header=True)
+        out_sam_file = pysam.AlignmentFile(prefix + "_primary.bam", 'wb', template=in_sam_file, add_sam_header=True)
         chimeric_file = open(prefix + "_chimeric_info", 'w')
     gap_length = []
     chimeric_species_count = {}
