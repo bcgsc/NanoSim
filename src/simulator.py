@@ -24,7 +24,6 @@ from urllib.request import Request, urlopen
 from gzip import GzipFile
 import numpy as np
 import scipy.stats
-from file_handler import gzopen as open
 
 if sys.version_info[0] < 3:
     from string import maketrans
@@ -714,8 +713,6 @@ def assign_species(length_list, seg_list, current_species_base_dict):
     # Sort lengths for non-chimeras to fit in species quota better
     length_list_nonchimera = length_list[segs_chimera:]
     length_list_sorted = length_list[:segs_chimera] + sorted(length_list_nonchimera, reverse=True)
-    nonchimera_idx = sorted(range(len(length_list_nonchimera)), key=length_list_nonchimera.__getitem__, reverse=True)
-    length_list_idx = list(range(segs_chimera)) + [x + segs_chimera for x in nonchimera_idx]
 
     species_list = [''] * len(length_list)
     bases_to_add = sum(length_list)
@@ -729,7 +726,10 @@ def assign_species(length_list, seg_list, current_species_base_dict):
 
     length_list_pointer = 0
     pre_species = ''
+    num_reads = len(length_list_sorted)
     for seg in seg_list_sorted:
+        if length_list_pointer + seg > num_reads:
+            break
         for each_seg in range(seg):
             if each_seg == 0:
                 available_species = [s for s, q in base_quota.items()
@@ -752,12 +752,13 @@ def assign_species(length_list, seg_list, current_species_base_dict):
                         available_species = [s for s, q in base_quota.items() if q > 0]
                     species = random.choice(available_species)
 
-            species_list[length_list_idx[length_list_pointer]] = species
+            species_list[length_list_pointer] = species
             base_quota[species] -= length_list_sorted[length_list_pointer]
             length_list_pointer += 1
             pre_species = species
 
-    return species_list
+    return species_list[:length_list_pointer], length_list_sorted[:length_list_pointer], \
+           np.array(seg_list_sorted[:length_list_pointer])
 
 
 def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias, basecaller,
@@ -798,12 +799,13 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
         gap_lengths = [max(0, int(x)) for x in gap_lengths]
 
         # Select strain/species to simulate
-        species_pool = assign_species(ref_lengths, remaining_segments, current_species_bases)
+        species_pool, ref_lengths, remaining_segments = \
+            assign_species(ref_lengths, remaining_segments, current_species_bases)
 
         seg_pointer = 0
         gap_pointer = 0
         species_pointer = 0
-        for each_read in xrange(remaining_reads):
+        for each_read in xrange(len(remaining_segments)):
             segments = remaining_segments[each_read]
             # In case too many ref length was filtered previously
             if (not per and each_read >= min(len(head_vs_ht_ratio_list), len(remainder_lengths))) or \
