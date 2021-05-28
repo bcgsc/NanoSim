@@ -1285,6 +1285,10 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
                     base_quals = ht_quals[:head] + base_quals + ht_quals[head:]
 
             # Add head and tail region
+            head_seq = ''.join(np.random.choice(BASES, head))
+            tail_seq = ''.join(np.random.choice(BASES, tail))
+            print('>head\t' + head_seq + '\n')
+            print('>tail\t' + tail_seq + '\n')
             read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated + \
                            ''.join(np.random.choice(BASES, tail))
 
@@ -1436,6 +1440,8 @@ def simulation(mode, out, dna_type, per, kmer_bias, basecaller, read_type, max_l
     num_simulate = int(number_aligned / num_threads)
 
     for i in range(num_threads):
+        np.random.seed()
+        random.seed()
         aligned_subfile = out + "_aligned_reads{}".format(i) + ext
         error_subfile = out + "_error_profile{}".format(i)
         aligned_subfiles.append(aligned_subfile)
@@ -2104,6 +2110,9 @@ def main():
         exp = args.exp
         model_prefix = args.model_prefix
         out = args.output
+        if args.seed:
+            random.seed(int(args.seed))
+            np.random.seed(int(args.seed))
         number = [args.number]
         max_len = args.max_len
         min_len = args.min_len
