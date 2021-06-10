@@ -1285,10 +1285,6 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
                     base_quals = ht_quals[:head] + base_quals + ht_quals[head:]
 
             # Add head and tail region
-            head_seq = ''.join(np.random.choice(BASES, head))
-            tail_seq = ''.join(np.random.choice(BASES, tail))
-            print('>head\t' + head_seq + '\n')
-            print('>tail\t' + tail_seq + '\n')
             read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated + \
                            ''.join(np.random.choice(BASES, tail))
 
