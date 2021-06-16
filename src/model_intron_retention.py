@@ -5,6 +5,7 @@ from __future__ import with_statement
 import sys
 from time import strftime
 import HTSeq
+import pysam
 from file_handler import gzopen as open
 
 # TODO change HTSeq to Pysam
@@ -67,22 +68,33 @@ def intron_retention(outfile, gff_file, g_alnm, t_alnm):
     # read primary genome alignment for each read
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read primary genome alignment for each read\n")
     dict_g_alnm = {}
-    sam_reader = HTSeq.SAM_Reader
-    g_alignments = sam_reader(g_alnm)
-    for alnm in g_alignments:
-        qname = alnm.read.name
-        if alnm.aligned:
-            dict_g_alnm[qname] = parse_cigar(alnm.cigar)
+    if g_alnm.lower().endswith('.bam'):
+        g_alignments = pysam.AlignmentFile(g_alnm, 'rb')
+    else:
+        g_alignments = pysam.AlignmentFile(g_alnm)
+    for r in g_alignments.fetch(until_eof=True):
+        if not r.is_unmapped:
+            chrom = r.reference_name
+            strand = '-' if r.is_reverse else '+'
+            list_coords = []
+            for start, end in r.get_blocks():
+                list_coords.append([chrom, start, end, strand])
+            dict_g_alnm[r.query_name] = list_coords
 
     # read primary transcriptome alignment for each read
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read primary transcriptome alignment for each read\n")
     dict_t_alnm = {}
-    sam_reader = HTSeq.SAM_Reader
-    t_alignments = sam_reader(t_alnm)
-    for alnm in t_alignments:
-        qname = alnm.read.name
-        if alnm.aligned:
-            dict_t_alnm[qname] = alnm.iv.chrom.split(".")[0]
+    if t_alnm.lower().endswith('.bam'):
+        t_alignments = pysam.AlignmentFile(t_alnm, 'rb')
+    else:
+        t_alignments = pysam.AlignmentFile(t_alnm)
+    for r in t_alignments.fetch(until_eof=True):
+        if not r.is_unmapped:
+            tname = r.reference_name
+            if tname.startswith('ENST'):
+                # an Ensembl ID
+                tname = tname.split('.')[0]
+            dict_t_alnm[r.query_name] = tname
 
     # Count the length of Intron retention events
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Calculating probabilities for each intron retention event\n")
