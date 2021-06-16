@@ -792,7 +792,8 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
                 ref_lengths = get_length_kde(kde_aligned, sum(remaining_segments))
             else:
                 total_lengths = np.random.lognormal(np.log(median_l + sd_l ** 2 / 2), sd_l, remaining_reads)
-                ref_lengths = total_lengths - remainder_lengths
+                num_current_loop = min(remaining_reads, len(remainder_lengths), len(head_vs_ht_ratio_list))
+                ref_lengths = total_lengths[:num_current_loop] - remainder_lengths[:num_current_loop]
             ref_lengths = [x for x in ref_lengths if 0 < x <= max_l]
 
         gap_lengths = get_length_kde(kde_gap, sum(remaining_gaps), True) if sum(remaining_gaps) > 0 else []
@@ -1176,8 +1177,9 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
                 ref_lengths = get_length_kde(kde_aligned, sum(remaining_segments))
             else:
                 total_lengths = np.random.lognormal(np.log(median_l + sd_l ** 2 / 2), sd_l, remaining_reads)
-                ref_lengths = total_lengths - remainder_lengths
-            ref_lengths = [x for x in ref_lengths]
+                num_current_loop = min(remaining_reads, len(remainder_lengths), len(head_vs_ht_ratio_list))
+                ref_lengths = total_lengths[:num_current_loop] - remainder_lengths[:num_current_loop]
+            ref_lengths = [x for x in ref_lengths if 0 < x <= max_l]
 
         gap_lengths = get_length_kde(kde_gap, sum(remaining_gaps), True) if sum(remaining_gaps) > 0 else []
         gap_lengths = [max(0, int(x)) for x in gap_lengths]
@@ -2042,6 +2044,11 @@ def main():
             parser_g.print_help(sys.stderr)
             sys.exit(1)
 
+        if median_len and sd_len and chimeric:
+            sys.stderr.write("\nLognormal distributed reads cannot be chimeric!\n")
+            parser_g.print_help(sys.stderr)
+            sys.exit(1)
+
         if max_len < min_len:
             sys.stderr.write("\nMaximum read length must be longer than Minimum read length!\n")
             parser_g.print_help(sys.stderr)
@@ -2237,6 +2244,11 @@ def main():
         if (median_len and not sd_len) or (sd_len and not median_len):
             sys.stderr.write("\nPlease provide both mean and standard deviation of read length!\n")
             parser_mg.print_help(sys.stderr)
+            sys.exit(1)
+
+        if median_len and sd_len and chimeric:
+            sys.stderr.write("\nLognormal distributed reads cannot be chimeric!\n")
+            parser_g.print_help(sys.stderr)
             sys.exit(1)
 
         if max_len < min_len:
