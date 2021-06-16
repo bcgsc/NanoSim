@@ -43,6 +43,7 @@ Python packages:
 minimap2 (Tested with version 2.10 and 2.17)  
 LAST (Tested with version 581 and 916)  
 samtools (Tested with version 1.12)
+GenomeTools
 
 ## Usage
 NanoSim is implemented using Python for error model fitting, read length analysis, and simulation. The first step of NanoSim is read characterization, which provides a comprehensive alignment-based analysis, and generates a set of read profiles serving as the input to the next step, the simulation stage. The simulation tool uses the model built in the previous step to produce in silico reads for a given reference genome/transcriptome. It also outputs a list of introduced errors, consisting of the position on each read, error type and reference bases.
