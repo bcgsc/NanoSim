@@ -253,7 +253,7 @@ def main():
     parser_t = subparsers.add_parser('transcriptome', help="Run the simulator on transcriptome mode")
     parser_t.add_argument('-i', '--read', help='Input read for training', required=True)
     parser_t.add_argument('-rg', '--ref_g', help='Reference genome', required=True)
-    parser_t.add_argument('-rt', '--ref_t', help='Reference Transcriptome', required=True)  # ?
+    parser_t.add_argument('-rt', '--ref_t', help='Reference Transcriptome', required=True)
     parser_t.add_argument('-annot', '--annotation', help='Annotation file in ensemble GTF/GFF formats, '
                                                          'required for intron retention detection', default='')
     parser_t.add_argument('-a', '--aligner', help='The aligner to be used: minimap2 or LAST (Default = minimap2)',

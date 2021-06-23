@@ -365,6 +365,10 @@ def primary_and_unaligned_chimeric(sam_alnm_file, prefix, metagenome_list=None, 
                 continue
             beta_list.append(counts[1] / (counts[0] + counts[1]) * 100 / other_prob)
 
+    strandness = float(pos_strand) / num_aligned
+    if q_mode:
+        return [], strandness
+
     out_sam_file.close()
     unaligned_len = numpy.array(unaligned_len)
 
@@ -381,9 +385,5 @@ def primary_and_unaligned_chimeric(sam_alnm_file, prefix, metagenome_list=None, 
     if metagenome_list:
         chimeric_file.write("Shrinkage rate (beta):\t" + str(median(beta_list)))
     chimeric_file.close()
-
-    strandness = float(pos_strand) / num_aligned
-    if q_mode:
-        return [], strandness
 
     return unaligned_len, strandness
