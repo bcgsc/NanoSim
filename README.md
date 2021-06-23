@@ -214,7 +214,7 @@ optional arguments:
                         column is optional, if provided, it contains the
                         expected abundance (sum up to 100)
   -a G_ALNM, --alnm G_ALNM
-                        Genome alignment file in sam format, the header of
+                        Genome alignment file in sam / bam format, the header of
                         each species should match the metagenome list provided
                         above (optional)
   -o OUTPUT, --output OUTPUT
