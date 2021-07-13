@@ -69,6 +69,8 @@ def parse_cs(cs_string):
     return list_hist, list_op
 
 
+#Note: Our intention here is not to reconstruct the exact mistmatch bases since it requires the original sequences. 
+#That is the reason for introducing arbitrary bases such as "I", "D", "a" and "b" into the cs string. The idea is to use cs string to model indels and mismatches.  
 def get_cs(cigar_str, md_str):
     cs = []
     k = 0
