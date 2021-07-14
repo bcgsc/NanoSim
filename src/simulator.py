@@ -933,7 +933,7 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
                 out_reads.write(id_begin + new_read_name + "_0_" + str(sum(ref_length_list)) + "_0" + '\n')
             else:
                 out_reads.write(id_begin + new_read_name + "_" + str(head) + "_" +
-                                ";".join(str(x) for x in ref_length_list) + "_" + str(tail) + '\n')
+                                ";".join(str(x) for x in seg_length_list) + "_" + str(tail) + '\n')
             out_reads.write(read_mutated + '\n')
 
             if fastq:
@@ -1303,7 +1303,7 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
                 out_reads.write(id_begin + new_read_name + "_0_" + str(sum(ref_length_list)) + "_0" + '\n')
             else:
                 out_reads.write(id_begin + new_read_name + "_" + str(head) + "_" +
-                                ";".join(str(x) for x in ref_length_list) + "_" + str(tail) + '\n')
+                                ";".join(str(x) for x in seg_length_list) + "_" + str(tail) + '\n')
             out_reads.write(read_mutated + '\n')
 
             if fastq:
