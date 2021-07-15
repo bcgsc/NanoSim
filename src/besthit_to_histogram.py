@@ -69,8 +69,10 @@ def parse_cs(cs_string):
     return list_hist, list_op
 
 
-#Note: Our intention here is not to reconstruct the exact mistmatch bases since it requires the original sequences. 
-#That is the reason for introducing arbitrary bases such as "I", "D", "a" and "b" into the cs string. The idea is to use cs string to model indels and mismatches.  
+# Note: Our intention here is not to reconstruct the exact mistmatch bases since it requires the original sequences.
+# That is the reason for introducing arbitrary bases such as "I", "D", "a" and "b" into the cs string.
+# The idea is to use cs string to model indels and mismatches.
+
 def get_cs(cigar_str, md_str):
     cs = []
     k = 0
@@ -319,7 +321,7 @@ def hist(prefix, alnm_ftype):
             try:
                 cs_string = alnm.get_tag('cs')
             except KeyError:
-                cs_string = get_cs(alnm.original_sam_line.split()[5], alnm.get_tag('MD'))
+                cs_string = get_cs(alnm.cigarstring, alnm.get_tag('MD'))
             list_hist, list_op_unique = parse_cs(cs_string)
 
             flag = True
