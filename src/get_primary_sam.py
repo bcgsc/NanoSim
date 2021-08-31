@@ -91,15 +91,16 @@ def primary_and_unaligned(sam_alnm_file, prefix, metagenome_list=None):
     out_sam_file = pysam.AlignmentFile(prefix + "_primary.bam", 'wb', template=in_sam_file, add_sam_header=True)
     if metagenome_list:
         quant_dic = {}
-        for info in in_sam_file.header['SQ']:
-            species_chrom = info['SN']
-            species = '_'.join(species_chrom.split('_')[:-1])
-            if species not in quant_dic:
-                quant_dic[species] = 0  # aligned bases
 
     unaligned_len = []
     pos_strand = 0
     num_aligned = 0
+
+    all_species = {}
+    for info in in_sam_file.header['SQ']:
+        species_chrom = info['SN']
+        species = '_'.join(species_chrom.split('_')[:-1])
+        all_species[species] = 0
 
     for aln in in_sam_file.fetch(until_eof=True):
         if not aln.is_unmapped and not aln.is_secondary and not aln.is_supplementary:
@@ -109,9 +110,15 @@ def primary_and_unaligned(sam_alnm_file, prefix, metagenome_list=None):
                 pos_strand += 1
             if metagenome_list:
                 species = '_'.join(aln.reference_name.split('_')[:-1])
-                quant_dic[species] += aln.query_alignment_length
+                quant_dic[(aln.query_name, (aln.query_alignment_start, aln.query_alignment_end))] = [species]
         elif aln.is_unmapped:
             unaligned_len.append(aln.query_length)
+        elif aln.is_secondary or aln.is_supplementary:
+            if metagenome_list:
+                qstart, qend, _, _ = cigar_parser(aln.cigarstring)
+                if (aln.query_name, (qstart, qend)) in quant_dic:
+                    species = '_'.join(aln.reference_name.split('_')[:-1])
+                    quant_dic[(aln.query_name, (qstart, qend))].append(species)
 
     in_sam_file.close()
     out_sam_file.close()
@@ -121,19 +128,18 @@ def primary_and_unaligned(sam_alnm_file, prefix, metagenome_list=None):
 
     # Write quantification information
     if metagenome_list:
-        quantification_file = open(prefix + "_quantification.tsv", 'w')
-        quantification_file.write("Species\tAligned bases\tAbundance\n")
-        total_bases = 0
         variation_flag = False
-        for k, v in quant_dic.items():
-            total_bases += v
-        for k, v in quant_dic.items():
-            metagenome_list[k]["real"] = v * 100 / total_bases
-            quantification_file.write(k + '\t' + str(v) + '\t' + str(metagenome_list[k]["real"]) + '\n')
+        quantification_file = open(prefix + "_quantification.tsv", 'w')
+        quantification_file.write("Species\tAbundance\n")
+
+        abundance_list = EM(quant_dic, all_species)
+        for k, v in abundance_list.items():
+            quantification_file.write(k + '\t' + str(v) + '\n')
+            metagenome_list[k]["real"] = v
             if "expected" in metagenome_list[k]:
-                metagenome_list[k]["variation"] = (metagenome_list[k]["real"] - metagenome_list[k]["expected"]) \
-                                                  / metagenome_list[k]["expected"]
+                metagenome_list[k]["variation"] = (v - metagenome_list[k]["expected"]) / metagenome_list[k]["expected"]
                 variation_flag = True
+
         quantification_file.close()
 
         if variation_flag:
@@ -145,6 +151,8 @@ def primary_and_unaligned(sam_alnm_file, prefix, metagenome_list=None):
                                                              "" + str(var_low) + ',' + str(var_high) + ',' + \
                              str(var_median) + '\n')
             sys.stdout.flush()
+
+        quantification_file.close()
 
     return unaligned_len, strandness
 
