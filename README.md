@@ -46,6 +46,15 @@ External programs:
 * [samtools](https://github.com/samtools/samtools) (Tested with version 1.12)  
 * [GenomeTools](http://genometools.org/) (Tested with version 1.6.1)
 
+## Installation  
+Instal through Conda  
+`Conda install install -c bioconda nanosim `
+
+Or 
+clone the github repo, and install the dependencies as listed in the requirements.txt  
+1. `git clone https://github.com/bcgsc/NanoSim.git`  
+2. `conda install --file requirements.txt`
+
 ## Usage
 NanoSim is implemented using Python for error model fitting, read length analysis, and simulation. The first step of NanoSim is read characterization, which provides a comprehensive alignment-based analysis, and generates a set of read profiles serving as the input to the next step, the simulation stage. The simulation tool uses the model built in the previous step to produce in silico reads for a given reference genome/transcriptome. It also outputs a list of introduced errors, consisting of the position on each read, error type and reference bases.
 
