@@ -33,7 +33,8 @@ Saber Hafezqorani, Chen Yang, Theodora Lo, Ka Ming Nip, René L. Warren, and Ina
 ## Dependencies
 ![Python}](https://img.shields.io/pypi/pyversions/py)  
 Python packages:  
-* HTSeq (Tested with version 0.9.1)  
+* HTSeq (Tested with version 0.9.1)
+* joblib (Tested with version 1.0.1)  
 * numpy (Tested with version 1.10.1 or above)
 * pybedtools (Tested with version 0.8.2)
 * pysam (Tested with version 0.13)  
