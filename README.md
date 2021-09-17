@@ -48,7 +48,7 @@ External programs:
 
 ## Installation  
 Install through Conda  
-`conda install install -c bioconda nanosim`
+`conda install -c bioconda nanosim`
 
 Or 
 clone the github repo, and install the dependencies as listed in the requirements.txt  
