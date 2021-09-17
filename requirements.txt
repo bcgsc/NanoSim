@@ -6,3 +6,7 @@ scipy
 six
 scikit-learn
 joblib
+genometools-genometools
+last
+minimap2
+samtools
