@@ -33,12 +33,14 @@ Saber Hafezqorani, Chen Yang, Theodora Lo, Ka Ming Nip, René L. Warren, and Ina
 ## Dependencies
 ![Python}](https://img.shields.io/pypi/pyversions/py)  
 Python packages:  
-* six  
-* numpy (Tested with version 1.10.1 or above)
 * HTSeq (Tested with version 0.9.1)  
-* Pysam (Tested with version 0.13)  
-* scipy (Tested with verson 1.0.0)  
+* numpy (Tested with version 1.10.1 or above)
+* pybedtools (Tested with version 0.8.2)
+* pysam (Tested with version 0.13)  
 * scikit-learn (Tested with version 0.20.0)
+* scipy (Tested with verson 1.0.0)  
+* six (Tested with version 1.16.0)
+
 
 External programs:
 * [minimap2](https://github.com/lh3/minimap2) (Tested with versions 2.10, 2.17, 2.18)  
