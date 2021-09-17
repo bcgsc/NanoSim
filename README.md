@@ -47,8 +47,8 @@ External programs:
 * [GenomeTools](http://genometools.org/) (Tested with version 1.6.1)
 
 ## Installation  
-Instal through Conda  
-`Conda install install -c bioconda nanosim `
+Install through Conda  
+`conda install install -c bioconda nanosim`
 
 Or 
 clone the github repo, and install the dependencies as listed in the requirements.txt  
