@@ -28,7 +28,7 @@ from file_handler import gzopen as open
 
 
 PYTHON_VERSION = sys.version_info
-VERSION = "3.0.0"
+VERSION = "3.0.2"
 PRORAM = "NanoSim"
 AUTHOR = "Chen Yang, Saber Hafezqorani, Theodora Lo (UBC & BCGSC)"
 CONTACT = "cheny@bcgsc.ca; shafezqorani@bcgsc.ca"
