@@ -33,18 +33,30 @@ Saber Hafezqorani, Chen Yang, Theodora Lo, Ka Ming Nip, René L. Warren, and Ina
 ## Dependencies
 ![Python}](https://img.shields.io/pypi/pyversions/py)  
 Python packages:  
-* six  
+* HTSeq (Tested with version 0.9.1)
+* joblib (Tested with version 1.0.1)  
 * numpy (Tested with version 1.10.1 or above)
-* HTSeq (Tested with version 0.9.1)  
-* Pysam (Tested with version 0.13)  
-* scipy (Tested with verson 1.0.0)  
+* pybedtools (Tested with version 0.8.2)
+* pysam (Tested with version 0.13)  
 * scikit-learn (Tested with version 0.20.0)
+* scipy (Tested with verson 1.0.0)  
+* six (Tested with version 1.16.0)
+
 
 External programs:
 * [minimap2](https://github.com/lh3/minimap2) (Tested with versions 2.10, 2.17, 2.18)  
 * [LAST](https://gitlab.com/mcfrith/last) (Tested with versions 581 and 916)  
 * [samtools](https://github.com/samtools/samtools) (Tested with version 1.12)  
 * [GenomeTools](http://genometools.org/) (Tested with version 1.6.1)
+
+## Installation  
+Install through Conda  
+`conda install -c bioconda nanosim`
+
+Or 
+clone the github repo, and install the dependencies as listed in the requirements.txt  
+1. `git clone https://github.com/bcgsc/NanoSim.git`  
+2. `conda install --file requirements.txt`
 
 ## Usage
 NanoSim is implemented using Python for error model fitting, read length analysis, and simulation. The first step of NanoSim is read characterization, which provides a comprehensive alignment-based analysis, and generates a set of read profiles serving as the input to the next step, the simulation stage. The simulation tool uses the model built in the previous step to produce in silico reads for a given reference genome/transcriptome. It also outputs a list of introduced errors, consisting of the position on each read, error type and reference bases.
