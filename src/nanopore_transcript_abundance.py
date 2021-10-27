@@ -6,7 +6,6 @@ import collections
 from file_handler import gzopen as open
 
 
-
 def parse_paf(line):
     out = dict()
     fields = line.rstrip().split()
@@ -22,8 +21,9 @@ def parse_paf(line):
 # that read to the set of transcripts the read is "compatible" with.
 # Compatibility is defined by the length of an alignment relative
 # to the longest alignment for the read.
-def get_compatibility(records):
 
+
+def get_compatibility(records):
     full_length_min_distance = 20
     min_read_length = 0
 
@@ -71,7 +71,6 @@ def calculate_abundance(compatibility):
     abundance = collections.defaultdict(float)
     total = 0
     for read in compatibility:
-
         if args.verbose > 1:
             sys.stderr.write("[compatibility] %s: %s\n" % (read, compatibility[read]))
 
@@ -84,6 +83,7 @@ def calculate_abundance(compatibility):
         if args.verbose > 0:
             sys.stderr.write("[abundance] %s: %.4f\n" % (transcript, abundance[transcript]))
     return abundance
+
 
 # Update read-transcript compatibility based on transcript abundances
 def update_compatibility(compatibility, abundance):
@@ -98,9 +98,9 @@ def update_compatibility(compatibility, abundance):
         compatibility[read] = list()
         for i in ids:
             compatibility[read].append((i, abundance[i] / total))
-#
+
+
 # Read arguments
-#
 parser = argparse.ArgumentParser( description='Calculate transcript abundance from minimap2 alignment to transcripts')
 parser.add_argument('-i', '--input', type=str, required=True)
 parser.add_argument('-c', '--compatibility', type=str, required=False, default="")
@@ -108,9 +108,7 @@ parser.add_argument('-n', '--em-iterations', type=int, default=10)
 parser.add_argument('-v', '--verbose', type=int, default=0)
 args = parser.parse_args()
 
-#
 # Read the input PAF file and calculate the initial read-transcript compatibility
-#
 transcript_compatibility = collections.defaultdict(list)
 prev_read_name = ""
 curr_records = list()
@@ -127,9 +125,7 @@ with open(args.input) as fh:
 # Process last batch
 get_compatibility(curr_records)
 
-#
 # Run EM to calculate abundance and update read-transcript compatibility
-#
 for i in range(0, args.em_iterations):
     sys.stderr.write("EM iteration %d\n" % (i))
 
@@ -153,13 +149,11 @@ for transcript_id in abundance:
 if args.compatibility != "":
     compatibility_writer = open(args.compatibility, "w")
     for read in transcript_compatibility:
-
         num_compat = len(transcript_compatibility[read])
         ids = list()
         probs = list()
         tpms = list()
         for t in transcript_compatibility[read]:
-
             if t[1] > 0.1:
                 ids.append(t[0])
                 probs.append(t[1])

@@ -133,10 +133,11 @@ def head_align_tail(prefix, alnm_ext, mode):
                 head = min(head, head_new)
                 tail = min(tail, tail_new)
                 read_len_total = max(read_len_total, alnm.infer_read_length())
-                is_edge = edge_checker(alnm.reference_start, alnm.reference_end, dict_ref_len[ref])
+                if mode != "transcriptome":
+                    is_edge = edge_checker(alnm.reference_start, alnm.reference_end, dict_ref_len[ref])
 
                 # Check for "circular" reads
-                if ref == last_ref and \
+                if mode != "transcriptome" and ref == last_ref and \
                         ((last_is_edge[0] and is_edge[1]) or (last_is_edge[1] and is_edge[0])):
                     aligned_ref += alnm.reference_length
                     middle += alnm.query_alignment_length

@@ -41,9 +41,9 @@ def not_overlap(interval, interval_lst, interval_name=None, interval_name_list=N
     return True
 
 
-def EM(read_list, all_species):
+def EM_meta(read_list, all_species):
     """
-    :param read_list: {(read1, interval1): [species1, species2]), ((read1, interval2)), [species1, species2]) ...}
+    :param read_list: {(read1, interval1): [species1, species2], (read1, interval2): [species1, species2] ...}
     :return: abundance_list: {species1: abundance1, species2: abundance2, ...}
     """
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Starting EM for quantification\n")
@@ -63,13 +63,11 @@ def EM(read_list, all_species):
     for iter in range(0, 100):
         # Expectation
         base_count_tmp = {k: v for k, v in base_count_unique.items()}
-        added = 0
         for read, species_list in multi_mapping_list.items():
             length = read[1]
             total_abun_species = sum([abundance_list[species] for species in species_list])
             perc_for_species = [abundance_list[species] / total_abun_species for species in species_list]
             for i in range(len(species_list)):
-                added += length * perc_for_species[i]
                 base_count_tmp[species_list[i]] += length * perc_for_species[i]
 
         # Maximization
@@ -84,6 +82,61 @@ def EM(read_list, all_species):
         diff = diff_tmp
 
     return abundance_list
+
+
+def EM_trans(read_list, all_trans, normalize):
+    """
+    :param read_list: {(read1, interval1): [trans1, trans2]), (read1, interval2), [trans1, trans2]) ...}
+    :return: tpm_list: {species1: tpm1, species2: tpm2, ...}
+    """
+    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Starting EM for quantification\n")
+    read_count_unique = dict.fromkeys(all_trans, 0)
+    multi_mapping_list = {}
+    total_reads = 0
+    for read, trans_list in read_list.items():
+        total_reads += 1
+        if len(trans_list) == 1:
+            read_count_unique[trans_list[0]] += 1
+        else:
+            multi_mapping_list[read[0]] = trans_list
+    abundance_list = {trans: 100 / len(all_trans) for trans in all_trans}
+
+    diff = 100 * len(all_trans)
+    for iter in range(0, 1000):
+        # Expectation
+        read_count_tmp = {k: v for k, v in read_count_unique.items()}
+        for read, trans_list in multi_mapping_list.items():
+            all_trans_in_read = sum([abundance_list[trans] for trans in trans_list])
+            perc_for_trans = [abundance_list[trans] / all_trans_in_read for trans in trans_list]
+            for i in range(len(trans_list)):
+                read_count_tmp[trans_list[i]] += perc_for_trans[i]
+
+        # Maximization
+        abundance_list_tmp = {trans: reads * 100 / total_reads for trans, reads in read_count_tmp.items()}
+        diff_tmp = sum([abs(abundance_list_tmp[i] - abundance_list[i]) for i in abundance_list.keys()])
+        if iter % 10 == 0:
+            sys.stdout.write("Iteration: " + str(iter) + ", Diff: " + str(diff_tmp) + '\n')
+        sys.stdout.flush()
+
+        abundance_list = abundance_list_tmp
+        if diff_tmp <= min(abundance_list.values()) * 0.001 or diff - diff_tmp < min(abundance_list.values()) * 0.001:
+            break
+        diff = diff_tmp
+
+    # calculate TPM
+    tpm_list = {}
+    total_rpk = 0
+    if normalize:
+        for trans, count in read_count_tmp.items():
+            total_rpk += count / all_trans[trans] * 1e3  # read per kilobase
+    else:
+        total_rpk = sum(read_count_tmp.values())
+    for trans, count in read_count_tmp.items():
+        rpk = count / all_trans[trans] * 1e3 if normalize else count
+        tpm = rpk * 1e6 / total_rpk
+        tpm_list[trans] = (count, tpm)
+
+    return tpm_list
 
 
 def primary_and_unaligned(sam_alnm_file, prefix, metagenome_list=None):
@@ -132,7 +185,7 @@ def primary_and_unaligned(sam_alnm_file, prefix, metagenome_list=None):
         quantification_file = open(prefix + "_quantification.tsv", 'w')
         quantification_file.write("Species\tAbundance\n")
 
-        abundance_list = EM(quant_dic, all_species)
+        abundance_list = EM_meta(quant_dic, all_species)
         for k, v in abundance_list.items():
             quantification_file.write(k + '\t' + str(v) + '\n')
             metagenome_list[k]["real"] = v
@@ -157,7 +210,7 @@ def primary_and_unaligned(sam_alnm_file, prefix, metagenome_list=None):
     return unaligned_len, strandness
 
 
-def primary_and_unaligned_chimeric(sam_alnm_file, prefix, metagenome_list=None, q_mode=False):
+def primary_and_unaligned_chimeric(sam_alnm_file, prefix, metagenome_list=None, q_mode=False, normalize=True):
     """
     Function to extract alignments of reads at extremities of circular genome references
     :param sam_alnm_file: path of input SAM file
@@ -174,6 +227,8 @@ def primary_and_unaligned_chimeric(sam_alnm_file, prefix, metagenome_list=None, 
     in_sam_file = pysam.AlignmentFile(sam_alnm_file)
     if metagenome_list:
         quant_dic = {}
+        is_trans = True if 'tpm' in metagenome_list else False
+
     if not q_mode:
         out_sam_file = pysam.AlignmentFile(prefix + "_primary.bam", 'wb', template=in_sam_file, add_sam_header=True)
         chimeric_file = open(prefix + "_chimeric_info", 'w')
@@ -189,8 +244,11 @@ def primary_and_unaligned_chimeric(sam_alnm_file, prefix, metagenome_list=None, 
     for info in in_sam_file.header['SQ']:
         species_chrom = info['SN']
         ref_lengths[species_chrom] = info['LN']
-        species = '_'.join(species_chrom.split('_')[:-1])
-        all_species[species] = 0
+        if metagenome_list and is_trans:
+            species = species_chrom
+        else:
+            species = '_'.join(species_chrom.split('_')[:-1])
+        all_species[species] = info['LN']
         chimeric_species_count[species] = [0, 0]  # the succedent segment source [same species, other species]
 
     if not q_mode:
@@ -256,7 +314,10 @@ def primary_and_unaligned_chimeric(sam_alnm_file, prefix, metagenome_list=None, 
                             if not q_mode:
                                 out_sam_file.write(aln)
                             # Quantification
-                            if metagenome_list:
+                            if metagenome_list and is_trans:
+                                species = aln.reference_name
+                                quant_dic[(aln.query_name, (seg["query"][0][0], seg["query"][0][1]))] = [species]
+                            elif metagenome_list:
                                 species = '_'.join(aln.reference_name.split('_')[:-1])
                                 quant_dic[(aln.query_name, (seg["query"][0][0], seg["query"][0][1]))] = [species]
                             if primary_direction == '+':
@@ -277,8 +338,8 @@ def primary_and_unaligned_chimeric(sam_alnm_file, prefix, metagenome_list=None, 
                             interval = seg["query"][i]
                             ref_interval = seg["ref"][i]
                             is_edge = edge_checker(ref_interval[0], ref_interval[1], ref_lengths[seg["rname"][i]])
-                            species = '_'.join(seg["rname"][i].split('_')[:-1])
                             if metagenome_list:
+                                species = seg["rname"][i] if is_trans else '_'.join(seg["rname"][i].split('_')[:-1])
                                 quant_dic[(aln.query_name, (interval[0], interval[1]))] = [species]
                             # Record the gap
                             if i > 0:
@@ -316,7 +377,7 @@ def primary_and_unaligned_chimeric(sam_alnm_file, prefix, metagenome_list=None, 
                     out_sam_file.write(aln)
                 # Quantification
                 if metagenome_list:
-                    species = '_'.join(aln.reference_name.split('_')[:-1])
+                    species = aln.reference_name if is_trans else '_'.join(aln.reference_name.split('_')[:-1])
                     quant_dic[(aln.query_name, (aln.query_alignment_start, aln.query_alignment_end))] = [species]
                 if primary_direction == '+':
                     pos_strand += 1
@@ -328,7 +389,7 @@ def primary_and_unaligned_chimeric(sam_alnm_file, prefix, metagenome_list=None, 
                     if (aln.reference_name, qstart, qend, aln.reference_start) == supplementary_to_be_added[i]:
                         aln_queue[i] = aln
             if metagenome_list and (aln.query_name, (qstart, qend)) in quant_dic:
-                species = '_'.join(aln.reference_name.split('_')[:-1])
+                species = aln.reference_name if is_trans else '_'.join(aln.reference_name.split('_')[:-1])
                 quant_dic[(aln.query_name, (qstart, qend))].append(species)
 
     if not q_mode:
@@ -339,12 +400,20 @@ def primary_and_unaligned_chimeric(sam_alnm_file, prefix, metagenome_list=None, 
     in_sam_file.close()
 
     # Write quantification information
-    if metagenome_list:
-        variation_flag = False
+    if is_trans:
         quantification_file = open(prefix + "_quantification.tsv", 'w')
+        tpm_list = EM_trans(quant_dic, all_species, normalize)
+        quantification_file.write("ID\tcount\tTPM\n")
+        for trans, info in tpm_list.items():
+            quantification_file.write(trans + '\t' + str(info[0]) + '\t' + str(info[1]) + '\n')
+        quantification_file.close()
+
+    elif metagenome_list:
+        quantification_file = open(prefix + "_quantification.tsv", 'w')
+        variation_flag = False
         quantification_file.write("Species\tAbundance\n")
 
-        abundance_list = EM(quant_dic, all_species)
+        abundance_list = EM_meta(quant_dic, all_species)
         for k, v in abundance_list.items():
             quantification_file.write(k + '\t' + str(v) + '\n')
             metagenome_list[k]["real"] = v
@@ -390,7 +459,7 @@ def primary_and_unaligned_chimeric(sam_alnm_file, prefix, metagenome_list=None, 
     # Compute chimeric information
     mean_segments = (len(gap_length) + num_aligned) / num_aligned
     chimeric_file.write("Mean segments for each aligned read:\t" + str(mean_segments) + '\n')
-    if metagenome_list:
+    if metagenome_list and not is_trans:
         chimeric_file.write("Shrinkage rate (beta):\t" + str(median(beta_list)))
     chimeric_file.close()
 
