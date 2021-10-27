@@ -40,7 +40,7 @@ import norm_distr as nd
 import math
 
 PYTHON_VERSION = sys.version_info
-VERSION = "3.0.0"
+VERSION = "3.0.3"
 PRORAM = "NanoSim"
 AUTHOR = "Chen Yang, Saber Hafezqorani, Theodora Lo (UBC & BCGSC)"
 CONTACT = "cheny@bcgsc.ca; shafezqorani@bcgsc.ca"
