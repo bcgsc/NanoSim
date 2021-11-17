@@ -289,6 +289,8 @@ def read_profile(ref_g, number_list, model_prefix, per, mode, strandness, ref_t=
             seq_len[species] = {}
             dict_dna_type[species] = {}
             max_chrom[species] = 0
+            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read in " + species + "\n")
+            sys.stdout.flush()
 
             if fq_path.startswith(("ftp", "http")):
                 http_addr = fq_path.replace("ftp://", "http://")
@@ -322,18 +324,19 @@ def read_profile(ref_g, number_list, model_prefix, per, mode, strandness, ref_t=
                         if len(seqS) > max_chrom[species]:
                             max_chrom[species] = len(seqS)
 
-        with open(dna_type, 'r') as dna_type_list:
-            for line in dna_type_list.readlines():
-                fields = line.split("\t")
-                species = '_'.join(fields[0].split())
-                chr = re.split(r'[_\s]\s*', fields[1].partition(" ")[0])
-                chr_name = "-".join(chr)
-                type = fields[2].strip("\n")
+        if dna_type:  # dna_type is not required when streaming reference genome from RefSeq
+            with open(dna_type, 'r') as dna_type_list:
+                for line in dna_type_list.readlines():
+                    fields = line.split("\t")
+                    species = '_'.join(fields[0].split())
+                    chr = re.split(r'[_\s]\s*', fields[1].partition(" ")[0])
+                    chr_name = "-".join(chr)
+                    type = fields[2].strip("\n")
 
-                if species not in ref:
-                    sys.stderr.write("You didn't provide a reference genome for " + species + '\n')
-                    sys.exit(1)
-                dict_dna_type[species][chr_name.split(".")[0]] = type
+                    if species not in ref:
+                        sys.stderr.write("You didn't provide a reference genome for " + species + '\n')
+                        sys.exit(1)
+                    dict_dna_type[species][chr_name.split(".")[0]] = type
     else:
         max_chrom = 0
         with open(ref, 'r') as infile:
@@ -1957,8 +1960,7 @@ def main():
     parser_mg.add_argument('-dl', '--dna_type_list',
                            help="DNA type list, tsv file, the first column is species/strain, "
                                 "the second column is the chromosome name, the third column is "
-                                "the DNA type: circular OR linear",
-                           required=True)
+                                "the DNA type: circular OR linear")
     parser_mg.add_argument('-c', '--model_prefix', help='Location and prefix of error profiles generated from '
                                                         'characterization step (Default = training)',
                            default="training")
