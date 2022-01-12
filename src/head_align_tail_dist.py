@@ -58,6 +58,12 @@ def head_align_tail(prefix, alnm_ext, mode):
         total_ref_length = []  # total length of reference
         prefix = prefix[:-14]
 
+        dict_genome_alnm_info = {}
+        in_sam_file_genome = pysam.AlignmentFile(prefix + "_genome_primary.bam", 'rb')
+        for alnm_temp in in_sam_file_genome.fetch(until_eof=True):
+            read_temp = alnm_temp.query_name
+            dict_genome_alnm_info[read_temp] = alnm_temp
+
     aligned_ref_length = []  # aligned length of reference
     total_length = []
     ht_length = []
@@ -128,8 +134,11 @@ def head_align_tail(prefix, alnm_ext, mode):
                 # head and tail of a read with split alignments are considered together
                 # aligned regions of a read with split alignments are considered separately
                 # aligned regions of a circular read are considered are considered together
-
-                head_new, tail_new = get_head_tail(alnm.cigartuples)
+                if mode == "transcriptome" and (read in dict_genome_alnm_info):
+                    genome_alnm = dict_genome_alnm_info[read]
+                    head_new, tail_new = get_head_tail(genome_alnm.cigartuples)
+                else:
+                    head_new, tail_new = get_head_tail(alnm.cigartuples)
                 head = min(head, head_new)
                 tail = min(tail, tail_new)
                 read_len_total = max(read_len_total, alnm.infer_read_length())
@@ -181,7 +190,11 @@ def head_align_tail(prefix, alnm_ext, mode):
                 aligned_ref = alnm.reference_length
                 read_len_total = alnm.infer_read_length()
                 middle = alnm.query_alignment_length
-                head, tail = get_head_tail(alnm.cigartuples)
+                if mode == "transcriptome" and (read in dict_genome_alnm_info):
+                    genome_alnm = dict_genome_alnm_info[read]
+                    head, tail = get_head_tail(genome_alnm.cigartuples)
+                else:
+                    head, tail = get_head_tail(alnm.cigartuples)
                 if mode != "transcriptome":
                     last_is_edge = edge_checker(alnm.reference_start, alnm.reference_end, dict_ref_len[ref])
                 last_ref = ref
