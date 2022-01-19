@@ -35,7 +35,7 @@ def edge_checker(rstart, rend, ref_length, ref_edge_max_dist=400, query_min_aln_
     return is_edge
 
 
-def get_head_tail(cigar_string):
+def get_head_tail(cigar_string, reverse_flag):
     head_info = cigar_string[0]
     tail_info = cigar_string[-1]
 
@@ -49,7 +49,10 @@ def get_head_tail(cigar_string):
     else:
         tail = 0
 
-    return head, tail
+    if reverse_flag:
+        return tail, head
+    else:
+        return head, tail
 
 
 def head_align_tail(prefix, alnm_ext, mode):
@@ -62,7 +65,7 @@ def head_align_tail(prefix, alnm_ext, mode):
         in_sam_file_genome = pysam.AlignmentFile(prefix + "_genome_primary.bam", 'rb')
         for alnm_temp in in_sam_file_genome.fetch(until_eof=True):
             read_temp = alnm_temp.query_name
-            head_temp, tail_temp = get_head_tail(alnm_temp.cigartuples)
+            head_temp, tail_temp = get_head_tail(alnm_temp.cigartuples, alnm_temp.is_reverse)
             if read_temp not in dict_genome_alnm_info:
                 dict_genome_alnm_info[read_temp] = [[head_temp], [tail_temp]]
             else:
@@ -142,11 +145,11 @@ def head_align_tail(prefix, alnm_ext, mode):
                 if mode == "transcriptome" and (read in dict_genome_alnm_info):
                     head_g = min(dict_genome_alnm_info[read][0])
                     tail_g = min(dict_genome_alnm_info[read][1])
-                    head_t, tail_t = get_head_tail(alnm.cigartuples)
+                    head_t, tail_t = get_head_tail(alnm.cigartuples, alnm.is_reverse)
                     head_new = min(head_g, head_t)
                     tail_new = min(tail_g, tail_t)
                 else:
-                    head_new, tail_new = get_head_tail(alnm.cigartuples)
+                    head_new, tail_new = get_head_tail(alnm.cigartuples, alnm.is_reverse)
                 head = min(head, head_new)
                 tail = min(tail, tail_new)
                 read_len_total = max(read_len_total, alnm.infer_read_length())
@@ -201,11 +204,11 @@ def head_align_tail(prefix, alnm_ext, mode):
                 if mode == "transcriptome" and (read in dict_genome_alnm_info):
                     head_g = min(dict_genome_alnm_info[read][0])
                     tail_g = min(dict_genome_alnm_info[read][1])
-                    head_t, tail_t = get_head_tail(alnm.cigartuples)
+                    head_t, tail_t = get_head_tail(alnm.cigartuples, alnm.is_reverse)
                     head = min(head_g, head_t)
                     tail = min(tail_g, tail_t)
                 else:
-                    head, tail = get_head_tail(alnm.cigartuples)
+                    head, tail = get_head_tail(alnm.cigartuples, alnm.is_reverse)
                 if mode != "transcriptome":
                     last_is_edge = edge_checker(alnm.reference_start, alnm.reference_end, dict_ref_len[ref])
                 last_ref = ref
