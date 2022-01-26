@@ -79,7 +79,7 @@ def EM_meta(read_list, all_species):
 
         abundance_list = abundance_list_tmp
         diff_thres = min(abundance_list.values()) * 0.01
-        if diff_tmp <= threshold or diff - diff_tmp < diff_thres:
+        if diff_tmp <= diff_thres or diff - diff_tmp < diff_thres:
             break
         diff = diff_tmp
 
