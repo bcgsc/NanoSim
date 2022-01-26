@@ -67,10 +67,10 @@ def head_align_tail(prefix, alnm_ext, mode):
             read_temp = alnm_temp.query_name
             head_temp, tail_temp = get_head_tail(alnm_temp.cigartuples, alnm_temp.is_reverse)
             if read_temp not in dict_genome_alnm_info:
-                dict_genome_alnm_info[read_temp] = [[head_temp], [tail_temp]]
+                dict_genome_alnm_info[read_temp] = (head_temp, tail_temp)
             else:
-                dict_genome_alnm_info[read_temp][0].append(head_temp)
-                dict_genome_alnm_info[read_temp][1].append(tail_temp)
+                h, t = dict_genome_alnm_info[read_temp]
+                dict_genome_alnm_info[read_temp] = (min(head_temp, h), min(tail_temp, t))
 
     aligned_ref_length = []  # aligned length of reference
     total_length = []
@@ -143,8 +143,7 @@ def head_align_tail(prefix, alnm_ext, mode):
                 # aligned regions of a read with split alignments are considered separately
                 # aligned regions of a circular read are considered are considered together
                 if mode == "transcriptome" and (read in dict_genome_alnm_info):
-                    head_g = min(dict_genome_alnm_info[read][0])
-                    tail_g = min(dict_genome_alnm_info[read][1])
+                    head_g, tail_g = dict_genome_alnm_info[read]
                     head_t, tail_t = get_head_tail(alnm.cigartuples, alnm.is_reverse)
                     head_new = min(head_g, head_t)
                     tail_new = min(tail_g, tail_t)
