@@ -201,8 +201,7 @@ def head_align_tail(prefix, alnm_ext, mode):
                 read_len_total = alnm.infer_read_length()
                 middle = alnm.query_alignment_length
                 if mode == "transcriptome" and (read in dict_genome_alnm_info):
-                    head_g = min(dict_genome_alnm_info[read][0])
-                    tail_g = min(dict_genome_alnm_info[read][1])
+                    head_g, tail_g = dict_genome_alnm_info[read]
                     head_t, tail_t = get_head_tail(alnm.cigartuples, alnm.is_reverse)
                     head = min(head_g, head_t)
                     tail = min(tail_g, tail_t)
