@@ -227,6 +227,8 @@ def primary_and_unaligned_chimeric(sam_alnm_file, prefix, metagenome_list=None, 
     :returns: an unaligned_len list, and strandness information
     """
 
+    is_trans = False
+
     in_sam_file = pysam.AlignmentFile(sam_alnm_file)
     if metagenome_list:
         quant_dic = {}
