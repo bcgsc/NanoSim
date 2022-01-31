@@ -73,11 +73,13 @@ def EM_meta(read_list, all_species):
         # Maximization
         abundance_list_tmp = {species:  bases * 100 / total_base for species, bases in base_count_tmp.items()}
         diff_tmp = sum([abs(abundance_list_tmp[i] - abundance_list[i]) for i in abundance_list.keys()])
-        sys.stdout.write("Iteration: " + str(iter) + ", Diff: " + str(diff_tmp) + '\n')
-        sys.stdout.flush()
+        if iter % 10 == 0:
+            sys.stdout.write("Iteration: " + str(iter) + ", Diff: " + str(diff_tmp) + '\n')
+            sys.stdout.flush()
 
         abundance_list = abundance_list_tmp
-        if diff_tmp <= min(abundance_list.values()) * 0.01 or diff - diff_tmp < min(abundance_list.values()) * 0.01:
+        diff_thres = min(abundance_list.values()) * 0.01
+        if diff_tmp <= diff_thres or diff - diff_tmp < diff_thres:
             break
         diff = diff_tmp
 
@@ -114,12 +116,13 @@ def EM_trans(read_list, all_trans, normalize):
         # Maximization
         abundance_list_tmp = {trans: reads * 100 / total_reads for trans, reads in read_count_tmp.items()}
         diff_tmp = sum([abs(abundance_list_tmp[i] - abundance_list[i]) for i in abundance_list.keys()])
-        if iter % 10 == 0:
+        if iter % 50 == 0:
             sys.stdout.write("Iteration: " + str(iter) + ", Diff: " + str(diff_tmp) + '\n')
-        sys.stdout.flush()
+            sys.stdout.flush()
 
         abundance_list = abundance_list_tmp
-        if diff_tmp <= min(abundance_list.values()) * 0.001 or diff - diff_tmp < min(abundance_list.values()) * 0.001:
+        diff_thres = min(abundance_list.values()) * 0.001
+        if diff_tmp <= diff_thres or diff - diff_tmp < diff_thres:
             break
         diff = diff_tmp
 
@@ -223,6 +226,8 @@ def primary_and_unaligned_chimeric(sam_alnm_file, prefix, metagenome_list=None, 
               A txt file of the Markov Model for split alignments
     :returns: an unaligned_len list, and strandness information
     """
+
+    is_trans = False
 
     in_sam_file = pysam.AlignmentFile(sam_alnm_file)
     if metagenome_list:

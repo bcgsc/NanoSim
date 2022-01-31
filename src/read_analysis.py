@@ -73,11 +73,11 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g
                         q_mode=False, normalize=True):
     if t_alnm == '':
         if aligner == "minimap2":
-            t_alnm = prefix + "_transcriptome_alnm.sam"
+            t_alnm = prefix + "_transcriptome_alnm.bam"
             # Alignment to reference transcriptome
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Alignment with minimap2 to reference transcriptome\n")
             sys.stdout.flush()
-            call("minimap2 --cs -ax map-ont -t " + num_threads + " " + ref_t + " " + in_fasta + " > " + t_alnm,
+            call("minimap2 --cs -ax map-ont -t " + num_threads + " " + ref_t + " " + in_fasta + " | samtools view -b > " + t_alnm,
                  shell=True)
 
         elif aligner == "LAST":
@@ -104,8 +104,9 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g
                                                                              prefix + "_transcriptome")
     elif t_alnm_ext in ["sam", "bam"]:
         if chimeric:
-            unaligned_length, strandness = get_primary_sam. \
-                primary_and_unaligned_chimeric(t_alnm, prefix + "_transcriptome", quant, q_mode, normalize)
+            unaligned_length, strandness = get_primary_sam.primary_and_unaligned_chimeric(t_alnm,
+                                                                                        prefix + "_transcriptome",
+                                                                                        quant, q_mode, normalize)
         else:
             unaligned_length, strandness = get_primary_sam.primary_and_unaligned(t_alnm, prefix + "_transcriptome")
 
