@@ -980,6 +980,18 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
 
 def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, basecaller, read_type, num_simulate,
                                      polya, fastq, per=False, uracil=False):
+    # inner functions to return a polyA tail length
+    def get_albacore_polya_len():
+        return int(scipy.stats.expon.rvs(loc=2.0, scale=2.409858743694814))
+    
+    def get_guppy_polya_len():
+        return int(scipy.stats.expon.rvs(loc=2.0, scale=4.168299657168961))
+    
+    if basecaller == "albacore":
+        get_polya_len = get_albacore_polya_len
+    else:
+        get_polya_len = get_guppy_polya_len
+                                     
     # Simulate aligned reads
     out_reads = open(out_reads, "w")
     out_error = open(out_error, "w")
@@ -1025,10 +1037,6 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
                     break
                     
         is_reversed = random.random() > strandness_rate
-        if basecaller == "albacore":
-            polya_len = int(scipy.stats.expon.rvs(loc=2.0, scale=2.409858743694814))
-        else:  # guppy
-            polya_len = int(scipy.stats.expon.rvs(loc=2.0, scale=4.168299657168961))
             
         if per:
             with total_simulated.get_lock():
@@ -1052,12 +1060,13 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
             else:
                 new_read_name += "_F"
             
-            if not retain_polya:
+            if retain_polya:
+                polya_len = get_polya_len()
+                if polya_len > 0:
+                    read_mutated += "A" * polya_len
+            else:
                 polya_len = 0
-            
-            if polya_len > 0:
-                read_mutated += "A" * polya_len
-            
+                        
             new_read_name += "_0_" + str(ref_len_aligned) + "_" + str(polya_len)
             
         else:
@@ -1128,8 +1137,11 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
                 tail = remainder - head
             # end HD len simulation
             
-            if not retain_polya:
+            if retain_polya:
+                polya_len = get_polya_len()
+            else:
                 polya_len = 0
+            
             
             new_read_name += "_" + str(head) + \
                              "_" + str(middle_ref) + \
