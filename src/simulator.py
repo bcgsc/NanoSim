@@ -980,18 +980,16 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
 
 def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, basecaller, read_type, num_simulate,
                                      polya, fastq, per=False, uracil=False):
-    # inner functions to return a polyA tail length
-    def get_albacore_polya_len():
-        return int(scipy.stats.expon.rvs(loc=2.0, scale=2.409858743694814))
-    
-    def get_guppy_polya_len():
-        return int(scipy.stats.expon.rvs(loc=2.0, scale=4.168299657168961))
-    
+
     if basecaller == "albacore":
-        get_polya_len = get_albacore_polya_len
+        polya_len_dist_scale = 2.409858743694814
     else:
-        get_polya_len = get_guppy_polya_len
-                                     
+        polya_len_dist_scale = 4.168299657168961
+    
+    # inner function to return a polyA tail length    
+    def get_polya_len():
+        return int(scipy.stats.expon.rvs(loc=2.0, scale=polya_len_dist_scale))
+                                         
     # Simulate aligned reads
     out_reads = open(out_reads, "w")
     out_error = open(out_error, "w")
