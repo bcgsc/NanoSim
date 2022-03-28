@@ -1006,7 +1006,6 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
             if "chr" in item:
                 flag_chrom = True
                 break
-    sampled_2d_lengths = get_length_kde(kde_aligned_2d, num_simulate, False, False)
 
     remainder_l = get_length_kde(kde_ht, num_simulate, True)
     head_vs_ht_ratio_temp = get_length_kde(kde_ht_ratio, num_simulate)
@@ -1016,6 +1015,7 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
     remaining_reads = 0
     while remaining_reads < num_simulate:
         while True:
+            sampled_2d_lengths = get_length_kde(kde_aligned_2d, num_simulate, False, False)
             ref_trx, ref_trx_len = select_ref_transcript(ecdf_dict_ref_exp)
             if polya and ref_trx in trx_with_polya:
                 trx_has_polya = True
