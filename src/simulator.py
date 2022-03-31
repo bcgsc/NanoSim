@@ -48,19 +48,6 @@ CONTACT = "cheny@bcgsc.ca; shafezqorani@bcgsc.ca"
 BASES = ['A', 'T', 'C', 'G']
 
 
-def select_ref_transcript(input_dict):
-    length = 0
-    while True:
-        p = random.random()
-        for key, val in input_dict.items():
-            if key[0] <= p < key[1]:
-                length = val[1]
-                break
-        if length != 0:
-            break
-    return val[0], length
-
-
 def list_to_range(input_list, min_l):
     l = [min_l]
     l.extend(input_list)
@@ -87,13 +74,14 @@ def make_cdf(dict_exp, dict_len):
     list_cdf = np.cumsum(sorted_only_values)
     ranged_cdf_list = list_to_range(list_cdf, 0)
 
-    ecdf_dict = {}
-    for i in xrange(len(ranged_cdf_list)):
-        cdf_range = ranged_cdf_list[i]
-        ecdf_dict[cdf_range] = (sorted_value_list[i][0], dict_len[sorted_value_list[i][0]])
-        # ecdf_dict[cdf_range] = dict_len[sorted_value_list[i][0]]
+    ecdf_weight_list = list()
+    ecdf_length_list = list()
+    for cdf_range, txpt in zip(ranged_cdf_list, sorted_value_list):
+        ecdf_weight_list.append(abs(cdf_range[1] - cdf_range[0]))
+        tname = txpt[0]
+        ecdf_length_list.append((tname, dict_len[tname]))
 
-    return ecdf_dict
+    return ecdf_length_list, ecdf_weight_list
 
 
 def ref_len_from_structure(input):
@@ -234,11 +222,10 @@ def get_length_kde(kde, num, log=False, flatten=True):
     tmp_list = kde.sample(num)
     if log:
         tmp_list = np.power(10, tmp_list) - 1
-    length_list = tmp_list.flatten()
-    if not flatten:
-        return tmp_list
-    else:
-        return length_list
+    if flatten:
+        return tmp_list.flatten()
+    
+    return tmp_list
 
 
 def read_profile(ref_g, number_list, model_prefix, per, mode, strandness, ref_t=None, dna_type=None, abun=None,
@@ -265,7 +252,7 @@ def read_profile(ref_g, number_list, model_prefix, per, mode, strandness, ref_t=
                 genome = fields[1].strip("\n")
                 ref[species] = genome
     else:
-        global dict_exp, ecdf_dict_ref_exp
+        global dict_exp, ecdf_length_list, ecdf_weight_list
         ref = ref_t
 
     if strandness is None:
@@ -392,7 +379,7 @@ def read_profile(ref_g, number_list, model_prefix, per, mode, strandness, ref_t=
                 if transcript_id.startswith("ENS") and tpm > 0:
                     dict_exp[transcript_id] = tpm
         # create the ecdf dict considering the expression profiles
-        ecdf_dict_ref_exp = make_cdf(dict_exp, seq_len)
+        ecdf_length_list, ecdf_weight_list = make_cdf(dict_exp, seq_len)
 
         if model_ir:
             global genome_fai, IR_markov_model, dict_ref_structure
@@ -1016,11 +1003,9 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
     while remaining_reads < num_simulate:
         while True:
             sampled_2d_lengths = get_length_kde(kde_aligned_2d, num_simulate, False, False)
-            ref_trx, ref_trx_len = select_ref_transcript(ecdf_dict_ref_exp)
-            if polya and ref_trx in trx_with_polya:
-                trx_has_polya = True
-            else:
-                trx_has_polya = False
+            
+            # select a random reference transcript
+            ref_trx, ref_trx_len = random.choices(ecdf_length_list, weights=ecdf_weight_list, k=1)[0]
 
             if model_ir:
                 if ref_trx in dict_ref_structure:
@@ -1033,7 +1018,8 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
                 ref_len_aligned = select_nearest_kde2d(sampled_2d_lengths, ref_trx_len)
                 if ref_len_aligned < ref_trx_len:
                     break
-                    
+               
+        trx_has_polya = polya and ref_trx in trx_with_polya     
         is_reversed = random.random() > strandness_rate
             
         if per:
