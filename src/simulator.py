@@ -48,6 +48,13 @@ CONTACT = "cheny@bcgsc.ca; shafezqorani@bcgsc.ca"
 BASES = ['A', 'T', 'C', 'G']
 
 
+def check_print_progress(sequence_index):
+    if sequence_index % 10000 == 0:
+        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
+                         str(sequence_index + 1) + "\r")
+        sys.stdout.flush()
+
+
 def list_to_range(input_list, min_l):
     l = [min_l]
     l.extend(input_list)
@@ -948,11 +955,7 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
                 out_quals = "".join([chr(qual + 33) for qual in base_quals])
                 out_reads.write(out_quals + "\n")
 
-            if (sequence_index + 1) % 100 == 0:
-                sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
-                                 str(sequence_index + 1) + "\r")
-                # +1 is just to ignore the zero index by python
-                sys.stdout.flush()
+            check_print_progress(sequence_index)
 
             passed += 1
 
@@ -1167,11 +1170,7 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
             out_quals = "".join([chr(qual + 33) for qual in base_quals])
             out_reads.write(out_quals + "\n")
 
-        if (sequence_index + 1) % 100 == 0:
-            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
-                             str(sequence_index + 1) + "\r")
-            # +1 is just to ignore the zero index by python
-            sys.stdout.flush()
+        check_print_progress(sequence_index)
 
         remaining_reads += 1
 
@@ -1360,11 +1359,7 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
                 out_quals = "".join([chr(qual + 33) for qual in base_quals])
                 out_reads.write(out_quals + "\n")
 
-            if (sequence_index + 1) % 100 == 0:
-                sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
-                                 str(sequence_index + 1) + "\r")
-                # +1 is just to ignore the zero index by python
-                sys.stdout.flush()
+            check_print_progress(sequence_index)
 
             passed += 1
 
@@ -1437,11 +1432,8 @@ def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, base
                 out_quals = "".join([chr(qual + 33) for qual in base_quals])
                 out_reads.write(out_quals + "\n")
 
-            if (sequence_index + 1) % 100 == 0:
-                sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Number of reads simulated >> " +
-                                 str(sequence_index + 1) + "\r")
-                # +1 is just to ignore the zero index by python
-                sys.stdout.flush()
+            check_print_progress(sequence_index)
+            
             passed += 1
 
         remaining_reads = num_simulate - passed
