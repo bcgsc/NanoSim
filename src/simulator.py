@@ -1002,13 +1002,22 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
     head_vs_ht_ratio_l = [1 if x > 1 else x for x in head_vs_ht_ratio_temp]
     head_vs_ht_ratio_l = [0 if x < 0 else x for x in head_vs_ht_ratio_l]
 
-    remaining_reads = 0
-    while remaining_reads < num_simulate:
-        while True:
-            sampled_2d_lengths = get_length_kde(kde_aligned_2d, num_simulate, False, False)
-            
+    simulated = 0
+    sampled_2d_lengths = get_length_kde(kde_aligned_2d, num_simulate, False, False) # initial sample from the KDE
+    trx_sampled = set() # track transcript IDs that are associated with the KDE sample
+    
+    while simulated < num_simulate:
+        while True:            
             # select a random reference transcript
             ref_trx, ref_trx_len = random.choices(ecdf_length_list, weights=ecdf_weight_list, k=1)[0]
+            
+            # if this transcript was previously associated with the currect KDE sample
+            if ref_trx in trx_sampled:
+                # draw a new sample from the KDE
+                sampled_2d_lengths = get_length_kde(kde_aligned_2d, num_simulate, False, False)
+                
+                # track a new set of transcript IDs
+                trx_sampled = set()
 
             if model_ir:
                 if ref_trx in dict_ref_structure:
@@ -1021,6 +1030,9 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
                 ref_len_aligned = select_nearest_kde2d(sampled_2d_lengths, ref_trx_len)
                 if ref_len_aligned < ref_trx_len:
                     break
+        
+        # associate the transcript ID to the KDE sample
+        trx_sampled.add(ref_trx)
                
         trx_has_polya = polya and ref_trx in trx_with_polya     
         is_reversed = random.random() > strandness_rate
@@ -1113,8 +1125,8 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
                 new_read_name += "_F"
             
             # start HD len simulation
-            remainder = int(remainder_l[remaining_reads])
-            head_vs_ht_ratio = head_vs_ht_ratio_l[remaining_reads]
+            remainder = int(remainder_l[simulated])
+            head_vs_ht_ratio = head_vs_ht_ratio_l[simulated]
             
             if remainder == 0:
                 head = 0
@@ -1172,7 +1184,7 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
 
         check_print_progress(sequence_index)
 
-        remaining_reads += 1
+        simulated += 1
 
     sys.stdout.write('\n')
     out_reads.close()
