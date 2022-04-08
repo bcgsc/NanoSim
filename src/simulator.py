@@ -67,10 +67,15 @@ def list_to_range(input_list, min_l):
 
 def make_cdf(dict_exp, dict_len):
     sum_exp = 0
+    match_count = 0
     list_value = []
     for item in dict_exp:
         if item in dict_len:
+            match_count += 1
             sum_exp += dict_exp[item]
+    if match_count == 0:
+        sys.stderr.write("Please make sure transcript IDs in the expression profile match with those in reference transcriptome (example: both Ensembl IDs)\n")
+        sys.exit(1)
     for item in dict_exp:
         if item in dict_len:
             value = dict_exp[item] / float(sum_exp)
