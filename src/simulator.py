@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 @author: Chen Yang & Saber HafezQorani
-This script generates simulated Oxford Nanopore 2D reads (genomic and transcriptomic - cDNA/directRNA).
+This script generates simulated Oxford Nanopore reads (genomic, transcriptomic, and metagenomic).
 """
 
 from __future__ import print_function
@@ -40,10 +40,10 @@ import norm_distr as nd
 import math
 
 PYTHON_VERSION = sys.version_info
-VERSION = "3.0.3"
-PRORAM = "NanoSim"
-AUTHOR = "Chen Yang, Saber Hafezqorani, Theodora Lo (UBC & BCGSC)"
-CONTACT = "cheny@bcgsc.ca; shafezqorani@bcgsc.ca"
+VERSION = "3.1.0"
+PROGRAM = "NanoSim"
+AUTHOR = "Chen Yang, Saber Hafezqorani, Ka Ming Nip, and Theodora Lo (UBC & BCGSC)"
+CONTACT = "cheny@bcgsc.ca; shafezqorani@bcgsc.ca; kmnip@bcgsc.ca"
 
 BASES = ['A', 'T', 'C', 'G']
 
