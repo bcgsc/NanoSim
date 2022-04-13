@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-@author: Chen Yang & Saber HafezQorani
+@author: Chen Yang, Saber Hafezqorani, Ka Ming Nip, and Theodora Lo
 This script generates simulated Oxford Nanopore reads (genomic, transcriptomic, and metagenomic).
 """
 
