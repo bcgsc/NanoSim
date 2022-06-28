@@ -924,7 +924,6 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
                                  "_" + str(tail)
                     
                 read_mutated = ""
-                new_read_name = ""
                 base_quals = []
                 for seg_idx in range(num_seg):
                     # Mutate read
