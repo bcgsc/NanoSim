@@ -580,7 +580,7 @@ __Example runs:__
 `./simulator.py transcriptome -rt Homo_sapiens.GRCh38.cdna.all.fa -c Homo_sapiens_model -e abundance.tsv -rg Homo_sapiens.GRCh38.dna.primary.assembly.fa --polya transcripts_with_polya_tails --fastq -k 6 --basecaller guppy -r dRNA`
 
 9 If you want to simulate two metagenome samples with abundance variation, and chimeric reads  
-`.simulator.py metagenome -gl sample_config_file/metagenome_list_for_simulation -a sample_config_file/abundance_for_simulation_multi_sample.tsv -dl sample_config_file/dna_type_list.tsv -c pre_trained_models/metagenome_ERR3152364_Even/training --abun_var -0.5 0.5 --chimeric`
+`.simulator.py metagenome -gl sample_config_file/metagenome_list_for_simulation -a sample_config_file/abundance_for_simulation_multi_sample.tsv -dl sample_config_file/dna_type_list.tsv -c pre-trained_models/metagenome_ERR3152364_Even/training --abun_var -0.5 0.5 --chimeric`
 
 ## Explanation of output files
 ### 1. Characterization stage
