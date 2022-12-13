@@ -1,19 +1,15 @@
 # This file may be used to create an environment using:
 # $ conda create --name <env> --file <this file>
 # platform: linux-64
-_anaconda_depends=2019.03=py37_0
-_ipyw_jlab_nb_ext_conf=0.1.0=py37_0
-_libgcc_mutex=0.1=main
 genometools-genometools
-htseq=0.11.3=py37hb3f55d8_0
-joblib=1.1.0=pyhd3eb1b0_0
-last=874=h8b12597_3
-minimap2=2.17=h8b12597_1
-numpy=1.21.5=pypi_0
-numpy-base=1.21.2=py37h79a1101_0
-pybedtools=0.8.1=py37he513fc3_0
-pysam=0.15.3=py37hda2845c_1
+htseq=0.11.3
+joblib=1.1.0
+last
+minimap2=2.17
+numpy=1.21.5
+pybedtools=0.8.1
+pysam=0.15.3
 samtools
-scikit-learn=0.22.1=pypi_0
-scipy=1.7.3=py37hc147768_0
-six=1.16.0=pyhd3eb1b0_1
+scikit-learn=0.22.1
+scipy=1.7.3
+six=1.16.0
