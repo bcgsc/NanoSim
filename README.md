@@ -31,6 +31,9 @@ Saber Hafezqorani, Chen Yang, Theodora Lo, Ka Ming Nip, René L. Warren, and Ina
 
 
 ## Dependencies
+
+> **_NOTE:_**  Please kindly note that the pretrained models in NanoSim (v3.0.2) were made using an older version of `scikit-learn` (e.g. <=0.22.1). If you have to use these models (instead of creating your own models), then you **must** use `scikit-learn=0.22.1` but not the newer versions. If you have a newer version of `scikit-learn` installed, then you will get the error for `No module named 'sklearn.neighbors.kde'`. If you would like to create your own models (instead of using the pretrained models), then NanoSim should work just fine with `scikit-learn=1.0.2` from our experience. The next release of NanoSim will include newly pre-trained models with the updated versions of required packages in order to solve the incompatibility issues. 
+
 ![Python}](https://img.shields.io/pypi/pyversions/py)  
 Python packages:  
 * HTSeq (Tested with version 0.11.2)
@@ -50,15 +53,27 @@ External programs:
 * [GenomeTools](http://genometools.org/) (Tested with version 1.6.1)
 
 ## Installation  
+ 
 Install through Conda  
 `conda install -c bioconda nanosim`
-
+ 
 Or 
 clone the github repo, and install the dependencies as listed in the requirements.txt  
 1. `git clone https://github.com/bcgsc/NanoSim.git`  
 2. `conda create --name nanosim python=3.7`
 3. `conda activate nanosim`
 4. `conda install --file requirements.txt -c conda-forge -c bioconda`
+
+> **_NOTE:_**  Please note that some users have difficulty with installing all the dependent packages with `conda`. We strongly recommend that you create a dedicated environment for running NanoSim. If you have issues with `conda install` being eternally stuck, use **mamba** instead of `conda` to install your conda packages: https://github.com/mamba-org/mamba .
+> 
+> So, integrating all these together:
+> ```
+> conda create -n nanosim_env
+> conda activate nanosim_env
+> 
+> mamba install scikit-learn=0.22.1 six samtools pysam pybedtools minimap2 joblib htseq genometools-genometools
+> ```
+> Note that here we only specified the version for `scikit-learn` but not for the other packages. `mamba` should be able to pick the appropriate versions for the specified packages, python, and numpy, etc.
 
 ## Usage
 NanoSim is implemented using Python for error model fitting, read length analysis, and simulation. The first step of NanoSim is read characterization, which provides a comprehensive alignment-based analysis, and generates a set of read profiles serving as the input to the next step, the simulation stage. The simulation tool uses the model built in the previous step to produce in silico reads for a given reference genome/transcriptome. It also outputs a list of introduced errors, consisting of the position on each read, error type and reference bases.
