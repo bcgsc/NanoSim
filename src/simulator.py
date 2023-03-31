@@ -791,6 +791,7 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
             ref_lengths = get_length_kde(kde_aligned, sum(remaining_segments)) if median_l is None else \
                 np.random.lognormal(np.log(median_l), sd_l, remaining_segments)
             ref_lengths = [x for x in ref_lengths if min_l <= x <= max_l]
+            assert len(ref_lengths) > 0
         else:
             remainder_lengths = get_length_kde(kde_ht, int(remaining_reads * 1.3), True)
             remainder_lengths = [x for x in remainder_lengths if x >= 0]
@@ -803,6 +804,7 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
                 num_current_loop = min(remaining_reads, len(remainder_lengths), len(head_vs_ht_ratio_list))
                 ref_lengths = total_lengths[:num_current_loop] - remainder_lengths[:num_current_loop]
             ref_lengths = [x for x in ref_lengths if 0 < x <= max_l]
+            assert len(ref_lengths) > 0
 
         gap_lengths = get_length_kde(kde_gap, sum(remaining_gaps), True) if sum(remaining_gaps) > 0 else []
         gap_lengths = [max(0, int(x)) for x in gap_lengths]
@@ -869,20 +871,32 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
                 head_vs_ht_ratio = head_vs_ht_ratio_list[each_read]
 
                 total = remainder
-                for each_gap in gap_length_list:
-                    mutated_gap, gap_base_quals = simulation_gap(each_gap, basecaller, read_type, "metagenome", fastq)
-                    gap_list.append(mutated_gap)
-                    gap_base_qual_list.append(gap_base_quals)
-                    total += len(mutated_gap)
+                restart = False
                 for each_ref in ref_length_list:
                     middle, middle_ref, error_dict, error_count = \
                         error_list(each_ref, match_markov_model, match_ht_list, error_par, trans_error_pr, fastq)
+                    if total + middle > max_l:
+                       restart = True
+                       break
                     total += middle
                     seg_length_list.append(middle_ref)
                     seg_error_dict_list.append(error_dict)
                     seg_error_count_list.append(error_count)
 
-                if total < min_l or total > max_l:
+                if restart:
+                    continue
+
+                for each_gap in gap_length_list:
+                    mutated_gap, gap_base_quals = simulation_gap(each_gap, basecaller, read_type, "metagenome", fastq)
+                    gap_list.append(mutated_gap)
+                    gap_base_qual_list.append(gap_base_quals)
+                    gap_length = len(mutated_gap)
+                    if total + gap_length > max_l:
+                       restart = True
+                       break
+                    total += gap_length
+
+                if restart or total < min_l or total > max_l:
                     continue
 
                 seg_pointer += segments
@@ -1616,23 +1630,40 @@ def extract_read(dna_type, length, s=None):
                 break
         return new_read, new_read_name
     elif dna_type == "metagenome":
-        while True:
-            if not s or length > max(seq_len[s].values()):  # if the length is too long, change to a different species
-                s = random.choice(list(seq_len.keys()))  # added "list" thing to be compatible with Python v3
-            key = random.choice(list(seq_len[s].keys()))
-            if length < seq_len[s][key]:
-                if dict_dna_type[s][key] == "circular":
-                    ref_pos = random.randint(0, seq_len[s][key])
-                    if length + ref_pos > seq_len[s][key]:
-                        new_read = seq_dict[s][key][ref_pos:]
-                        new_read = new_read + seq_dict[s][key][0: length - seq_len[s][key] + ref_pos]
-                    else:
-                        new_read = seq_dict[s][key][ref_pos: ref_pos + length]
-                else:
-                    ref_pos = random.randint(0, seq_len[s][key] - length)
-                    new_read = seq_dict[s][key][ref_pos: ref_pos + length]
-                new_read_name = s + '-' + key + "_" + str(ref_pos)
-                break
+        if not s:
+            s = random.choice(list(seq_len.keys()))  # added "list" thing to be compatible with Python v3
+        
+        key = random.choice(list(seq_len[s].keys()))
+        key_seq_len = seq_len[s][key]
+        
+        if length > key_seq_len:
+            # the chromosome selected is too short
+            
+            # find all chromosomes that are longer
+            longer_chroms = list()
+            for tmp_s in seq_len:
+                tmp_dict = seq_len[tmp_s]
+                for tmp_key in tmp_dict:
+                    if length < tmp_dict[tmp_key]:
+                        longer_chroms.append((tmp_s, tmp_key))
+            assert len(longer_chroms) > 0 # otherwise there is a problem
+            
+            # select a random chromosome from this list
+            s, key = random.choice(longer_chroms)
+            key_seq_len = seq_len[s][key]
+        
+        if dict_dna_type[s][key] == "circular":
+            ref_pos = random.randint(0, key_seq_len)
+            if length + ref_pos > key_seq_len:
+                new_read = seq_dict[s][key][ref_pos:]
+                new_read = new_read + seq_dict[s][key][0: length - key_seq_len + ref_pos]
+            else:
+                new_read = seq_dict[s][key][ref_pos: ref_pos + length]
+        else:
+            ref_pos = random.randint(0, key_seq_len - length)
+            new_read = seq_dict[s][key][ref_pos: ref_pos + length]
+        new_read_name = s + '-' + key + "_" + str(ref_pos)
+            
         return new_read, new_read_name
     else:
         # Extract the aligned region from reference
