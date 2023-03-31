@@ -880,7 +880,7 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
                     if total + middle_ref > max_l:
                        restart = True
                        break
-                    total += middle
+                    total += middle_ref
                     seg_length_list.append(middle_ref)
                     seg_error_dict_list.append(error_dict)
                     seg_error_count_list.append(error_count)
