@@ -791,7 +791,8 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
             ref_lengths = get_length_kde(kde_aligned, sum(remaining_segments)) if median_l is None else \
                 np.random.lognormal(np.log(median_l), sd_l, remaining_segments)
             ref_lengths = [x for x in ref_lengths if min_l <= x <= max_l]
-            assert len(ref_lengths) > 0
+            if len(ref_lengths) == 0:
+                continue
         else:
             remainder_lengths = get_length_kde(kde_ht, int(remaining_reads * 1.3), True)
             remainder_lengths = [x for x in remainder_lengths if x >= 0]
@@ -804,7 +805,8 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
                 num_current_loop = min(remaining_reads, len(remainder_lengths), len(head_vs_ht_ratio_list))
                 ref_lengths = total_lengths[:num_current_loop] - remainder_lengths[:num_current_loop]
             ref_lengths = [x for x in ref_lengths if 0 < x <= max_l]
-            assert len(ref_lengths) > 0
+            if len(ref_lengths) == 0:
+                continue
 
         gap_lengths = get_length_kde(kde_gap, sum(remaining_gaps), True) if sum(remaining_gaps) > 0 else []
         gap_lengths = [max(0, int(x)) for x in gap_lengths]
@@ -875,7 +877,7 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
                 for each_ref in ref_length_list:
                     middle, middle_ref, error_dict, error_count = \
                         error_list(each_ref, match_markov_model, match_ht_list, error_par, trans_error_pr, fastq)
-                    if total + middle > max_l:
+                    if total + middle_ref > max_l:
                        restart = True
                        break
                     total += middle
@@ -1429,7 +1431,7 @@ def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, base
 
             unaligned, middle_ref, error_dict, error_count = unaligned_error_list(ref, error_par)
 
-            if unaligned < min_l or unaligned > max_l:
+            if middle_ref < min_l or middle_ref > max_l:
                 continue
 
             with total_simulated.get_lock():
@@ -1646,6 +1648,7 @@ def extract_read(dna_type, length, s=None):
                 for tmp_key in tmp_dict:
                     if length < tmp_dict[tmp_key]:
                         longer_chroms.append((tmp_s, tmp_key))
+            
             assert len(longer_chroms) > 0 # otherwise there is a problem
             
             # select a random chromosome from this list
