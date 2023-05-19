@@ -29,6 +29,11 @@ If you use NanoSim to simulate transcriptomic reads, please cite the following p
 **Trans-NanoSim**  
 Saber Hafezqorani, Chen Yang, Theodora Lo, Ka Ming Nip, René L. Warren, and Inanç Birol; Trans-NanoSim characterizes and simulates nanopore RNA-sequencing data. GigaScience, Volume 9, Issue 6, June 2020, giaa061, https://doi.org/10.1093/gigascience/giaa061
 
+If you use NanoSim to simulate metagenomic reads, please cite the following paper:
+
+**Meta-NanoSim**  
+Yang C, Lo T, Nip KM, Hafezqorani S, Warren RL, Birol I; Characterization and simulation of metagenomic nanopore sequencing data with Meta-NanoSim. Gigascience. 2023 Mar 20;12:giad013. https://doi.org/10.1093/gigascience/giad013. PMID: 36939007; PMCID: PMC10025935.
+
 
 ## Dependencies
 
