@@ -60,17 +60,18 @@ External programs:
 
 Before you begin, make sure that your conda channels are [configured properly for bioconda](https://bioconda.github.io/). 
 
-Install through Conda  
-`conda install -c bioconda nanosim`
+Option 1. Install the latest release through bioconda:
+```
+conda install -c bioconda nanosim
+```
  
-Or 
-clone the github repo, and install the dependencies as listed in the requirements.txt  
+Option 2. Install the development code in our repo:
 1. `git clone https://github.com/bcgsc/NanoSim.git`  
 2. `conda create --name nanosim python=3.7`
 3. `conda activate nanosim`
 4. `conda install --file requirements.txt -c conda-forge -c bioconda`
 
-> **_NOTE:_**  Please note that some users have difficulty with installing all the dependent packages with `conda`. We strongly recommend that you create a dedicated environment for running NanoSim. If you have issues with `conda install` being eternally stuck, use **mamba** instead of `conda` to install your conda packages: https://github.com/mamba-org/mamba .
+> **_NOTE:_**  If you have difficulty with installing all the dependent packages with `conda`. We strongly recommend that you create a dedicated environment for running NanoSim. If you have issues with `conda install` being eternally stuck, use **mamba** instead of `conda` to install your conda packages: https://github.com/mamba-org/mamba .
 > 
 > So, integrating all these together:
 > ```
@@ -90,12 +91,12 @@ Characterization stage runs in five mode: genome, transcriptome, metagenome, qua
 __Characterization step general usage:__
 ```
 usage: read_analysis.py [-h] [-v]
-                        {genome,transcriptome,metagenome, quantify,detect_ir} ...
+                        {genome,transcriptome,metagenome,quantify,detect_ir} ...
 
 Read characterization step
 -----------------------------------------------------------
-Given raw ONT reads, reference genome and/or transcriptome,
-learn read features and output error profiles
+Given raw ONT reads, reference genome, metagenome, and/or 
+transcriptome, learn read features and output error profiles
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -108,15 +109,12 @@ subcommands:
       read_analysis.py mode -h
   -------------------------------------------------------
 
-  {genome,transcriptome,quantify,detect_ir}
+  {genome,transcriptome,metagenome,quantify,detect_ir}
     genome              Run the simulator on genome mode
     transcriptome       Run the simulator on transcriptome mode
     metagenome          Run the simulator on metagenome mode
-    quantify            Quantify transcriptome expression or metagenome
-                        abundance
-    detect_ir           Detect Intron Retention events using the alignment
-                        file
-
+    quantify            Quantify transcriptome expression or metagenome abundance
+    detect_ir           Detect Intron Retention events using the alignment file
 ```
 
 **genome mode**  
@@ -124,30 +122,24 @@ If you are interested in simulating ONT genomic reads, you need to run the chara
 
 __genome mode usage:__
 ```
-usage: read_analysis.py genome [-h] -i READ [-rg REF_G] [-a {minimap2,LAST}]
-                               [-ga G_ALNM] [-o OUTPUT] [-c] [--no_model_fit]
-                               [-t NUM_THREADS]
+usage: read_analysis.py genome [-h] -i READ [-rg REF_G] [-a {minimap2,LAST}] [-ga G_ALNM]
+                               [-o OUTPUT] [-c] [--no_model_fit] [-t NUM_THREADS]
 
 optional arguments:
   -h, --help            show this help message and exit
   -i READ, --read READ  Input read for training
   -rg REF_G, --ref_g REF_G
-                        Reference genome, not required if genome alignment
-                        file is provided
+                        Reference genome, not required if genome alignment file is provided
   -a {minimap2,LAST}, --aligner {minimap2,LAST}
-                        The aligner to be used, minimap2 or LAST (Default =
-                        minimap2)
+                        The aligner to be used, minimap2 or LAST (Default = minimap2)
   -ga G_ALNM, --g_alnm G_ALNM
-                        Genome alignment file in sam/bam or maf format (optional)
+                        Genome alignment file in sam or maf format (optional)
   -o OUTPUT, --output OUTPUT
-                        The location and prefix of outputting profiles
-                        (Default = training)
+                        The location and prefix of outputting profiles (Default = training)
   -c, --chimeric        Detect chimeric and split reads (Default = False)
   --no_model_fit        Disable model fitting step
   -t NUM_THREADS, --num_threads NUM_THREADS
-                        Number of threads for alignment and model fitting
-                        (Default = 1)
-
+                        Number of threads for alignment and model fitting (Default = 1)
 ```
 
 **transcriptome mode**  
@@ -155,11 +147,10 @@ If you are interested in simulating ONT transcriptome reads (cDNA / directRNA), 
 
 __transcriptome mode usage:__
 ```
-usage: read_analysis.py transcriptome [-h] -i READ [-rg REF_G] -rt REF_T
-                                      [-annot ANNOTATION] [-a {minimap2,LAST}]
-                                      [-ga G_ALNM] [-ta T_ALNM] [-o OUTPUT]
-                                      [--no_model_fit] [--no_intron_retention]
-                                      [-t NUM_THREADS]
+usage: read_analysis.py transcriptome [-h] -i READ -rg REF_G -rt REF_T [-annot ANNOTATION]
+                                      [-a {minimap2,LAST}] [-ga G_ALNM] [-ta T_ALNM] [-o OUTPUT]
+                                      [--no_model_fit] [--no_intron_retention] [-t NUM_THREADS]
+                                      [-c] [-q] [-n]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -169,26 +160,24 @@ optional arguments:
   -rt REF_T, --ref_t REF_T
                         Reference Transcriptome
   -annot ANNOTATION, --annotation ANNOTATION
-                        Annotation file in ensemble GTF/GFF formats, required
-                        for intron retention detection
+                        Annotation file in ensemble GTF/GFF formats, required for intron
+                        retention detection
   -a {minimap2,LAST}, --aligner {minimap2,LAST}
-                        The aligner to be used: minimap2 or LAST (Default =
-                        minimap2)
+                        The aligner to be used: minimap2 or LAST (Default = minimap2)
   -ga G_ALNM, --g_alnm G_ALNM
-                        Genome alignment file in sam/bam or maf format (optional)
+                        Genome alignment file in sam or maf format (optional)
   -ta T_ALNM, --t_alnm T_ALNM
-                        Transcriptome alignment file in sam/bam or maf format
-                        (optional)
+                        Transcriptome alignment file in sam or maf format (optional)
   -o OUTPUT, --output OUTPUT
-                        The location and prefix of outputting profiles
-                        (Default = training)
+                        The location and prefix of outputting profiles (Default = training)
   --no_model_fit        Disable model fitting step
   --no_intron_retention
                         Disable Intron Retention analysis
   -t NUM_THREADS, --num_threads NUM_THREADS
-                        Number of threads for alignment and model fitting
-                        (Default = 1)
-
+                        Number of threads for alignment and model fitting (Default = 1)
+  -c, --chimeric        Detect chimeric and split reads (Default = False)
+  -q, --quantification  Perform abundance quantification (Default = False)
+  -n, --normalize       Normalize by transcript length
 ```
 
 **metagenome mode**
@@ -196,34 +185,28 @@ If you are interested in simulating ONT metagenome reads, you need to run the ch
 
 __metagenome mode usage:__
 ```
-usage: read_analysis.py metagenome [-h] -i READ -gl GENOME_LIST [-ga G_ALNM]
-                                   [-o OUTPUT] [-c] [-q] [--no_model_fit]
-                                   [-t NUM_THREADS]
+usage: read_analysis.py metagenome [-h] -i READ -gl GENOME_LIST [-ga G_ALNM] [-o OUTPUT] [-c]
+                                   [-q] [--no_model_fit] [-t NUM_THREADS]
 
 optional arguments:
   -h, --help            show this help message and exit
   -i READ, --read READ  Input read for training
   -gl GENOME_LIST, --genome_list GENOME_LIST
-                        Reference metagenome list, tsv file, the first column
-                        is species/strain name, the second column is the
-                        reference genome fasta/fastq file directory, the third
-                        column is optional, if provided, it contains the
+                        Reference metagenome list, tsv file, the first column is species/strain
+                        name, the second column is the reference genome fasta/fastq file
+                        directory, the third column is optional, if provided, it contains the
                         expected abundance (sum up to 100)
   -ga G_ALNM, --g_alnm G_ALNM
-                        Genome alignment file in sam/bam format, the header of
-                        each species should match the metagenome list provided
-                        above (optional)
+                        Genome alignment file in sam format, the header of each species should
+                        match the metagenome list provided above (optional)
   -o OUTPUT, --output OUTPUT
-                        The location and prefix of outputting profiles
-                        (Default = training)
+                        The location and prefix of outputting profiles (Default = training)
   -c, --chimeric        Detect chimeric and split reads (Default = False)
-  -q, --quantification  Perform Salmon quantification and compute the
-                        variation in abundance when compared to expected
-                        values (Default = False)
+  -q, --quantification  Perform abundance quantification and compute the deviation between
+                        calculated abundance and expected values (Default = False)
   --no_model_fit        Disable model fitting step
   -t NUM_THREADS, --num_threads NUM_THREADS
-                        Number of threads for alignment and model fitting
-                        (Default = 1)
+                        Number of threads for alignment and model fitting (Default = 1)
 ```
 
 
@@ -232,9 +215,8 @@ If you are interested in quantifying the expression levels of transcriptome or a
 
 __quantifty mode usage:__
 ```
-usage: read_analysis.py quantify [-h] -e E -i READ [-rt REF_T]
-                                 [-gl GENOME_LIST] [-ga G_ALNM] [-o OUTPUT]
-                                 [-t NUM_THREADS]
+usage: read_analysis.py quantify [-h] -e E -i READ [-rt REF_T] [-gl GENOME_LIST] [-ga G_ALNM]
+                                 [-ta T_ALNM] [-o OUTPUT] [-t NUM_THREADS] [-n]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -243,21 +225,20 @@ optional arguments:
   -rt REF_T, --ref_t REF_T
                         Reference Transcriptome
   -gl GENOME_LIST, --genome_list GENOME_LIST
-                        Reference metagenome list, tsv file, the first column
-                        is species/strain name, the second column is the
-                        reference genome fasta/fastq file directory, the third
-                        column is optional, if provided, it contains the
+                        Reference metagenome list, tsv file, the first column is species/strain
+                        name, the second column is the reference genome fasta/fastq file
+                        directory, the third column is optional, if provided, it contains the
                         expected abundance (sum up to 100)
-  -a G_ALNM, --alnm G_ALNM
-                        Genome alignment file in sam / bam format, the header of
-                        each species should match the metagenome list provided
-                        above (optional)
+  -ga G_ALNM, --g_alnm G_ALNM
+                        Genome alignment file in sam format, the header of each species should
+                        match the metagenome list provided above (optional)
+  -ta T_ALNM, --t_alnm T_ALNM
+                        Transcriptome alignment file in sam format(optional)
   -o OUTPUT, --output OUTPUT
-                        The location and prefix of outputting profile (Default
-                        = expression)
+                        The location and prefix of outputting profile (Default = expression)
   -t NUM_THREADS, --num_threads NUM_THREADS
                         Number of threads for alignment (Default = 1)
-
+  -n, --normalize       Normalize by transcript length
 ```
 
 If `-e trans` is used, users need to provide the reference transcriptome through `-rt` parameter; if `-e meta` is used, users need to provide a genome list containing all reference genome and the path to them through `-gl` parameter OR provide genome alignment file through `-a` parameter.
@@ -267,36 +248,30 @@ The "transcriptome" mode of the NanoSim is able to model features of the library
 
 __detect_ir mode usage:__
 ```
-usage: read_analysis.py detect_ir [-h] -annot ANNOTATION [-i READ] [-rg REF_G]
-                                  [-rt REF_T] [-a {minimap2,LAST}] [-o OUTPUT]
-                                  [-ga G_ALNM] [-ta T_ALNM] [-t NUM_THREADS]
+usage: read_analysis.py detect_ir [-h] -annot ANNOTATION [-i READ] [-rg REF_G] [-rt REF_T]
+                                  [-a {minimap2,LAST}] [-o OUTPUT] [-ga G_ALNM] [-ta T_ALNM]
+                                  [-t NUM_THREADS]
 
 optional arguments:
   -h, --help            show this help message and exit
   -annot ANNOTATION, --annotation ANNOTATION
                         Annotation file in ensemble GTF/GFF formats
-  -i READ, --read READ  Input read for training, not required if alignment
-                        files are provided
+  -i READ, --read READ  Input read for training, not required if alignment files are provided
   -rg REF_G, --ref_g REF_G
-                        Reference genome, not required if genome alignment
-                        file is provided
-                        
+                        Reference genome, not required if genome alignment file is provided
   -rt REF_T, --ref_t REF_T
-                        Reference Transcriptome, not required if transcriptome
-                        alignment file is provided
+                        Reference Transcriptome, not required if transcriptome alignment file is
+                        provided
   -a {minimap2,LAST}, --aligner {minimap2,LAST}
-                        The aligner to be used: minimap2 or LAST (Default =
-                        minimap2)
+                        The aligner to be used: minimap2 or LAST (Default = minimap2)
   -o OUTPUT, --output OUTPUT
                         The output name and location
   -ga G_ALNM, --g_alnm G_ALNM
-                        Genome alignment file in sam/bam or maf format (optional)
+                        Genome alignment file in sam or maf format (optional)
   -ta T_ALNM, --t_alnm T_ALNM
-                        Transcriptome alignment file in sam/bam or maf format
-                        (optional)
+                        Transcriptome alignment file in sam or maf format (optional)
   -t NUM_THREADS, --num_threads NUM_THREADS
                         Number of threads for alignment (Default = 1)
-
 ```
 
 \* NOTICE: -ga/-ta option allows users to provide their own alignment file. Make sure that the name of query sequences are the same as appears in the FASTA files. For FASTA files, some headers have spaces in them and most aligners only take part of the header (before the first white space/tab) as the query name. However, the truncated headers may not be unique if using the output of poretools. We suggest users to pre-process the fasta files by concatenating all elements in the header via '\_' before alignment and feed the processed FASTA file as input of NanoSim.
