@@ -57,7 +57,9 @@ External programs:
 * [GenomeTools](http://genometools.org/) (Tested with version 1.6.1)
 
 ## Installation  
- 
+
+Before you begin, make sure that your conda channels are [configured properly for bioconda](https://bioconda.github.io/). 
+
 Install through Conda  
 `conda install -c bioconda nanosim`
  
