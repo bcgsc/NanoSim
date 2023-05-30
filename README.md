@@ -118,7 +118,7 @@ subcommands:
 ```
 
 **genome mode**  
-If you are interested in simulating ONT genomic reads, you need to run the characterization stage in "genome" mode with following options. It takes a reference genome and a training read set in FASTA or FASTQ format as input and aligns these reads to the reference using minimap2 (default) or LAST aligner. User can also provide their own alignment file in SAM or MAF formats. If the SAM file is provided, make sure that is MD flag in the SAM file. The output of this is a bunch of profiles which you should use in simulation stage.
+If you are interested in simulating ONT genomic reads, you need to run the characterization stage in "genome" mode with following options. It takes a reference genome and a training read set in FASTA or FASTQ format as input and aligns these reads to the reference using minimap2 (default) or LAST aligner. User can also provide their own alignment file in SAM/BAM formats. If the SAM file is provided, make sure that is MD flag in the SAM file. The output of this is a bunch of profiles which you should use in simulation stage.
 
 __genome mode usage:__
 ```
@@ -133,7 +133,7 @@ optional arguments:
   -a {minimap2,LAST}, --aligner {minimap2,LAST}
                         The aligner to be used, minimap2 or LAST (Default = minimap2)
   -ga G_ALNM, --g_alnm G_ALNM
-                        Genome alignment file in sam or maf format (optional)
+                        Genome alignment file in SAM/BAM format (optional)
   -o OUTPUT, --output OUTPUT
                         The location and prefix of outputting profiles (Default = training)
   -c, --chimeric        Detect chimeric and split reads (Default = False)
@@ -143,7 +143,7 @@ optional arguments:
 ```
 
 **transcriptome mode**  
-If you are interested in simulating ONT transcriptome reads (cDNA / directRNA), you need to run the characterization stage in "transcriptome" mode with following options. It takes a reference transcriptome, a reference genome, and a training read set in FASTA or FASTQ format as input and aligns these reads to the reference using minimap2 (default) or LAST aligner. User can also provide their own alignment file in SAM or MAF formats. If the SAM file is provided, make sure that is MD flag in the SAM file. The output of this is a bunch of profiles which you should use in simulation stage.
+If you are interested in simulating ONT transcriptome reads (cDNA / directRNA), you need to run the characterization stage in "transcriptome" mode with following options. It takes a reference transcriptome, a reference genome, and a training read set in FASTA or FASTQ format as input and aligns these reads to the reference using minimap2 (default) or LAST aligner. User can also provide their own alignment file in SAM/BAM formats. If the SAM file is provided, make sure that is MD flag in the SAM file. The output of this is a bunch of profiles which you should use in simulation stage.
 
 __transcriptome mode usage:__
 ```
@@ -165,9 +165,9 @@ optional arguments:
   -a {minimap2,LAST}, --aligner {minimap2,LAST}
                         The aligner to be used: minimap2 or LAST (Default = minimap2)
   -ga G_ALNM, --g_alnm G_ALNM
-                        Genome alignment file in sam or maf format (optional)
+                        Genome alignment file in SAM/BAM format (optional)
   -ta T_ALNM, --t_alnm T_ALNM
-                        Transcriptome alignment file in sam or maf format (optional)
+                        Transcriptome alignment file in SAM/BAM format (optional)
   -o OUTPUT, --output OUTPUT
                         The location and prefix of outputting profiles (Default = training)
   --no_model_fit        Disable model fitting step
@@ -267,9 +267,9 @@ optional arguments:
   -o OUTPUT, --output OUTPUT
                         The output name and location
   -ga G_ALNM, --g_alnm G_ALNM
-                        Genome alignment file in sam or maf format (optional)
+                        Genome alignment file in SAM/BAM format (optional)
   -ta T_ALNM, --t_alnm T_ALNM
-                        Transcriptome alignment file in sam or maf format (optional)
+                        Transcriptome alignment file in SAM/BAM format (optional)
   -t NUM_THREADS, --num_threads NUM_THREADS
                         Number of threads for alignment (Default = 1)
 ```
