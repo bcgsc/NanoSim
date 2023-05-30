@@ -584,15 +584,15 @@ __Example runs:__
 1. `training_aligned_region.pkl` Kernel density function of aligned regions on aligned reads  
 2. `training_aligned_reads.pkl` Kernel density function of aligned reads  
 3. `training_ht_length.pkl`  Kernel density function of unaligned regions on aligned reads  
-4. `training_besthit.maf/sam` The best alignment of each read based on length  
+4. `training_besthit.bam` The best alignment of each read based on length  
 5. `training_match.hist/training_mis.hist/training_del.hist/training_ins.hist` Histogram of match, mismatch, and indels  
 6. `training_first_match.hist` Histogram of the first match length of each alignment  
 7. `training_error_markov_model` Markov model of error types  
 8. `training_ht_ratio.pkl` Kernel density function of head/(head + tail) on aligned reads    
-9. `training.maf/sam` The alignment output  
+9. `training.bam` The alignment output  
 10. `training_match_markov_model` Markov model of the length of matches (stretches of correct base calls)  
 11. `training_model_profile` Fitted model for errors  
-12. `training_processed.maf` A re-formatted MAF file for user-provided alignment file  
+12. `training_processed.bam` A re-formatted BAM file for user-provided alignment file  
 13. `training_unaligned_length.pkl` Kernel density function of unaligned reads  
 14. `training_error_rate.tsv` Mismatch rate, insertion rate and deletion rate
 15. `training_strandness_rate` Strandness rate in input reads
@@ -602,15 +602,15 @@ __Example runs:__
 2. `training_aligned_region_2d.pkl` Two-dimensional kernel density function of aligned regions over the length of reference transcript they aligned
 3. `training_aligned_reads.pkl` Kernel density function of aligned reads
 4. `training_ht_length.pkl`  Kernel density function of unaligned regions on aligned reads
-5. `training_besthit.maf/sam` The best alignment of each read based on length
+5. `training_besthit.bam` The best alignment of each read based on length
 6. `training_match.hist/training_mis.hist/training_del.hist/training_ins.hist` Histogram of match, mismatch, and indels
 7. `training_first_match.hist` Histogram of the first match length of each alignment
 8. `training_error_markov_model` Markov model of error types
 9. `training_ht_ratio.pkl` Kernel density function of head/(head + tail) on aligned reads
-10. `training.maf/sam` The alignment output
+10. `training.bam` The alignment output
 11. `training_match_markov_model` Markov model of the length of matches (stretches of correct base calls)
 12. `training_model_profile` Fitted model for errors
-13. `training_processed.maf` A re-formatted MAF file for user-provided alignment file
+13. `training_processed.bam` A re-formatted BAM file for user-provided alignment file
 14. `training_unaligned_length.pkl` Kernel density function of unaligned reads
 15. `training_error_rate.tsv` Mismatch rate, insertion rate and deletion rate
 16. `training_strandness_rate` Strandness rate in input reads
@@ -622,15 +622,15 @@ __Example runs:__
 1. `training_aligned_region.pkl` Kernel density function of aligned regions on aligned reads  
 2. `training_aligned_reads.pkl` Kernel density function of aligned reads  
 3. `training_ht_length.pkl`  Kernel density function of unaligned regions on aligned reads  
-4. `training_besthit.maf/sam` The best alignment of each read based on length  
+4. `training_besthit.bam` The best alignment of each read based on length  
 5. `training_match.hist/training_mis.hist/training_del.hist/training_ins.hist` Histogram of match, mismatch, and indels  
 6. `training_first_match.hist` Histogram of the first match length of each alignment  
 7. `training_error_markov_model` Markov model of error types  
 8. `training_ht_ratio.pkl` Kernel density function of head/(head + tail) on aligned reads    
-9. `training.maf/sam` The alignment output  
+9. `training.bam` The alignment output  
 10. `training_match_markov_model` Markov model of the length of matches (stretches of correct base calls)  
 11. `training_model_profile` Fitted model for errors  
-12. `training_processed.maf` A re-formatted MAF file for user-provided alignment file  
+12. `training_processed.bam` A re-formatted BAM file for user-provided alignment file  
 13. `training_unaligned_length.pkl` Kernel density function of unaligned reads  
 14. `training_error_rate.tsv` Mismatch rate, insertion rate and deletion rate
 15. `training_strandness_rate` Strandness rate in input reads
