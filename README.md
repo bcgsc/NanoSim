@@ -21,18 +21,17 @@ NanoSim [(v3.0)](https://github.com/bcgsc/NanoSim/releases/tag/v3.0.0) is able t
 If you use NanoSim to simulate genomic reads, please cite the following paper:
 
 **NanoSim**  
-Chen Yang, Justin Chu, René L Warren, and Inanç Birol; NanoSim: nanopore sequence read simulator based on statistical characterization. GigaScience, Volume 6, Issue 4, April 2017, gix010, https://doi.org/10.1093/gigascience/gix010
-
+Yang C, Chu J, Warren RL, Birol I. NanoSim: nanopore sequence read simulator based on statistical characterization. Gigascience. 2017 Apr 1;6(4):1-6. doi: [10.1093/gigascience/gix010](https://doi.org/10.1093/gigascience/gix010). PMID: 28327957; PMCID: PMC5530317.
 
 If you use NanoSim to simulate transcriptomic reads, please cite the following paper:
 
 **Trans-NanoSim**  
-Saber Hafezqorani, Chen Yang, Theodora Lo, Ka Ming Nip, René L. Warren, and Inanç Birol; Trans-NanoSim characterizes and simulates nanopore RNA-sequencing data. GigaScience, Volume 9, Issue 6, June 2020, giaa061, https://doi.org/10.1093/gigascience/giaa061
+Hafezqorani S, Yang C, Lo T, Nip KM, Warren RL, Birol I. Trans-NanoSim characterizes and simulates nanopore RNA-sequencing data. Gigascience. 2020 Jun 1;9(6):giaa061. doi: [10.1093/gigascience/giaa061](https://doi.org/10.1093/gigascience/giaa061). PMID: 32520350; PMCID: PMC7285873.
 
 If you use NanoSim to simulate metagenomic reads, please cite the following paper:
 
 **Meta-NanoSim**  
-Yang C, Lo T, Nip KM, Hafezqorani S, Warren RL, Birol I; Characterization and simulation of metagenomic nanopore sequencing data with Meta-NanoSim. Gigascience. 2023 Mar 20;12:giad013. https://doi.org/10.1093/gigascience/giad013. PMID: 36939007; PMCID: PMC10025935.
+Yang C, Lo T, Nip KM, Hafezqorani S, Warren RL, Birol I. Characterization and simulation of metagenomic nanopore sequencing data with Meta-NanoSim. Gigascience. 2023 Mar 20;12:giad013. doi: [10.1093/gigascience/giad013](https://doi.org/10.1093/gigascience/giad013). PMID: 36939007; PMCID: PMC10025935.
 
 
 ## Dependencies
