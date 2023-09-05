@@ -15,7 +15,11 @@ NanoSim [(v2.6)](https://github.com/bcgsc/NanoSim/releases/tag/v2.6.0) is able t
 
 NanoSim [(v3.0)](https://github.com/bcgsc/NanoSim/releases/tag/v3.0.0) is able to simulate ONT metagenome reads. It quantifies metagenome abundance in the characterization stage, and accomodates for chimeric reads. In the simulation stage, it simulates both features as well. In addition, the simulation of chimeric reads is available in genome mode too. Some pre-trained models are re-trained for compatibility issues.
 
-**We provide 9 pre-trained models in the latest release! Users can choose to download the whole package or only scripts without models to speed it up**
+NanoSim [(v4.0)]
+* Added new mode, 'rbk', for simulating data from the rapid barcoding kit.
+* Stopped simulating unaligned flanking head and tail regions in reads. This can be turned back on with --bad_ends parameter.
+* Fixed an issue where when a minimum read length parameter was set in 'genome' or 'rbk' mode, if a generated read was too short it was repeatedly reset and mutated untill it reached the length threshold. This resulted in a high number of reads just longer than the minimum threshold. Now the read is just discarded and a new read length randomly sampled.
+* New error model added: amplicon_rbk
 
 ![Citation](https://img.shields.io/badge/NanoSim-manuscript-ff69b4)  
 If you use NanoSim to simulate genomic reads, please cite the following paper:
@@ -117,8 +121,8 @@ subcommands:
     detect_ir           Detect Intron Retention events using the alignment file
 ```
 
-**genome mode**  
-If you are interested in simulating ONT genomic reads, you need to run the characterization stage in "genome" mode with following options. It takes a reference genome and a training read set in FASTA or FASTQ format as input and aligns these reads to the reference using minimap2 (default) or LAST aligner. User can also provide their own alignment file in SAM/BAM formats. If the SAM file is provided, make sure that is MD flag in the SAM file. The output of this is a bunch of profiles which you should use in simulation stage.
+**genome mode (and rbk mode)**  
+If you are interested in simulating ONT genomic reads in either 'genome' or 'rbk' mode, you need to run the characterization stage in "genome" mode with following options. It takes a reference genome and a training read set in FASTA or FASTQ format as input and aligns these reads to the reference using minimap2 (default) or LAST aligner. User can also provide their own alignment file in SAM/BAM formats. If the SAM file is provided, make sure that is MD flag in the SAM file. The output of this is a bunch of profiles which you should use in simulation stage.
 
 __genome mode usage:__
 ```
@@ -283,12 +287,14 @@ For **releases before v2.2.0**, we provide profiles trained for _E. coli_ or _S.
 
 For **release v2.5.0 and onwards**, we provide profiles trained for _H. sapiens_ NA12878 gDNA, cDNA 1D2, and directRNA datasets, _Mus. musculus_ cDNA dataset, and the ZymoBIOMICS mock community datasets with 10 species and two abundance levels. Flowcell chemistry is R9.4 for all datasets. NA12878 gDNA and directRNA were basecalled by Guppy 3.1.5; NA12878 cDNA 1D2 was basecalled by Albacore 2.3.1; mouse cDNA was basecalled by Metrichor. These models are available within **[pre-trained_models folder](https://github.com/bcgsc/NanoSim/tree/master/pre-trained_models)**.  
 
+* amplicon_rbk: Trained on RBK R9.4.1 guppy high accuracy calling amplicon data.
+
 ### 2. Simulation stage
-Simulation stage takes reference genome/transcriptome and read profiles as input and outputs simulated reads in FASTA format. Simulation stage runs in two modes: "genome" and "transcriptome" and you may use either of them based on your needs.
+Simulation stage takes reference genome/transcriptome and read profiles as input and outputs simulated reads in FASTA format. Simulation stage runs in three modes: "genome", "rbk" and "transcriptome" and you may use either of them based on your needs.
 
 __Simulation stage general usage:__
 ```
-usage: simulator.py [-h] [-v] {genome,transcriptome,metagenome} ...
+usage: simulator.py [-h] [-v] {rbk,genome,transcriptome,metagenome} ...
 
 Simulation step
 -----------------------------------------------------------
@@ -306,9 +312,10 @@ subcommands:
       simulator.py mode -h
   -------------------------------------------------------
 
-  {genome,transcriptome}
-                        You may run the simulator on genome, transcriptome,
+  {genome,rbk,transcriptome,metagenome}
+                        You may run the simulator on genome, rbk, transcriptome,
                         or metagenome mode.
+    rbk                 Run the simulator on rbk mode
     genome              Run the simulator on genome mode
     transcriptome       Run the simulator on transcriptome mode
     metagenome          Run the simulator on metagenome mode
@@ -316,7 +323,7 @@ subcommands:
 ```
 
 **genome mode**  
-If you are interested in simulating ONT genomic reads, you need to run the simulation stage in "genome" mode with following options.
+Used for simulating ONT genomic reads. Parameters are the same as for 'rbk' mode below.
 
 __genome mode usage:__
 ```
@@ -325,8 +332,26 @@ usage: simulator.py genome [-h] -rg REF_G [-c MODEL_PREFIX] [-o OUTPUT]
                            [-med MEDIAN_LEN] [-sd SD_LEN] [--seed SEED]
                            [-k KMERBIAS] [-b {albacore,guppy,guppy-flipflop}]
                            [-s STRANDNESS] [-dna_type {linear,circular}]
-                           [--perfect] [--fastq] [--chimeric] [-t NUM_THREADS]
+                           [--perfect] [--fastq] [--chimeric] [--bad_ends] 
+                           [-t NUM_THREADS]
+```
 
+**rbk mode**  
+'rbk' mode models the read distributions seen from using the rapid barcoding kit, where there is a high coverage of forward reads and low coverage of reverse reads at the 3' chromosome/amplicon boundary, and a low coverage of forward reads and high coverage of reverse reads at the 5' chromosome/amplicon boundary. 'genome' mode instead results in low coverage in both forward and reverse reads at chromosome/amplicon boundaries. 'rbk' mode uses the same read profiles as 'genome' mode.
+
+__rbk mode usage:__
+```
+usage: simulator.py genome [-h] -rg REF_G [-c MODEL_PREFIX] [-o OUTPUT]
+                           [-n NUMBER] [-max MAX_LEN] [-min MIN_LEN]
+                           [-med MEDIAN_LEN] [-sd SD_LEN] [--seed SEED]
+                           [-k KMERBIAS] [-b {albacore,guppy,guppy-flipflop}]
+                           [-s STRANDNESS] [-dna_type {linear,circular}]
+                           [--perfect] [--fastq] [--chimeric] [--bad_ends] 
+                           [-t NUM_THREADS]
+```
+
+__genome and rbk mode arguments:__
+```
 optional arguments:
   -h, --help            show this help message and exit
   -rg REF_G, --ref_g REF_G
@@ -369,6 +394,7 @@ optional arguments:
   --perfect             Ignore error profiles and simulate perfect reads
   --fastq               Output fastq files instead of fasta files
   --chimeric            Simulate chimeric reads
+  --bad_ends            Simulate unaligned regions at both ends of reads
   -t NUM_THREADS, --num_threads NUM_THREADS
                         Number of threads for simulation (Default = 1)
 
@@ -385,7 +411,7 @@ usage: simulator.py transcriptome [-h] -rt REF_T [-rg REF_G] -e EXP
                                   [-k KMERBIAS] [-b {albacore,guppy}]
                                   [-r {dRNA,cDNA_1D,cDNA_1D2}] [-s STRANDNESS]
                                   [--no_model_ir] [--perfect] [--polya POLYA]
-                                  [--fastq] [-t NUM_THREADS] [--uracil]
+                                  [--fastq] [--bad_ends] [-t NUM_THREADS] [--uracil]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -427,6 +453,7 @@ optional arguments:
   --perfect             Ignore profiles and simulate perfect reads
   --polya POLYA         Simulate polyA tails for given list of transcripts
   --fastq               Output fastq files instead of fasta files
+  --bad_ends            Simulate unaligned regions at both ends of reads
   -t NUM_THREADS, --num_threads NUM_THREADS
                         Number of threads for simulation (Default = 1)
   --uracil              Converts the thymine (T) bases to uracil (U) in the
@@ -461,7 +488,7 @@ usage: simulator.py metagenome [-h] -gl GENOME_LIST -a ABUN -dl DNA_TYPE_LIST
                                [-b {albacore,guppy,guppy-flipflop}]
                                [-s STRANDNESS] [--perfect]
                                [--abun_var ABUN_VAR [ABUN_VAR ...]] [--fastq]
-                               [--chimeric] [-t NUM_THREADS]
+                               [--chimeric] [--bad_ends] [-t NUM_THREADS]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -512,9 +539,10 @@ optional arguments:
   --abun_var ABUN_VAR [ABUN_VAR ...]
                         Simulate random variation in abundance values, takes
                         in two values, format: relative_var_low,
-                        relative_var_high, Example: -0.5 0.5)
+                        relative_var_high, Example: -0.5 0.5
   --fastq               Output fastq files instead of fasta files
   --chimeric            Simulate chimeric reads
+  --bad_ends            Simulate unaligned regions at both ends of reads
   -t NUM_THREADS, --num_threads NUM_THREADS
                         Number of threads for simulation (Default = 1)
 ```
