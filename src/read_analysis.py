@@ -253,7 +253,7 @@ def main():
                           default='')
     parser_g.add_argument('-a', '--aligner', help='The aligner to be used, minimap2 or LAST (Default = minimap2)',
                           choices=['minimap2', 'LAST'], default='minimap2')
-    parser_g.add_argument('-ga', '--g_alnm', help='Genome alignment file in SAM/BAM format (optional)', default='')
+    parser_g.add_argument('-ga', '--g_alnm', help='Genome alignment file in sam or maf format (optional)', default='')
     parser_g.add_argument('-o', '--output', help='The location and prefix of outputting profiles (Default = training)',
                           default='training')
     parser_g.add_argument('-c', '--chimeric', help='Detect chimeric and split reads (Default = False)',
@@ -270,8 +270,8 @@ def main():
                                                          'required for intron retention detection', default='')
     parser_t.add_argument('-a', '--aligner', help='The aligner to be used: minimap2 or LAST (Default = minimap2)',
                           choices=['minimap2', 'LAST'], default='minimap2')
-    parser_t.add_argument('-ga', '--g_alnm', help='Genome alignment file in SAM/BAM format (optional)', default='')
-    parser_t.add_argument('-ta', '--t_alnm', help='Transcriptome alignment file in SAM/BAM format (optional)',
+    parser_t.add_argument('-ga', '--g_alnm', help='Genome alignment file in sam or maf format (optional)', default='')
+    parser_t.add_argument('-ta', '--t_alnm', help='Transcriptome alignment file in sam or maf format (optional)',
                           default='')
     parser_t.add_argument('-o', '--output', help='The location and prefix of outputting profiles (Default = training)',
                           default='training')
@@ -339,8 +339,8 @@ def main():
     parser_ir.add_argument('-a', '--aligner', help='The aligner to be used: minimap2 or LAST (Default = minimap2)',
                            choices=['minimap2', 'LAST'], default='minimap2')
     parser_ir.add_argument('-o', '--output', help='The output name and location', required=False, default='ir_info')
-    parser_ir.add_argument('-ga', '--g_alnm', help='Genome alignment file in SAM/BAM format (optional)', default='')
-    parser_ir.add_argument('-ta', '--t_alnm', help='Transcriptome alignment file in SAM/BAM format (optional)',
+    parser_ir.add_argument('-ga', '--g_alnm', help='Genome alignment file in sam or maf format (optional)', default='')
+    parser_ir.add_argument('-ta', '--t_alnm', help='Transcriptome alignment file in sam or maf format (optional)',
                            default='')
     parser_ir.add_argument('-t', '--num_threads', help='Number of threads for alignment (Default = 1)', default='1')
 

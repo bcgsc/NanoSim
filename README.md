@@ -15,23 +15,28 @@ NanoSim [(v2.6)](https://github.com/bcgsc/NanoSim/releases/tag/v2.6.0) is able t
 
 NanoSim [(v3.0)](https://github.com/bcgsc/NanoSim/releases/tag/v3.0.0) is able to simulate ONT metagenome reads. It quantifies metagenome abundance in the characterization stage, and accomodates for chimeric reads. In the simulation stage, it simulates both features as well. In addition, the simulation of chimeric reads is available in genome mode too. Some pre-trained models are re-trained for compatibility issues.
 
-**We provide 9 pre-trained models in the latest release! Users can choose to download the whole package or only scripts without models to speed it up**
+ont-NanoSim [(v1.0)]
+* Added new mode, 'rbk', for simulating data from the rapid barcoding kit.
+* Stopped simulating unaligned flanking head and tail regions in reads. This can be turned back on with --bad_ends parameter.
+* Fixed an issue where when a minimum read length parameter was set in 'genome' or 'rbk' mode, if a generated read was too short it was repeatedly reset and mutated untill it reached the length threshold. This resulted in a high number of reads just longer than the minimum threshold. Now the read is just discarded and a new read length randomly sampled.
+* New error model added: amplicon_rbk
 
 ![Citation](https://img.shields.io/badge/NanoSim-manuscript-ff69b4)  
 If you use NanoSim to simulate genomic reads, please cite the following paper:
 
 **NanoSim**  
-Yang C, Chu J, Warren RL, Birol I. NanoSim: nanopore sequence read simulator based on statistical characterization. Gigascience. 2017 Apr 1;6(4):1-6. doi: [10.1093/gigascience/gix010](https://doi.org/10.1093/gigascience/gix010). PMID: 28327957; PMCID: PMC5530317.
+Chen Yang, Justin Chu, René L Warren, and Inanç Birol; NanoSim: nanopore sequence read simulator based on statistical characterization. GigaScience, Volume 6, Issue 4, April 2017, gix010, https://doi.org/10.1093/gigascience/gix010
+
 
 If you use NanoSim to simulate transcriptomic reads, please cite the following paper:
 
 **Trans-NanoSim**  
-Hafezqorani S, Yang C, Lo T, Nip KM, Warren RL, Birol I. Trans-NanoSim characterizes and simulates nanopore RNA-sequencing data. Gigascience. 2020 Jun 1;9(6):giaa061. doi: [10.1093/gigascience/giaa061](https://doi.org/10.1093/gigascience/giaa061). PMID: 32520350; PMCID: PMC7285873.
+Saber Hafezqorani, Chen Yang, Theodora Lo, Ka Ming Nip, René L. Warren, and Inanç Birol; Trans-NanoSim characterizes and simulates nanopore RNA-sequencing data. GigaScience, Volume 9, Issue 6, June 2020, giaa061, https://doi.org/10.1093/gigascience/giaa061
 
 If you use NanoSim to simulate metagenomic reads, please cite the following paper:
 
 **Meta-NanoSim**  
-Yang C, Lo T, Nip KM, Hafezqorani S, Warren RL, Birol I. Characterization and simulation of metagenomic nanopore sequencing data with Meta-NanoSim. Gigascience. 2023 Mar 20;12:giad013. doi: [10.1093/gigascience/giad013](https://doi.org/10.1093/gigascience/giad013). PMID: 36939007; PMCID: PMC10025935.
+Yang C, Lo T, Nip KM, Hafezqorani S, Warren RL, Birol I; Characterization and simulation of metagenomic nanopore sequencing data with Meta-NanoSim. Gigascience. 2023 Mar 20;12:giad013. https://doi.org/10.1093/gigascience/giad013. PMID: 36939007; PMCID: PMC10025935.
 
 
 ## Dependencies
@@ -57,21 +62,18 @@ External programs:
 * [GenomeTools](http://genometools.org/) (Tested with version 1.6.1)
 
 ## Installation  
-
-Before you begin, make sure that your conda channels are [configured properly for bioconda](https://bioconda.github.io/). 
-
-Option 1. Install the latest release through bioconda:
-```
-conda install -c bioconda nanosim
-```
  
-Option 2. Install the development code in our repo:
+Install through Conda  
+`conda install -c bioconda nanosim`
+ 
+Or 
+clone the github repo, and install the dependencies as listed in the requirements.txt  
 1. `git clone https://github.com/bcgsc/NanoSim.git`  
 2. `conda create --name nanosim python=3.7`
 3. `conda activate nanosim`
 4. `conda install --file requirements.txt -c conda-forge -c bioconda`
 
-> **_NOTE:_**  If you have difficulty with installing all the dependent packages with `conda`. We strongly recommend that you create a dedicated environment for running NanoSim. If you have issues with `conda install` being eternally stuck, use **mamba** instead of `conda` to install your conda packages: https://github.com/mamba-org/mamba .
+> **_NOTE:_**  Please note that some users have difficulty with installing all the dependent packages with `conda`. We strongly recommend that you create a dedicated environment for running NanoSim. If you have issues with `conda install` being eternally stuck, use **mamba** instead of `conda` to install your conda packages: https://github.com/mamba-org/mamba .
 > 
 > So, integrating all these together:
 > ```
@@ -85,18 +87,32 @@ Option 2. Install the development code in our repo:
 ## Usage
 NanoSim is implemented using Python for error model fitting, read length analysis, and simulation. The first step of NanoSim is read characterization, which provides a comprehensive alignment-based analysis, and generates a set of read profiles serving as the input to the next step, the simulation stage. The simulation tool uses the model built in the previous step to produce in silico reads for a given reference genome/transcriptome. It also outputs a list of introduced errors, consisting of the position on each read, error type and reference bases.
 
+### Existing read profiles
+
+**Existing read profiles are available from the original NanoSim website (https://github.com/bcgsc/NanoSim/tree/master/pre-trained_models), and from this repository in the pre-trained_models folder.**  
+
+#### Original NanoSim profiles:
+
+For **releases before v2.2.0**, we provide profiles trained for _E. coli_ or _S. cerevisiae_ datasets. Flowcell chemistry is R7.3 and R9, and they were basecalled by Metrichor. They can be downloaded from **[our ftp site](http://www.bcgsc.ca/downloads/supplementary)**
+
+For **release v2.5.0 and onwards**, we provide profiles trained for _H. sapiens_ NA12878 gDNA, cDNA 1D2, and directRNA datasets, _Mus. musculus_ cDNA dataset, and the ZymoBIOMICS mock community datasets with 10 species and two abundance levels. Flowcell chemistry is R9.4 for all datasets. NA12878 gDNA and directRNA were basecalled by Guppy 3.1.5; NA12878 cDNA 1D2 was basecalled by Albacore 2.3.1; mouse cDNA was basecalled by Metrichor. These models are available within **[pre-trained_models folder](https://github.com/bcgsc/NanoSim/tree/master/pre-trained_models)**.  
+
+#### In-house NanoSim profiles:
+
+* amplicon_rbk: Trained on RBK R9.4.1 guppy high accuracy calling amplicon data.
+
 ### 1. Characterization stage  
 Characterization stage runs in five mode: genome, transcriptome, metagenome, quantify, and detect_ir. Below you may see the general usage of this code. We will explain each mode separately as well.
 
 __Characterization step general usage:__
 ```
 usage: read_analysis.py [-h] [-v]
-                        {genome,transcriptome,metagenome,quantify,detect_ir} ...
+                        {genome,transcriptome,metagenome, quantify,detect_ir} ...
 
 Read characterization step
 -----------------------------------------------------------
-Given raw ONT reads, reference genome, metagenome, and/or 
-transcriptome, learn read features and output error profiles
+Given raw ONT reads, reference genome and/or transcriptome,
+learn read features and output error profiles
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -109,48 +125,58 @@ subcommands:
       read_analysis.py mode -h
   -------------------------------------------------------
 
-  {genome,transcriptome,metagenome,quantify,detect_ir}
+  {genome,transcriptome,quantify,detect_ir}
     genome              Run the simulator on genome mode
     transcriptome       Run the simulator on transcriptome mode
     metagenome          Run the simulator on metagenome mode
-    quantify            Quantify transcriptome expression or metagenome abundance
-    detect_ir           Detect Intron Retention events using the alignment file
+    quantify            Quantify transcriptome expression or metagenome
+                        abundance
+    detect_ir           Detect Intron Retention events using the alignment
+                        file
+
 ```
 
-**genome mode**  
-If you are interested in simulating ONT genomic reads, you need to run the characterization stage in "genome" mode with following options. It takes a reference genome and a training read set in FASTA or FASTQ format as input and aligns these reads to the reference using minimap2 (default) or LAST aligner. User can also provide their own alignment file in SAM/BAM formats. If the SAM file is provided, make sure that is MD flag in the SAM file. The output of this is a bunch of profiles which you should use in simulation stage.
+**genome mode (and rbk mode)**  
+If you are interested in simulating ONT genomic reads in either 'genome' or 'rbk' mode, you need to run the characterization stage in "genome" mode with following options. It takes a reference genome and a training read set in FASTA or FASTQ format as input and aligns these reads to the reference using minimap2 (default) or LAST aligner. User can also provide their own alignment file in SAM or MAF formats. If the SAM file is provided, make sure that is MD flag in the SAM file. The output of this is a bunch of profiles which you should use in simulation stage.
 
 __genome mode usage:__
 ```
-usage: read_analysis.py genome [-h] -i READ [-rg REF_G] [-a {minimap2,LAST}] [-ga G_ALNM]
-                               [-o OUTPUT] [-c] [--no_model_fit] [-t NUM_THREADS]
+usage: read_analysis.py genome [-h] -i READ [-rg REF_G] [-a {minimap2,LAST}]
+                               [-ga G_ALNM] [-o OUTPUT] [-c] [--no_model_fit]
+                               [-t NUM_THREADS]
 
 optional arguments:
   -h, --help            show this help message and exit
   -i READ, --read READ  Input read for training
   -rg REF_G, --ref_g REF_G
-                        Reference genome, not required if genome alignment file is provided
+                        Reference genome, not required if genome alignment
+                        file is provided
   -a {minimap2,LAST}, --aligner {minimap2,LAST}
-                        The aligner to be used, minimap2 or LAST (Default = minimap2)
+                        The aligner to be used, minimap2 or LAST (Default =
+                        minimap2)
   -ga G_ALNM, --g_alnm G_ALNM
-                        Genome alignment file in SAM/BAM format (optional)
+                        Genome alignment file in sam/bam or maf format (optional)
   -o OUTPUT, --output OUTPUT
-                        The location and prefix of outputting profiles (Default = training)
+                        The location and prefix of outputting profiles
+                        (Default = training)
   -c, --chimeric        Detect chimeric and split reads (Default = False)
   --no_model_fit        Disable model fitting step
   -t NUM_THREADS, --num_threads NUM_THREADS
-                        Number of threads for alignment and model fitting (Default = 1)
+                        Number of threads for alignment and model fitting
+                        (Default = 1)
+
 ```
 
 **transcriptome mode**  
-If you are interested in simulating ONT transcriptome reads (cDNA / directRNA), you need to run the characterization stage in "transcriptome" mode with following options. It takes a reference transcriptome, a reference genome, and a training read set in FASTA or FASTQ format as input and aligns these reads to the reference using minimap2 (default) or LAST aligner. User can also provide their own alignment file in SAM/BAM formats. If the SAM file is provided, make sure that is MD flag in the SAM file. The output of this is a bunch of profiles which you should use in simulation stage.
+If you are interested in simulating ONT transcriptome reads (cDNA / directRNA), you need to run the characterization stage in "transcriptome" mode with following options. It takes a reference transcriptome, a reference genome, and a training read set in FASTA or FASTQ format as input and aligns these reads to the reference using minimap2 (default) or LAST aligner. User can also provide their own alignment file in SAM or MAF formats. If the SAM file is provided, make sure that is MD flag in the SAM file. The output of this is a bunch of profiles which you should use in simulation stage.
 
 __transcriptome mode usage:__
 ```
-usage: read_analysis.py transcriptome [-h] -i READ -rg REF_G -rt REF_T [-annot ANNOTATION]
-                                      [-a {minimap2,LAST}] [-ga G_ALNM] [-ta T_ALNM] [-o OUTPUT]
-                                      [--no_model_fit] [--no_intron_retention] [-t NUM_THREADS]
-                                      [-c] [-q] [-n]
+usage: read_analysis.py transcriptome [-h] -i READ [-rg REF_G] -rt REF_T
+                                      [-annot ANNOTATION] [-a {minimap2,LAST}]
+                                      [-ga G_ALNM] [-ta T_ALNM] [-o OUTPUT]
+                                      [--no_model_fit] [--no_intron_retention]
+                                      [-t NUM_THREADS]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -160,24 +186,26 @@ optional arguments:
   -rt REF_T, --ref_t REF_T
                         Reference Transcriptome
   -annot ANNOTATION, --annotation ANNOTATION
-                        Annotation file in ensemble GTF/GFF formats, required for intron
-                        retention detection
+                        Annotation file in ensemble GTF/GFF formats, required
+                        for intron retention detection
   -a {minimap2,LAST}, --aligner {minimap2,LAST}
-                        The aligner to be used: minimap2 or LAST (Default = minimap2)
+                        The aligner to be used: minimap2 or LAST (Default =
+                        minimap2)
   -ga G_ALNM, --g_alnm G_ALNM
-                        Genome alignment file in SAM/BAM format (optional)
+                        Genome alignment file in sam/bam or maf format (optional)
   -ta T_ALNM, --t_alnm T_ALNM
-                        Transcriptome alignment file in SAM/BAM format (optional)
+                        Transcriptome alignment file in sam/bam or maf format
+                        (optional)
   -o OUTPUT, --output OUTPUT
-                        The location and prefix of outputting profiles (Default = training)
+                        The location and prefix of outputting profiles
+                        (Default = training)
   --no_model_fit        Disable model fitting step
   --no_intron_retention
                         Disable Intron Retention analysis
   -t NUM_THREADS, --num_threads NUM_THREADS
-                        Number of threads for alignment and model fitting (Default = 1)
-  -c, --chimeric        Detect chimeric and split reads (Default = False)
-  -q, --quantification  Perform abundance quantification (Default = False)
-  -n, --normalize       Normalize by transcript length
+                        Number of threads for alignment and model fitting
+                        (Default = 1)
+
 ```
 
 **metagenome mode**
@@ -185,28 +213,34 @@ If you are interested in simulating ONT metagenome reads, you need to run the ch
 
 __metagenome mode usage:__
 ```
-usage: read_analysis.py metagenome [-h] -i READ -gl GENOME_LIST [-ga G_ALNM] [-o OUTPUT] [-c]
-                                   [-q] [--no_model_fit] [-t NUM_THREADS]
+usage: read_analysis.py metagenome [-h] -i READ -gl GENOME_LIST [-ga G_ALNM]
+                                   [-o OUTPUT] [-c] [-q] [--no_model_fit]
+                                   [--bad_ends] [-t NUM_THREADS]
 
 optional arguments:
   -h, --help            show this help message and exit
   -i READ, --read READ  Input read for training
   -gl GENOME_LIST, --genome_list GENOME_LIST
-                        Reference metagenome list, tsv file, the first column is species/strain
-                        name, the second column is the reference genome fasta/fastq file
-                        directory, the third column is optional, if provided, it contains the
+                        Reference metagenome list, tsv file, the first column
+                        is species/strain name, the second column is the
+                        reference genome fasta/fastq file directory, the third
+                        column is optional, if provided, it contains the
                         expected abundance (sum up to 100)
   -ga G_ALNM, --g_alnm G_ALNM
-                        Genome alignment file in sam format, the header of each species should
-                        match the metagenome list provided above (optional)
+                        Genome alignment file in sam/bam format, the header of
+                        each species should match the metagenome list provided
+                        above (optional)
   -o OUTPUT, --output OUTPUT
-                        The location and prefix of outputting profiles (Default = training)
+                        The location and prefix of outputting profiles
+                        (Default = training)
   -c, --chimeric        Detect chimeric and split reads (Default = False)
-  -q, --quantification  Perform abundance quantification and compute the deviation between
-                        calculated abundance and expected values (Default = False)
+  -q, --quantification  Perform Salmon quantification and compute the
+                        variation in abundance when compared to expected
+                        values (Default = False)
   --no_model_fit        Disable model fitting step
   -t NUM_THREADS, --num_threads NUM_THREADS
-                        Number of threads for alignment and model fitting (Default = 1)
+                        Number of threads for alignment and model fitting
+                        (Default = 1)
 ```
 
 
@@ -215,8 +249,9 @@ If you are interested in quantifying the expression levels of transcriptome or a
 
 __quantifty mode usage:__
 ```
-usage: read_analysis.py quantify [-h] -e E -i READ [-rt REF_T] [-gl GENOME_LIST] [-ga G_ALNM]
-                                 [-ta T_ALNM] [-o OUTPUT] [-t NUM_THREADS] [-n]
+usage: read_analysis.py quantify [-h] -e E -i READ [-rt REF_T]
+                                 [-gl GENOME_LIST] [-ga G_ALNM] [-o OUTPUT]
+                                 [-t NUM_THREADS]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -225,20 +260,21 @@ optional arguments:
   -rt REF_T, --ref_t REF_T
                         Reference Transcriptome
   -gl GENOME_LIST, --genome_list GENOME_LIST
-                        Reference metagenome list, tsv file, the first column is species/strain
-                        name, the second column is the reference genome fasta/fastq file
-                        directory, the third column is optional, if provided, it contains the
+                        Reference metagenome list, tsv file, the first column
+                        is species/strain name, the second column is the
+                        reference genome fasta/fastq file directory, the third
+                        column is optional, if provided, it contains the
                         expected abundance (sum up to 100)
-  -ga G_ALNM, --g_alnm G_ALNM
-                        Genome alignment file in sam format, the header of each species should
-                        match the metagenome list provided above (optional)
-  -ta T_ALNM, --t_alnm T_ALNM
-                        Transcriptome alignment file in sam format(optional)
+  -a G_ALNM, --alnm G_ALNM
+                        Genome alignment file in sam / bam format, the header of
+                        each species should match the metagenome list provided
+                        above (optional)
   -o OUTPUT, --output OUTPUT
-                        The location and prefix of outputting profile (Default = expression)
+                        The location and prefix of outputting profile (Default
+                        = expression)
   -t NUM_THREADS, --num_threads NUM_THREADS
                         Number of threads for alignment (Default = 1)
-  -n, --normalize       Normalize by transcript length
+
 ```
 
 If `-e trans` is used, users need to provide the reference transcriptome through `-rt` parameter; if `-e meta` is used, users need to provide a genome list containing all reference genome and the path to them through `-gl` parameter OR provide genome alignment file through `-a` parameter.
@@ -248,47 +284,46 @@ The "transcriptome" mode of the NanoSim is able to model features of the library
 
 __detect_ir mode usage:__
 ```
-usage: read_analysis.py detect_ir [-h] -annot ANNOTATION [-i READ] [-rg REF_G] [-rt REF_T]
-                                  [-a {minimap2,LAST}] [-o OUTPUT] [-ga G_ALNM] [-ta T_ALNM]
-                                  [-t NUM_THREADS]
+usage: read_analysis.py detect_ir [-h] -annot ANNOTATION [-i READ] [-rg REF_G]
+                                  [-rt REF_T] [-a {minimap2,LAST}] [-o OUTPUT]
+                                  [-ga G_ALNM] [-ta T_ALNM] [-t NUM_THREADS]
 
 optional arguments:
   -h, --help            show this help message and exit
   -annot ANNOTATION, --annotation ANNOTATION
                         Annotation file in ensemble GTF/GFF formats
-  -i READ, --read READ  Input read for training, not required if alignment files are provided
+  -i READ, --read READ  Input read for training, not required if alignment
+                        files are provided
   -rg REF_G, --ref_g REF_G
-                        Reference genome, not required if genome alignment file is provided
+                        Reference genome, not required if genome alignment
+                        file is provided
+                        
   -rt REF_T, --ref_t REF_T
-                        Reference Transcriptome, not required if transcriptome alignment file is
-                        provided
+                        Reference Transcriptome, not required if transcriptome
+                        alignment file is provided
   -a {minimap2,LAST}, --aligner {minimap2,LAST}
-                        The aligner to be used: minimap2 or LAST (Default = minimap2)
+                        The aligner to be used: minimap2 or LAST (Default =
+                        minimap2)
   -o OUTPUT, --output OUTPUT
                         The output name and location
   -ga G_ALNM, --g_alnm G_ALNM
-                        Genome alignment file in SAM/BAM format (optional)
+                        Genome alignment file in sam/bam or maf format (optional)
   -ta T_ALNM, --t_alnm T_ALNM
-                        Transcriptome alignment file in SAM/BAM format (optional)
+                        Transcriptome alignment file in sam/bam or maf format
+                        (optional)
   -t NUM_THREADS, --num_threads NUM_THREADS
                         Number of threads for alignment (Default = 1)
+
 ```
 
 \* NOTICE: -ga/-ta option allows users to provide their own alignment file. Make sure that the name of query sequences are the same as appears in the FASTA files. For FASTA files, some headers have spaces in them and most aligners only take part of the header (before the first white space/tab) as the query name. However, the truncated headers may not be unique if using the output of poretools. We suggest users to pre-process the fasta files by concatenating all elements in the header via '\_' before alignment and feed the processed FASTA file as input of NanoSim.
 
-### Downloads  
-**Some ONT read profiles are ready to use for users. With the profiles, users can run simulation tool directly.**  
-
-For **releases before v2.2.0**, we provide profiles trained for _E. coli_ or _S. cerevisiae_ datasets. Flowcell chemistry is R7.3 and R9, and they were basecalled by Metrichor. They can be downloaded from **[our ftp site](http://www.bcgsc.ca/downloads/supplementary/NanoSim/)**
-
-For **release v2.5.0 and onwards**, we provide profiles trained for _H. sapiens_ NA12878 gDNA, cDNA 1D2, and directRNA datasets, _Mus. musculus_ cDNA dataset, and the ZymoBIOMICS mock community datasets with 10 species and two abundance levels. Flowcell chemistry is R9.4 for all datasets. NA12878 gDNA and directRNA were basecalled by Guppy 3.1.5; NA12878 cDNA 1D2 was basecalled by Albacore 2.3.1; mouse cDNA was basecalled by Metrichor. These models are available within **[pre-trained_models folder](https://github.com/bcgsc/NanoSim/tree/master/pre-trained_models)**.  
-
 ### 2. Simulation stage
-Simulation stage takes reference genome/transcriptome and read profiles as input and outputs simulated reads in FASTA format. Simulation stage runs in two modes: "genome" and "transcriptome" and you may use either of them based on your needs.
+Simulation stage takes reference genome/transcriptome and read profiles as input and outputs simulated reads in FASTA format. 
 
 __Simulation stage general usage:__
 ```
-usage: simulator.py [-h] [-v] {genome,transcriptome,metagenome} ...
+usage: simulator.py [-h] [-v] {rbk,genome,transcriptome,metagenome} ...
 
 Simulation step
 -----------------------------------------------------------
@@ -306,9 +341,10 @@ subcommands:
       simulator.py mode -h
   -------------------------------------------------------
 
-  {genome,transcriptome}
-                        You may run the simulator on genome, transcriptome,
+
+                        You may run the simulator on rbk, genome, transcriptome,
                         or metagenome mode.
+    rbk                 Run the simulator on rbk mode
     genome              Run the simulator on genome mode
     transcriptome       Run the simulator on transcriptome mode
     metagenome          Run the simulator on metagenome mode
@@ -316,7 +352,7 @@ subcommands:
 ```
 
 **genome mode**  
-If you are interested in simulating ONT genomic reads, you need to run the simulation stage in "genome" mode with following options.
+Used for simulating ONT genomic reads in the original NanoSim. Parameters are the same as for 'rbk' mode below.
 
 __genome mode usage:__
 ```
@@ -325,8 +361,26 @@ usage: simulator.py genome [-h] -rg REF_G [-c MODEL_PREFIX] [-o OUTPUT]
                            [-med MEDIAN_LEN] [-sd SD_LEN] [--seed SEED]
                            [-k KMERBIAS] [-b {albacore,guppy,guppy-flipflop}]
                            [-s STRANDNESS] [-dna_type {linear,circular}]
-                           [--perfect] [--fastq] [--chimeric] [-t NUM_THREADS]
+                           [--perfect] [--fastq] [--chimeric] [--bad_ends] 
+                           [-t NUM_THREADS]
+```
 
+**rbk mode**  
+'rbk' mode models the read distributions seen from using the rapid barcoding kit, where there is a high coverage of forward reads and low coverage of reverse reads at the 3' chromosome/amplicon boundary, and a low coverage of forward reads and high coverage of reverse reads at the 5' chromosome/amplicon boundary. 'genome' mode instead results in low coverage in both forward and reverse reads at chromosome/amplicon boundaries. 'rbk' mode uses the same read profiles as 'genome' mode.
+
+__rbk mode usage:__
+```
+usage: simulator.py genome [-h] -rg REF_G [-c MODEL_PREFIX] [-o OUTPUT]
+                           [-n NUMBER] [-max MAX_LEN] [-min MIN_LEN]
+                           [-med MEDIAN_LEN] [-sd SD_LEN] [--seed SEED]
+                           [-k KMERBIAS] [-b {albacore,guppy,guppy-flipflop}]
+                           [-s STRANDNESS] [-dna_type {linear,circular}]
+                           [--perfect] [--fastq] [--chimeric] [--bad_ends] 
+                           [-t NUM_THREADS]
+```
+
+__genome and rbk mode arguments:__
+```
 optional arguments:
   -h, --help            show this help message and exit
   -rg REF_G, --ref_g REF_G
@@ -369,6 +423,7 @@ optional arguments:
   --perfect             Ignore error profiles and simulate perfect reads
   --fastq               Output fastq files instead of fasta files
   --chimeric            Simulate chimeric reads
+  --bad_ends            Simulate unaligned regions at both ends of reads
   -t NUM_THREADS, --num_threads NUM_THREADS
                         Number of threads for simulation (Default = 1)
 
@@ -385,7 +440,7 @@ usage: simulator.py transcriptome [-h] -rt REF_T [-rg REF_G] -e EXP
                                   [-k KMERBIAS] [-b {albacore,guppy}]
                                   [-r {dRNA,cDNA_1D,cDNA_1D2}] [-s STRANDNESS]
                                   [--no_model_ir] [--perfect] [--polya POLYA]
-                                  [--fastq] [-t NUM_THREADS] [--uracil]
+                                  [--fastq] [--bad_ends] [-t NUM_THREADS] [--uracil]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -427,6 +482,7 @@ optional arguments:
   --perfect             Ignore profiles and simulate perfect reads
   --polya POLYA         Simulate polyA tails for given list of transcripts
   --fastq               Output fastq files instead of fasta files
+  --bad_ends            Simulate unaligned regions at both ends of reads
   -t NUM_THREADS, --num_threads NUM_THREADS
                         Number of threads for simulation (Default = 1)
   --uracil              Converts the thymine (T) bases to uracil (U) in the
@@ -461,7 +517,7 @@ usage: simulator.py metagenome [-h] -gl GENOME_LIST -a ABUN -dl DNA_TYPE_LIST
                                [-b {albacore,guppy,guppy-flipflop}]
                                [-s STRANDNESS] [--perfect]
                                [--abun_var ABUN_VAR [ABUN_VAR ...]] [--fastq]
-                               [--chimeric] [-t NUM_THREADS]
+                               [--chimeric] [--bad_ends] [-t NUM_THREADS]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -512,9 +568,10 @@ optional arguments:
   --abun_var ABUN_VAR [ABUN_VAR ...]
                         Simulate random variation in abundance values, takes
                         in two values, format: relative_var_low,
-                        relative_var_high, Example: -0.5 0.5)
+                        relative_var_high, Example: -0.5 0.5
   --fastq               Output fastq files instead of fasta files
   --chimeric            Simulate chimeric reads
+  --bad_ends            Simulate unaligned regions at both ends of reads
   -t NUM_THREADS, --num_threads NUM_THREADS
                         Number of threads for simulation (Default = 1)
 ```
@@ -584,15 +641,15 @@ __Example runs:__
 1. `training_aligned_region.pkl` Kernel density function of aligned regions on aligned reads  
 2. `training_aligned_reads.pkl` Kernel density function of aligned reads  
 3. `training_ht_length.pkl`  Kernel density function of unaligned regions on aligned reads  
-4. `training_besthit.bam` The best alignment of each read based on length  
+4. `training_besthit.maf/sam` The best alignment of each read based on length  
 5. `training_match.hist/training_mis.hist/training_del.hist/training_ins.hist` Histogram of match, mismatch, and indels  
 6. `training_first_match.hist` Histogram of the first match length of each alignment  
 7. `training_error_markov_model` Markov model of error types  
 8. `training_ht_ratio.pkl` Kernel density function of head/(head + tail) on aligned reads    
-9. `training.bam` The alignment output  
+9. `training.maf/sam` The alignment output  
 10. `training_match_markov_model` Markov model of the length of matches (stretches of correct base calls)  
 11. `training_model_profile` Fitted model for errors  
-12. `training_processed.bam` A re-formatted BAM file for user-provided alignment file  
+12. `training_processed.maf` A re-formatted MAF file for user-provided alignment file  
 13. `training_unaligned_length.pkl` Kernel density function of unaligned reads  
 14. `training_error_rate.tsv` Mismatch rate, insertion rate and deletion rate
 15. `training_strandness_rate` Strandness rate in input reads
@@ -602,15 +659,15 @@ __Example runs:__
 2. `training_aligned_region_2d.pkl` Two-dimensional kernel density function of aligned regions over the length of reference transcript they aligned
 3. `training_aligned_reads.pkl` Kernel density function of aligned reads
 4. `training_ht_length.pkl`  Kernel density function of unaligned regions on aligned reads
-5. `training_besthit.bam` The best alignment of each read based on length
+5. `training_besthit.maf/sam` The best alignment of each read based on length
 6. `training_match.hist/training_mis.hist/training_del.hist/training_ins.hist` Histogram of match, mismatch, and indels
 7. `training_first_match.hist` Histogram of the first match length of each alignment
 8. `training_error_markov_model` Markov model of error types
 9. `training_ht_ratio.pkl` Kernel density function of head/(head + tail) on aligned reads
-10. `training.bam` The alignment output
+10. `training.maf/sam` The alignment output
 11. `training_match_markov_model` Markov model of the length of matches (stretches of correct base calls)
 12. `training_model_profile` Fitted model for errors
-13. `training_processed.bam` A re-formatted BAM file for user-provided alignment file
+13. `training_processed.maf` A re-formatted MAF file for user-provided alignment file
 14. `training_unaligned_length.pkl` Kernel density function of unaligned reads
 15. `training_error_rate.tsv` Mismatch rate, insertion rate and deletion rate
 16. `training_strandness_rate` Strandness rate in input reads
@@ -622,15 +679,15 @@ __Example runs:__
 1. `training_aligned_region.pkl` Kernel density function of aligned regions on aligned reads  
 2. `training_aligned_reads.pkl` Kernel density function of aligned reads  
 3. `training_ht_length.pkl`  Kernel density function of unaligned regions on aligned reads  
-4. `training_besthit.bam` The best alignment of each read based on length  
+4. `training_besthit.maf/sam` The best alignment of each read based on length  
 5. `training_match.hist/training_mis.hist/training_del.hist/training_ins.hist` Histogram of match, mismatch, and indels  
 6. `training_first_match.hist` Histogram of the first match length of each alignment  
 7. `training_error_markov_model` Markov model of error types  
 8. `training_ht_ratio.pkl` Kernel density function of head/(head + tail) on aligned reads    
-9. `training.bam` The alignment output  
+9. `training.maf/sam` The alignment output  
 10. `training_match_markov_model` Markov model of the length of matches (stretches of correct base calls)  
 11. `training_model_profile` Fitted model for errors  
-12. `training_processed.bam` A re-formatted BAM file for user-provided alignment file  
+12. `training_processed.maf` A re-formatted MAF file for user-provided alignment file  
 13. `training_unaligned_length.pkl` Kernel density function of unaligned reads  
 14. `training_error_rate.tsv` Mismatch rate, insertion rate and deletion rate
 15. `training_strandness_rate` Strandness rate in input reads
