@@ -15,8 +15,10 @@ NanoSim [(v2.6)](https://github.com/bcgsc/NanoSim/releases/tag/v2.6.0) is able t
 
 NanoSim [(v3.0)](https://github.com/bcgsc/NanoSim/releases/tag/v3.0.0) is able to simulate ONT metagenome reads. It quantifies metagenome abundance in the characterization stage, and accomodates for chimeric reads. In the simulation stage, it simulates both features as well. In addition, the simulation of chimeric reads is available in genome mode too. Some pre-trained models are re-trained for compatibility issues.
 
-**We provide 9 pre-trained models in the latest release! Users can choose to download the whole package or only scripts without models to speed it up**
+> **_NOTE:_**
+> We usually add new pre-trained models and make them available through the latest releases! Users can choose to download the whole package or only scripts without models to speed it up. Please check the [downloads](https://github.com/bcgsc/NanoSim/edit/master/README.md#downloads) section for more information regarding the pre-trained models.
 
+##
 ![Citation](https://img.shields.io/badge/NanoSim-manuscript-ff69b4)  
 If you use NanoSim to simulate genomic reads, please cite the following paper:
 
@@ -36,7 +38,7 @@ Yang C, Lo T, Nip KM, Hafezqorani S, Warren RL, Birol I. Characterization and si
 
 ## Dependencies
 
-> **_NOTE:_**  Please kindly note that the pretrained models in NanoSim (v3.0.2) were made using an older version of `scikit-learn` (e.g. <=0.22.1). If you have to use these models (instead of creating your own models), then you **must** use `scikit-learn=0.22.1` but not the newer versions. If you have a newer version of `scikit-learn` installed, then you will get the error for `No module named 'sklearn.neighbors.kde'`. If you would like to create your own models (instead of using the pretrained models), then NanoSim should work just fine with `scikit-learn=1.0.2` from our experience. The next release of NanoSim will include newly pre-trained models with the updated versions of required packages in order to solve the incompatibility issues. 
+> **_NOTE:_**  Please kindly note that the pretrained models in NanoSim (v3.0.2) were made using an older version of `scikit-learn` (e.g. <=0.22.1). If you have to use these models (instead of creating your own models), then you **must** use `scikit-learn=0.22.1` but not the newer versions. If you have a newer version of `scikit-learn` installed, then you will get the error for `No module named 'sklearn.neighbors.kde'`. If you would like to create your own models (instead of using the pretrained models), then NanoSim should work just fine with `scikit-learn=1.0.2` from our experience. For future releases of NanoSim, we will try to include newly pre-trained models with the updated versions of required packages in order to solve the incompatibility issues.
 
 ![Python}](https://img.shields.io/pypi/pyversions/py)  
 Python packages:  
@@ -81,6 +83,17 @@ Option 2. Install the development code in our repo:
 > mamba install scikit-learn=0.22.1 six samtools pysam pybedtools minimap2 joblib htseq genometools-genometools
 > ```
 > Note that here we only specified the version for `scikit-learn` but not for the other packages. `mamba` should be able to pick the appropriate versions for the specified packages, python, and numpy, etc.
+
+## Downloads  
+**Some ONT read profiles are ready to use for users. With the profiles, users can run the simulation tool directly.**  
+
+For **releases before v2.2.0**, we provide profiles trained for _E. coli_ or _S. cerevisiae_ datasets. Flowcell chemistry is R7.3 and R9, and they were basecalled by Metrichor. They can be downloaded from **[our ftp site](http://www.bcgsc.ca/downloads/supplementary/NanoSim/)**
+
+For **release v2.5.0 and onwards**, we provide profiles trained for _H. sapiens_ NA12878 gDNA, cDNA 1D2, and directRNA datasets, _Mus. musculus_ cDNA dataset, and the ZymoBIOMICS mock community datasets with 10 species and two abundance levels. Flowcell chemistry is R9.4 for all datasets. NA12878 gDNA and directRNA were basecalled by Guppy 3.1.5; NA12878 cDNA 1D2 was basecalled by Albacore 2.3.1; mouse cDNA was basecalled by Metrichor. These models are available within **[pre-trained_models folder](https://github.com/bcgsc/NanoSim/tree/master/pre-trained_models)**.  
+
+For **release v3.1.1**, we provide a trained model for _H. sapiens_ NA24385 - AshkenazimTrio - Son (hg002) which is sequenced using Kit **v14** (R10 chemistry) and basecalled by dorado. You may find the trained model on 1 Million subsampled reads on the GitHub page (available along with the other models at **[pre-trained_models folder](https://github.com/bcgsc/NanoSim/tree/master/pre-trained_models)**). If you are interested in the trained model based on the whole dataset, you can get it through **[Zenodo - DOI: 10.5281/zenodo.10064740](https://zenodo.org/records/10064741)**. The model is trained using `NanoSim v3.0.2` with `scikit-learn v0.23.2` and `python v3.7.10`.
+
+**If you have any issues using the pre-trained models, check the [dependencies](https://github.com/bcgsc/NanoSim/edit/master/README.md#dependencies) section for some information and tips.**
 
 ## Usage
 NanoSim is implemented using Python for error model fitting, read length analysis, and simulation. The first step of NanoSim is read characterization, which provides a comprehensive alignment-based analysis, and generates a set of read profiles serving as the input to the next step, the simulation stage. The simulation tool uses the model built in the previous step to produce in silico reads for a given reference genome/transcriptome. It also outputs a list of introduced errors, consisting of the position on each read, error type and reference bases.
@@ -275,13 +288,6 @@ optional arguments:
 ```
 
 \* NOTICE: -ga/-ta option allows users to provide their own alignment file. Make sure that the name of query sequences are the same as appears in the FASTA files. For FASTA files, some headers have spaces in them and most aligners only take part of the header (before the first white space/tab) as the query name. However, the truncated headers may not be unique if using the output of poretools. We suggest users to pre-process the fasta files by concatenating all elements in the header via '\_' before alignment and feed the processed FASTA file as input of NanoSim.
-
-### Downloads  
-**Some ONT read profiles are ready to use for users. With the profiles, users can run simulation tool directly.**  
-
-For **releases before v2.2.0**, we provide profiles trained for _E. coli_ or _S. cerevisiae_ datasets. Flowcell chemistry is R7.3 and R9, and they were basecalled by Metrichor. They can be downloaded from **[our ftp site](http://www.bcgsc.ca/downloads/supplementary/NanoSim/)**
-
-For **release v2.5.0 and onwards**, we provide profiles trained for _H. sapiens_ NA12878 gDNA, cDNA 1D2, and directRNA datasets, _Mus. musculus_ cDNA dataset, and the ZymoBIOMICS mock community datasets with 10 species and two abundance levels. Flowcell chemistry is R9.4 for all datasets. NA12878 gDNA and directRNA were basecalled by Guppy 3.1.5; NA12878 cDNA 1D2 was basecalled by Albacore 2.3.1; mouse cDNA was basecalled by Metrichor. These models are available within **[pre-trained_models folder](https://github.com/bcgsc/NanoSim/tree/master/pre-trained_models)**.  
 
 ### 2. Simulation stage
 Simulation stage takes reference genome/transcriptome and read profiles as input and outputs simulated reads in FASTA format. Simulation stage runs in two modes: "genome" and "transcriptome" and you may use either of them based on your needs.
