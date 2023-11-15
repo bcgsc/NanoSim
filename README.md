@@ -93,7 +93,7 @@ For **release v2.5.0 and onwards**, we provide profiles trained for _H. sapiens_
 
 For **release v3.1.1**, we provide a trained model for _H. sapiens_ NA24385 - AshkenazimTrio - Son (hg002) which is sequenced using Kit **v14** (R10 chemistry) and basecalled by dorado. You may find the trained model on 1 Million subsampled reads on the GitHub page (available along with the other models at **[pre-trained_models folder](https://github.com/bcgsc/NanoSim/tree/master/pre-trained_models)**). If you are interested in the trained model based on the whole dataset, you can get it through **[Zenodo - DOI: 10.5281/zenodo.10064740](https://zenodo.org/records/10064741)**. The model is trained using `NanoSim v3.0.2` with `scikit-learn v0.23.2` and `python v3.7.10`.
 
-**If you have any issues using the pre-trained models, check the [dependencies](https://github.com/bcgsc/NanoSim/edit/master/README.md#dependencies) section for some information and tips.**
+**If you have any issues using the pre-trained models, check the [dependencies](https://github.com/bcgsc/NanoSim#dependencies) section for some information and tips.**
 
 ## Usage
 NanoSim is implemented using Python for error model fitting, read length analysis, and simulation. The first step of NanoSim is read characterization, which provides a comprehensive alignment-based analysis, and generates a set of read profiles serving as the input to the next step, the simulation stage. The simulation tool uses the model built in the previous step to produce in silico reads for a given reference genome/transcriptome. It also outputs a list of introduced errors, consisting of the position on each read, error type and reference bases.
