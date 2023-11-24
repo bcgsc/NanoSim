@@ -131,7 +131,7 @@ subcommands:
 ```
 
 **genome mode**  
-If you are interested in simulating ONT genomic reads, you need to run the characterization stage in "genome" mode with following options. It takes a reference genome and a training read set in FASTA or FASTQ format as input and aligns these reads to the reference using minimap2 (default) or LAST aligner. User can also provide their own alignment file in SAM/BAM formats. If the SAM file is provided, make sure that is MD flag in the SAM file. The output of this is a bunch of profiles which you should use in simulation stage.
+If you are interested in simulating ONT genomic reads, you need to run the characterization stage in "genome" mode with following options. It takes a reference genome and a training read set in FASTA or FASTQ format as input and aligns these reads to the reference using minimap2 (default) or LAST aligner. User can also provide their own alignment file in SAM/BAM formats. If a SAM/BAM file is provided, make sure the alignments contain the `cs` tag (See [minimap2](https://lh3.github.io/minimap2/minimap2.html#10)) and `MD` flag. The output of this is a bunch of profiles which you should use in simulation stage.
 
 __genome mode usage:__
 ```
@@ -156,7 +156,7 @@ optional arguments:
 ```
 
 **transcriptome mode**  
-If you are interested in simulating ONT transcriptome reads (cDNA / directRNA), you need to run the characterization stage in "transcriptome" mode with following options. It takes a reference transcriptome, a reference genome, and a training read set in FASTA or FASTQ format as input and aligns these reads to the reference using minimap2 (default) or LAST aligner. User can also provide their own alignment file in SAM/BAM formats. If the SAM file is provided, make sure that is MD flag in the SAM file. The output of this is a bunch of profiles which you should use in simulation stage.
+If you are interested in simulating ONT transcriptome reads (cDNA / directRNA), you need to run the characterization stage in "transcriptome" mode with following options. It takes a reference transcriptome, a reference genome, and a training read set in FASTA or FASTQ format as input and aligns these reads to the reference using minimap2 (default) or LAST aligner. User can also provide their own alignment file in SAM/BAM formats. If a SAM/BAM file is provided, make sure the alignments contain the `cs` tag (See [minimap2](https://lh3.github.io/minimap2/minimap2.html#10)) and `MD` flag. The output of this is a bunch of profiles which you should use in simulation stage.
 
 __transcriptome mode usage:__
 ```
@@ -194,7 +194,7 @@ optional arguments:
 ```
 
 **metagenome mode**
-If you are interested in simulating ONT metagenome reads, you need to run the characterization stage in "metagenome" mode with following options. It takes a metagenome list with paths pointing to each genome and a training read set in FASTA or FASTQ format as input and aligns these reads to the reference using minimap2. User can also provide their own alignment file in SAM formats. If the SAM file is provided, make sure that is MD flag in the SAM file. The output of this is a bunch of profiles which you should use in simulation stage.
+If you are interested in simulating ONT metagenome reads, you need to run the characterization stage in "metagenome" mode with following options. It takes a metagenome list with paths pointing to each genome and a training read set in FASTA or FASTQ format as input and aligns these reads to the reference using minimap2. User can also provide their own alignment file in SAM formats. If a SAM/BAM file is provided, make sure the alignments contain the `cs` tag (See [minimap2](https://lh3.github.io/minimap2/minimap2.html#10)) and `MD` flag. The output of this is a bunch of profiles which you should use in simulation stage.
 
 __metagenome mode usage:__
 ```
