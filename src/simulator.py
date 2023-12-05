@@ -1321,7 +1321,7 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
                     seg_error_dict_list.append(error_dict)
                     seg_error_count_list.append(error_count)
 
-                if total < min_l or total > max_l or max(seg_length_list) > max_chrom:
+                if total < min_l or total > max_l:
                     continue
 
                 seg_pointer += segments
