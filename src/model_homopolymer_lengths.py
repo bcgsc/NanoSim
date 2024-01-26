@@ -215,14 +215,17 @@ def model_homopolymer_lengths(alnm_file, min_hp_len, prefix):
 
     # Identify homopolymers in alignment file
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Parsing alignment file for homopolymers\n")
+    sys.stdout.flush()
     hp_lengths_per_base, hp_alnms = analyze_homopolymers(alnm_file, min_hp_len, prefix)
 
     # Calculate mismatch rates in homopolymers
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Calculating mismatch rates in homopolymers\n")
+    sys.stdout.flush()
     mismatch_rate = calc_homopolymer_mis_rate(hp_alnms)
 
     # Estimate model parameters and write to file
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Estimating model parameters\n")
+    sys.stdout.flush()
     pw_header, pw_estimates = fit_piecewise(hp_lengths_per_base)
     lr_header, lr_estimates = fit_lr(hp_lengths_per_base)
 
