@@ -142,7 +142,7 @@ def EM_trans(read_list, all_trans, normalize):
     return tpm_list
 
 
-def primary_and_unaligned(sam_alnm_file, prefix, metagenome_list=None):
+def primary_and_unaligned(sam_alnm_file, prefix, metagenome_list=None, fastq=False):
     in_sam_file = pysam.AlignmentFile(sam_alnm_file)
     out_sam_file = pysam.AlignmentFile(prefix + "_primary.bam", 'wb', template=in_sam_file, add_sam_header=True)
     if metagenome_list:
@@ -151,6 +151,8 @@ def primary_and_unaligned(sam_alnm_file, prefix, metagenome_list=None):
     unaligned_len = []
     pos_strand = 0
     num_aligned = 0
+
+    unaligned_bq = []
 
     all_species = {}
     for info in in_sam_file.header['SQ']:
@@ -169,6 +171,8 @@ def primary_and_unaligned(sam_alnm_file, prefix, metagenome_list=None):
                 quant_dic[(aln.query_name, (aln.query_alignment_start, aln.query_alignment_end))] = [species]
         elif aln.is_unmapped:
             unaligned_len.append(aln.query_length)
+            if fastq and aln.query_alignment_qualities:
+                unaligned_bq += aln.query_alignment_qualities.tolist()
         elif aln.is_secondary or aln.is_supplementary:
             if metagenome_list:
                 qstart, qend, _, _ = cigar_parser(aln.cigarstring)
@@ -210,10 +214,10 @@ def primary_and_unaligned(sam_alnm_file, prefix, metagenome_list=None):
 
         quantification_file.close()
 
-    return unaligned_len, strandness
+    return unaligned_len, strandness, unaligned_bq
 
 
-def primary_and_unaligned_chimeric(sam_alnm_file, prefix, metagenome_list=None, q_mode=False, normalize=True):
+def primary_and_unaligned_chimeric(sam_alnm_file, prefix, metagenome_list=None, q_mode=False, normalize=True, fastq=False):
     """
     Function to extract alignments of reads at extremities of circular genome references
     :param sam_alnm_file: path of input SAM file
@@ -243,6 +247,7 @@ def primary_and_unaligned_chimeric(sam_alnm_file, prefix, metagenome_list=None, 
     pos_strand = 0
     num_aligned = 0
     all_species = {}
+    unaligned_bq = []
 
     # extract the lengths of all reference sequences
     ref_lengths = {}
@@ -262,6 +267,8 @@ def primary_and_unaligned_chimeric(sam_alnm_file, prefix, metagenome_list=None, 
     for aln in in_sam_file.fetch(until_eof=True):
         if aln.is_unmapped:
             unaligned_len.append(aln.query_length)
+            if fastq and aln.query_alignment_qualities:
+                unaligned_bq += aln.query_alignment_qualities.tolist()
 
         elif not aln.is_secondary and not aln.is_supplementary:
             # this is a primary alignment
@@ -468,4 +475,4 @@ def primary_and_unaligned_chimeric(sam_alnm_file, prefix, metagenome_list=None, 
         chimeric_file.write("Shrinkage rate (beta):\t" + str(median(beta_list)))
     chimeric_file.close()
 
-    return unaligned_len, strandness
+    return unaligned_len, strandness, unaligned_bq
