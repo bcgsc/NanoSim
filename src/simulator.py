@@ -36,7 +36,8 @@ try:
 except ImportError:
     pass
 import mixed_model as mm
-import norm_distr as nd
+import model_homopolymer_lengths as model_hp_len
+import model_base_qualities as model_base_quals
 import math
 
 PYTHON_VERSION = sys.version_info
@@ -241,7 +242,7 @@ def get_length_kde(kde, num, log=False, flatten=True):
 
 
 def read_profile(ref_g, number_list, model_prefix, per, mode, strandness, ref_t=None, dna_type=None, abun=None,
-                 polya=None, exp=None, model_ir=False, chimeric=False):
+                 polya=None, exp=None, model_ir=False, chimeric=False, homopolymer=False, fastq=False):
     # Note var number_list (list) used to be number (int)
     global number_aligned_l, number_unaligned_l, number_segment_list
     global match_ht_list, error_par, trans_error_pr, match_markov_model
@@ -499,6 +500,34 @@ def read_profile(ref_g, number_list, model_prefix, per, mode, strandness, ref_t=
         with open(model_prefix + "_match_markov_model", 'r') as mm_profile:
             match_markov_model = read_ecdf(mm_profile)
 
+        # Read homopolymer length model parameters
+        if homopolymer:
+            global pw_hp_len, lr_hp_len, hp_mis_rate
+            with open(model_prefix + "_hp_lengths_model_parameters.tsv") as homopolymer_length_params:
+                pw_hp_len = {}
+                lr_hp_len = {}
+
+                # Deal with first two lines of file: mismatch rate and header
+                hp_mis_rate = float(re.search("\d+\.?\d*", next(homopolymer_length_params))[0])
+                header = next(homopolymer_length_params)
+                col_names = header.strip().split("\t")
+
+                # Get parameter values from rest of file
+                for line in homopolymer_length_params:
+                    fields = line.strip().split("\t")
+                    base = fields[0]
+                    pw_hp_len[base] = {}
+                    lr_hp_len[base] = {}
+                    # Iterate through col_names in case number of breakpoints changes and thus, number of
+                    # piecewise parameters, changes in the future
+                    for i, col_name in enumerate(col_names):
+                        if i == 0:
+                            continue
+                        elif col_name in ["intercept", "slope"]:
+                            lr_hp_len[base][col_name] = float(fields[i])
+                        else:
+                            pw_hp_len[base][col_name] = float(fields[i])
+
         # Read length of unaligned reads
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read KDF of unaligned reads\n")
         sys.stdout.flush()
@@ -547,6 +576,20 @@ def read_profile(ref_g, number_list, model_prefix, per, mode, strandness, ref_t=
                 abun_inflation = float(chimeric_info.readline().split('\t')[1])
         kde_gap = joblib.load(model_prefix + "_gap_length.pkl")
 
+    # Read base quality model parameters
+    if fastq:
+        global lognorm_base_qual
+        with open(model_prefix + "_base_qualities_model_parameters.tsv") as base_quality_params:
+            next(base_quality_params)  # skip header
+            lognorm_base_qual = {}
+            for line in base_quality_params:
+                fields = line.split("\t")
+                type = fields[0]
+                sd = float(fields[1])
+                loc = float(fields[2])
+                mu = float(fields[3])
+                lognorm_base_qual[type] = {"sd": sd, "loc": loc, "mu": mu}
+
 
 def add_abundance_var(expected_abun, total_len, var_low, var_high):
     # Order species according to genome size and assign highest variation to species
@@ -572,7 +615,7 @@ def add_abundance_var(expected_abun, total_len, var_low, var_high):
     return abun_with_var
 
 
-def mutate_homo(seq, base_quals, k, basecaller, read_type):
+def mutate_homo(seq, base_quals, k):
     hp_arr = []  # [[base, start, end], ...]
     hp_length_hist = {}  # {length: {A/T: count, C/G: count} ...}
     hp_samples = {}  # {length: {A/T: [sample], C/G: [sample]} ...}
@@ -595,7 +638,7 @@ def mutate_homo(seq, base_quals, k, basecaller, read_type):
     # Obtaining samples from normal distributions
     for length in hp_length_hist.keys():
         hp_samples[length] = {}
-        a_mu, a_sigma, t_mu, t_sigma, c_mu, c_sigma, g_mu, g_sigma = nd.get_nd_par(length, read_type, basecaller)
+        a_mu, a_sigma, t_mu, t_sigma, c_mu, c_sigma, g_mu, g_sigma = model_hp_len.get_nd_par(length, pw_hp_len, lr_hp_len)
 
         if hp_length_hist[length]["A"] > 0:
             hp_samples[length]["A"] = np.random.normal(a_mu, a_sigma, hp_length_hist[length]["A"])
@@ -614,7 +657,6 @@ def mutate_homo(seq, base_quals, k, basecaller, read_type):
     last_pos = 0
     mutated_seq = ""
     total_hp_size_change = 0
-    mis_rate = nd.get_hpmis_rate(read_type, basecaller)
     for hp_info in hp_arr:
         base = hp_info[0]
         ref_hp_start = hp_info[1]
@@ -628,7 +670,7 @@ def mutate_homo(seq, base_quals, k, basecaller, read_type):
 
         for i in xrange(size):
             p = random.random()
-            if 0 < p <= mis_rate:
+            if 0 < p <= hp_mis_rate:
                 tmp_bases = list(BASES)
                 while True:
                     new_base = random.choice(tmp_bases)
@@ -648,12 +690,12 @@ def mutate_homo(seq, base_quals, k, basecaller, read_type):
                     base_quals.pop(ref_hp_start + total_hp_size_change)
 
             elif diff > 0:  # ins, add quals
-                ins_quals = mm.trunc_lognorm_rvs("ins", read_type, basecaller, diff).tolist()
+                ins_quals = model_base_quals.predict_base_qualities(lognorm_base_qual["ins"]["sd"], lognorm_base_qual["ins"]["loc"], np.exp(lognorm_base_qual["ins"]["mu"]), diff)
                 base_quals = base_quals[:ref_hp_end + total_hp_size_change] + ins_quals + \
                              base_quals[ref_hp_end + total_hp_size_change:]
 
             if len(mis_pos) != 0:  # mis, change match quals to mis quals
-                mis_quals = mm.trunc_lognorm_rvs("mis", read_type, basecaller, len(mis_pos)).tolist()
+                mis_quals = model_base_quals.predict_base_qualities(lognorm_base_qual["mis"]["sd"], lognorm_base_qual["mis"]["loc"], np.exp(lognorm_base_qual["mis"]["mu"]), 1)
                 for i in zip(mis_pos, mis_quals):
                     base_quals[ref_hp_start + total_hp_size_change + i[0]] = i[1]
 
@@ -769,8 +811,8 @@ def assign_species(length_list, seg_list, current_species_base_dict):
            np.array(seg_list_sorted[:length_list_pointer])
 
 
-def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias, basecaller,
-                                  read_type, fastq, num_simulate, per=False, chimeric=False):
+def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias, fastq, num_simulate,
+                                  per=False, chimeric=False):
     # Simulate aligned reads
     out_reads = open(out_reads, "w")
     out_error = open(out_error, "w")
@@ -847,8 +889,7 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
                     new_read += new_seg
                     new_read_name += new_seg_name
                     if fastq:
-                        base_quals.extend(mm.trunc_lognorm_rvs("match", read_type, basecaller,
-                                                               ref_length_list[seg_idx]).tolist())
+                        base_quals.extend(model_base_quals.predict_base_qualities(lognorm_base_qual["match"]["sd"], lognorm_base_qual["match"]["loc"], np.exp(lognorm_base_qual["match"]["mu"]), ref_length_list[seg_idx]))
 
                 new_read_name = new_read_name + "_perfect_" + str(sequence_index)
                 read_mutated = case_convert(new_read)  # not mutated actually, just to be consistent with per == False
@@ -889,7 +930,7 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
                     continue
 
                 for each_gap in gap_length_list:
-                    mutated_gap, gap_base_quals = simulation_gap(each_gap, basecaller, read_type, "metagenome", fastq)
+                    mutated_gap, gap_base_quals = simulation_gap(each_gap, "metagenome", fastq)
                     gap_list.append(mutated_gap)
                     gap_base_qual_list.append(gap_base_quals)
                     gap_length = len(mutated_gap)
@@ -946,11 +987,10 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
                     new_seg = case_convert(new_seg_list[seg_idx])
                     seg_mutated, seg_base_quals = \
                         mutate_read(new_seg, new_read_name, out_error, seg_error_dict_list[seg_idx],
-                                    seg_error_count_list[seg_idx], basecaller, read_type, fastq, kmer_bias)
+                                    seg_error_count_list[seg_idx], fastq, kmer_bias)
 
                     if kmer_bias:
-                        seg_mutated, seg_base_quals = mutate_homo(seg_mutated, seg_base_quals, kmer_bias, basecaller,
-                                                                  None)
+                        seg_mutated, seg_base_quals = mutate_homo(seg_mutated, seg_base_quals, kmer_bias)
                     read_mutated += seg_mutated
                     base_quals.extend(seg_base_quals)
                     if seg_idx < len(gap_list):
@@ -961,7 +1001,7 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
                     current_species_bases[species_list[seg_idx]] += len(new_seg)
 
                 if fastq:  # Get head/tail qualities and add to base_quals
-                    ht_quals = mm.trunc_lognorm_rvs("ht", read_type, basecaller, head + tail).tolist()
+                    ht_quals = model_base_quals.predict_base_qualities(lognorm_base_qual["ht"]["sd"], lognorm_base_qual["ht"]["loc"], np.exp(lognorm_base_qual["ht"]["mu"]), head + tail)
                     base_quals = ht_quals[:head] + base_quals + ht_quals[head:]
 
             # Add head and tail region
@@ -994,8 +1034,8 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
     out_error.close()
 
 
-def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, basecaller, read_type, num_simulate,
-                                     polya, fastq, per=False, uracil=False):
+def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, basecaller, num_simulate, polya, fastq,
+                                     per=False, uracil=False):
 
     if basecaller == "albacore":
         polya_len_dist_scale = 2.409858743694814
@@ -1073,7 +1113,7 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
             read_mutated = case_convert(new_read)  # not mutated actually, just to be consistent with per == False
 
             if fastq:
-                base_quals = mm.trunc_lognorm_rvs("match", read_type, basecaller, ref_len_aligned).tolist()
+                base_quals = model_base_quals.predict_base_qualities(lognorm_base_qual["match"]["sd"], lognorm_base_qual["match"]["loc"], np.exp(lognorm_base_qual["match"]["mu"]), ref_len_aligned)
             else:
                 base_quals = []
 
@@ -1175,15 +1215,15 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
             # Mutate read
             new_read = case_convert(new_read)
             read_mutated, base_quals = mutate_read(new_read, new_read_name, out_error, error_dict, error_count,
-                                                   basecaller, read_type, fastq, kmer_bias)
+                                                   fastq, kmer_bias)
             if kmer_bias:
-                read_mutated, base_quals = mutate_homo(read_mutated, base_quals, kmer_bias, basecaller, read_type)
+                read_mutated, base_quals = mutate_homo(read_mutated, base_quals, kmer_bias)
             
             if polya_len > 0:
                 read_mutated += "A" * polya_len
 
         if fastq:  # Get head/tail qualities
-            ht_quals = mm.trunc_lognorm_rvs("ht", read_type, basecaller, head + tail + polya_len).tolist()
+            ht_quals = model_base_quals.predict_base_qualities(lognorm_base_qual["ht"]["sd"], lognorm_base_qual["ht"]["loc"], np.exp(lognorm_base_qual["ht"]["mu"]), head + tail + polya_len)
             for a in xrange(polya_len):
                 base_quals.append(ht_quals.pop())
             base_quals = ht_quals[:head] + base_quals + ht_quals[head:]
@@ -1217,8 +1257,8 @@ def simulation_aligned_transcriptome(model_ir, out_reads, out_error, kmer_bias, 
     out_error.close()
 
 
-def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias, basecaller,
-                              read_type, fastq, num_simulate, per=False, chimeric=False):
+def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads, out_error, kmer_bias, fastq,
+                              num_simulate, per=False, chimeric=False):
 
     # Simulate aligned reads
     out_reads = open(out_reads, "w")
@@ -1284,7 +1324,7 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
                     new_read += new_seg
                     new_read_name += new_seg_name
                     if fastq:
-                        base_quals.extend(mm.trunc_lognorm_rvs("match", read_type, basecaller, each_ref).tolist())
+                        base_quals.extend(model_base_quals.predict_base_qualities(lognorm_base_qual["match"]["sd"], lognorm_base_qual["match"]["loc"], np.exp(lognorm_base_qual["match"]["mu"]), each_ref))
 
                 new_read_name = new_read_name + "_perfect_" + str(sequence_index)
                 read_mutated = case_convert(new_read)  # not mutated actually, just to be consistent with per == False
@@ -1310,7 +1350,7 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
 
                 total = remainder
                 for each_gap in gap_length_list:
-                    mutated_gap, gap_base_quals = simulation_gap(each_gap, basecaller, read_type, dna_type, fastq)
+                    mutated_gap, gap_base_quals = simulation_gap(each_gap, dna_type, fastq)
                     gap_list.append(mutated_gap)
                     gap_base_qual_list.append(gap_base_quals)
                 for each_ref in ref_length_list:
@@ -1365,11 +1405,10 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
                     new_seg = case_convert(new_seg_list[seg_idx])
                     seg_mutated, seg_base_quals = \
                         mutate_read(new_seg, new_read_name, out_error, seg_error_dict_list[seg_idx],
-                                    seg_error_count_list[seg_idx], basecaller, read_type, fastq, kmer_bias)
+                                    seg_error_count_list[seg_idx], fastq, kmer_bias)
 
                     if kmer_bias:
-                        seg_mutated, seg_base_quals = mutate_homo(seg_mutated, seg_base_quals, kmer_bias, basecaller,
-                                                                  None)
+                        seg_mutated, seg_base_quals = mutate_homo(seg_mutated, seg_base_quals, kmer_bias)
                     read_mutated += seg_mutated
                     base_quals.extend(seg_base_quals)
                     if seg_idx < len(gap_list):
@@ -1377,7 +1416,7 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
                         base_quals.extend(gap_base_qual_list[seg_idx])
 
                 if fastq:  # Get head/tail qualities and add to base_quals
-                    ht_quals = mm.trunc_lognorm_rvs("ht", read_type, basecaller, head + tail).tolist()
+                    ht_quals = model_base_quals.predict_base_qualities(lognorm_base_qual["ht"]["sd"], lognorm_base_qual["ht"]["loc"], np.exp(lognorm_base_qual["ht"]["mu"]), head + tail)
                     base_quals = ht_quals[:head] + base_quals + ht_quals[head:]
 
             # Add head and tail region
@@ -1409,8 +1448,7 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
     out_error.close()
 
 
-def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, basecaller, read_type, fastq,
-                         num_simulate, uracil):
+def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, fastq, num_simulate, uracil):
     out_reads = open(out_reads, "w")
 
     if fastq:
@@ -1443,11 +1481,10 @@ def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, base
             # Change lowercase to uppercase and replace N with any base
             new_read = case_convert(new_read)
             # no quals returned here since unaligned quals are not based on mis/ins/match qual distributions
-            read_mutated, _ = mutate_read(new_read, new_read_name, None, error_dict, error_count, basecaller,
-                                          read_type, False, False)
+            read_mutated, _ = mutate_read(new_read, new_read_name, None, error_dict, error_count, False, False)
 
             if fastq:
-                base_quals = mm.trunc_lognorm_rvs("unaligned", read_type, basecaller, len(read_mutated)).tolist()
+                base_quals = model_base_quals.predict_base_qualities(lognorm_base_qual["unmapped"]["sd"], lognorm_base_qual["unmapped"]["loc"], np.exp(lognorm_base_qual["unmapped"]["mu"]), len(read_mutated))
             else:
                 base_quals = []
 
@@ -1478,7 +1515,7 @@ def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, base
     out_reads.close()
 
 
-def simulation_gap(ref, basecaller, read_type, dna_type, fastq):
+def simulation_gap(ref, dna_type, fastq):
     if ref == 0:
         return '', []
 
@@ -1487,22 +1524,22 @@ def simulation_gap(ref, basecaller, read_type, dna_type, fastq):
     new_gap = case_convert(new_gap)
 
     # no quals returned here since unaligned quals are not based on mis/ins/match qual distributions
-    gap_mutated, _ = mutate_read(new_gap, new_gap_name, None, error_dict, error_count, basecaller, read_type, False,
-                                 False)
+    gap_mutated, _ = mutate_read(new_gap, new_gap_name, None, error_dict, error_count, False, False)
 
     if fastq:
-        base_quals = mm.trunc_lognorm_rvs("unaligned", read_type, basecaller, len(gap_mutated)).tolist()
+        base_quals = model_base_quals.predict_base_qualities(lognorm_base_qual["unmapped"]["sd"], lognorm_base_qual["unmapped"]["loc"], np.exp(lognorm_base_qual["unmapped"]["mu"]), len(gap_mutated))
     else:
         base_quals = []
 
     return gap_mutated, base_quals
 
 
-def simulation(mode, out, dna_type, per, kmer_bias, basecaller, read_type, max_l, min_l, num_threads, fastq,
+def simulation(mode, out, dna_type, per, kmer_bias, basecaller, max_l, min_l, num_threads, fastq,
                median_l=None, sd_l=None, model_ir=False, uracil=False, polya=None, chimeric=False):
     global total_simulated  # Keeps track of number of reads that have been simulated so far
     total_simulated = mp.Value("i", 0, lock=True)
 
+    mp.set_start_method('fork', force=True)  # TODO: Remove this later, for testing purposes
     # Start simulation
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Start simulation of aligned reads\n")
     sys.stdout.flush()
@@ -1529,21 +1566,21 @@ def simulation(mode, out, dna_type, per, kmer_bias, basecaller, read_type, max_l
         if mode == "genome":
             p = mp.Process(target=simulation_aligned_genome,
                            args=(dna_type, min_l, max_l, median_l, sd_l, aligned_subfile, error_subfile,
-                                 kmer_bias, basecaller, read_type, fastq, num_simulate, per, chimeric))
+                                 kmer_bias, fastq, num_simulate, per, chimeric))
             procs.append(p)
             p.start()
 
         elif mode == "metagenome":
             p = mp.Process(target=simulation_aligned_metagenome,
                            args=(min_l, max_l, median_l, sd_l, aligned_subfile, error_subfile, kmer_bias,
-                                 basecaller, read_type, fastq, num_simulate, per, chimeric))
+                                 fastq, num_simulate, per, chimeric))
             procs.append(p)
             p.start()
 
         else:
             p = mp.Process(target=simulation_aligned_transcriptome,
-                           args=(model_ir, aligned_subfile, error_subfile, kmer_bias, basecaller, read_type,
-                                 num_simulate, polya, fastq, per, uracil))
+                           args=(model_ir, aligned_subfile, error_subfile, kmer_bias, basecaller, num_simulate, polya,
+                                 fastq, per, uracil))
             procs.append(p)
             p.start()
 
@@ -1584,8 +1621,7 @@ def simulation(mode, out, dna_type, per, kmer_bias, basecaller, read_type, max_l
 
             # Dividing number of unaligned reads that need to be simulated amongst the number of processes
             p = mp.Process(target=simulation_unaligned,
-                           args=(dna_type, min_l, max_l, median_l, sd_l, unaligned_subfile,
-                                 basecaller, read_type, fastq, num_simulate, uracil))
+                           args=(dna_type, min_l, max_l, median_l, sd_l, unaligned_subfile, fastq, num_simulate, uracil))
             procs.append(p)
             p.start()
 
@@ -1837,7 +1873,7 @@ def error_list(m_ref, m_model, m_ht_list, error_p, trans_p, fastq):
     return l_new, middle_ref, e_dict, e_count
 
 
-def mutate_read(read, read_name, error_log, e_dict, e_count, basecaller, read_type, fastq, k):
+def mutate_read(read, read_name, error_log, e_dict, e_count, fastq, k):
     if k:  # First remove any errors that land in hp regions
         pattern = "A{" + re.escape(str(k)) + ",}|C{" + re.escape(str(k)) + ",}|G{" + re.escape(str(k)) + ",}|T{" + \
                   re.escape(str(k)) + ",}"
@@ -1871,9 +1907,9 @@ def mutate_read(read, read_name, error_log, e_dict, e_count, basecaller, read_ty
         new_e_dict = e_dict
 
     if fastq:  # Sample base qualities for mis/ins/match
-        mis_quals = mm.trunc_lognorm_rvs("mis", read_type, basecaller, e_count["mis"]).tolist()
-        ins_quals = mm.trunc_lognorm_rvs("ins", read_type, basecaller, e_count["ins"]).tolist()
-        match_quals = mm.trunc_lognorm_rvs("match", read_type, basecaller, e_count["match"]).tolist()
+        mis_quals = model_base_quals.predict_base_qualities(lognorm_base_qual["mis"]["sd"], lognorm_base_qual["mis"]["loc"], np.exp(lognorm_base_qual["mis"]["mu"]), e_count["mis"])
+        ins_quals = model_base_quals.predict_base_qualities(lognorm_base_qual["ins"]["sd"], lognorm_base_qual["ins"]["loc"], np.exp(lognorm_base_qual["ins"]["mu"]), e_count["ins"])
+        match_quals = model_base_quals.predict_base_qualities(lognorm_base_qual["match"]["sd"], lognorm_base_qual["match"]["loc"], np.exp(lognorm_base_qual["match"]["mu"]), e_count["match"])
 
     # Mutate read
     quals = []
@@ -1983,12 +2019,11 @@ def main():
                                                   ' Note: this simulation is not compatible with chimeric reads '
                                                   'simulation', type=float, default=None)
     parser_g.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
+    parser_g.add_argument('-hp', '--homopolymer', help='Simulate homopolymer lengths (Default = False',
+                          action='store_true', default=False)
     parser_g.add_argument('-k', '--KmerBias', help='Minimum homopolymer length to simulate homopolymer contraction and '
-                                                   'expansion events in, a typical k is 6',
+                                                   'expansion events in, a typical k is 5',
                           type=int, default=None)
-    parser_g.add_argument('-b', '--basecaller', help='Simulate homopolymers and/or base qualities with respect to '
-                                                     'chosen basecaller: albacore, guppy, or guppy-flipflop',
-                          choices=["albacore", "guppy", "guppy-flipflop"], default=None)
     parser_g.add_argument('-s', '--strandness', help='Proportion of sense sequences. Overrides the value '
                                                       'profiled in characterization stage. Should be between 0 and 1',
                           type=float, default=None)
@@ -2020,15 +2055,14 @@ def main():
     parser_t.add_argument('-min', '--min_len', help='The minimum length for simulated reads (Default = 50)',
                           type=int, default=50)
     parser_t.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
+    parser_t.add_argument('-hp', '--homopolymer', help='Simulate homopolymer lengths (Default = False',
+                          action='store_true', default=False)
     parser_t.add_argument('-k', '--KmerBias', help='Minimum homopolymer length to simulate homopolymer contraction and '
                                                    'expansion events in, a typical k is 6',
                           type=int, default=None)
-    parser_t.add_argument('-b', '--basecaller', help='Simulate homopolymers and/or base qualities with respect to '
-                                                     'chosen basecaller: albacore or guppy',
+    parser_t.add_argument('-b', '--basecaller', help='Simulate polyA tails with respect to chosen basecaller: albacore '
+                                                     'or guppy',
                           choices=["albacore", "guppy"], default=None)
-    parser_t.add_argument('-r', '--read_type', help='Simulate homopolymers and/or base qualities with respect to '
-                                                    'chosen read type: dRNA, cDNA_1D or cDNA_1D2',
-                          choices=["dRNA", "cDNA_1D", "cDNA_1D2"], default=None)
     parser_t.add_argument('-s', '--strandness', help='Proportion of sense sequences. Overrides the value '
                                                       'profiled in characterization stage. Should be between 0 and 1',
                           type=float, default=None)
@@ -2073,12 +2107,11 @@ def main():
                                 'simulation is not compatible with chimeric reads simulation',
                            type=float, default=None)
     parser_mg.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
+    parser_mg.add_argument('-hp', '--homopolymer', help='Simulate homopolymer lengths (Default = False',
+                          action='store_true', default=False)
     parser_mg.add_argument('-k', '--KmerBias', help='Minimum homopolymer length to simulate homopolymer contraction and'
                                                     'expansion events in, a typical k is 6',
                           type=int, default=None)
-    parser_mg.add_argument('-b', '--basecaller', help='Simulate homopolymers and/or base qualities with respect to '
-                                                      'chosen basecaller: albacore, guppy, or guppy-flipflop',
-                          choices=["albacore", "guppy", "guppy-flipflop"], default=None)
     parser_mg.add_argument('-s', '--strandness', help='Percentage of antisense sequences. Overrides the value profiled '
                                                       'in characterization stage. Should be between 0 and 1',
                            type=float, default=None)
@@ -2113,20 +2146,16 @@ def main():
             random.seed(int(args.seed))
             np.random.seed(int(args.seed))
         perfect = args.perfect
+        homopolymer = args.homopolymer
         kmer_bias = args.KmerBias
-        basecaller = args.basecaller
         strandness = args.strandness
         dna_type = args.dna_type
         num_threads = max(args.num_threads, 1)
         fastq = args.fastq
 
-        if kmer_bias and kmer_bias < 0:
-            print("\nPlease input proper kmer bias value >= 0\n")
-            parser_g.print_help(sys.stderr)
-            sys.exit(1)
-
-        if kmer_bias and basecaller is None:
-            print("\nPlease input basecaller to simulate homopolymer contraction and expansion events from\n")
+        if homopolymer and (kmer_bias is None or kmer_bias < 0):
+            print("\nPlease input proper kmer bias value >= 0 to simulate homopolymer contraction and expansion "
+                  "events from\n")
             parser_g.print_help(sys.stderr)
             sys.exit(1)
 
@@ -2150,19 +2179,8 @@ def main():
             parser_g.print_help(sys.stderr)
             sys.exit(1)
 
-        if fastq and basecaller is None:
-            print("\nPlease input basecaller to simulate base qualities from.\n")
-            parser_g.print_help(sys.stderr)
-            sys.exit(1)
-
         if perfect and chimeric:
             print("\nPerfect reads cannot be chimeric\n")
-            parser_g.print_help(sys.stderr)
-            sys.exit(1)
-
-        if fastq and basecaller == "guppy-flipflop":
-            print("\nBase quality simulation isn't supported for guppy-flipflop. Please choose either albacore "
-                  "or guppy as the basecaller.\n")
             parser_g.print_help(sys.stderr)
             sys.exit(1)
 
@@ -2172,8 +2190,9 @@ def main():
         print("out", out)
         print("number", number)
         print("perfect", perfect)
-        print("kmer_bias", kmer_bias)
-        print("basecaller", basecaller)
+        print("homopolymer", homopolymer)
+        if homopolymer:
+            print("kmer_bias", kmer_bias)
         print("dna_type", dna_type)
         print("strandness", strandness)
         print("sd_len", sd_len)
@@ -2191,7 +2210,8 @@ def main():
         if dir_name != '':
             call("mkdir -p " + dir_name, shell=True)
 
-        read_profile(ref_g, number, model_prefix, perfect, args.mode, strandness, dna_type=dna_type, chimeric=chimeric)
+        read_profile(ref_g, number, model_prefix, perfect, args.mode, strandness, dna_type=dna_type, chimeric=chimeric,
+                     homopolymer=homopolymer, fastq=fastq)
 
         if median_len and sd_len:
             sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Simulating read length with log-normal distribution\n")
@@ -2200,8 +2220,8 @@ def main():
         number_aligned = number_aligned_l[0]
         number_unaligned = number_unaligned_l[0]
         max_len = min(max_len, max_chrom)
-        simulation(args.mode, out, dna_type, perfect, kmer_bias, basecaller, "DNA", max_len, min_len, num_threads,
-                   fastq, median_len, sd_len, chimeric=chimeric)
+        simulation(args.mode, out, dna_type, perfect, kmer_bias, None, max_len, min_len, num_threads, fastq, median_len,
+                   sd_len, chimeric=chimeric)
 
     elif args.mode == "transcriptome":
         ref_g = args.ref_g
@@ -2215,9 +2235,9 @@ def main():
         number = [args.number]
         max_len = args.max_len
         min_len = args.min_len
+        homopolymer = args.homopolymer
         kmer_bias = args.KmerBias
         basecaller = args.basecaller
-        read_type = args.read_type
         strandness = args.strandness
         perfect = args.perfect
         model_ir = args.no_model_ir
@@ -2227,14 +2247,9 @@ def main():
         num_threads = max(args.num_threads, 1)
         fastq = args.fastq
 
-        if kmer_bias and kmer_bias < 0:
-            print("\nPlease input proper kmer bias value >= 0\n")
-            parser_t.print_help(sys.stderr)
-            sys.exit(1)
-
-        if kmer_bias and (basecaller is None or read_type is None):
-            print("\nPlease input basecaller and read_type to simulate homopolymer contraction and expansion events "
-                  "from\n")
+        if homopolymer and (kmer_bias is None or kmer_bias < 0):
+            print("\nPlease input proper kmer bias value >= 0 to simulate homopolymer contraction and expansion "
+                  "events from\n")
             parser_t.print_help(sys.stderr)
             sys.exit(1)
 
@@ -2258,11 +2273,6 @@ def main():
             parser_t.print_help(sys.stderr)
             sys.exit(1)
 
-        if fastq and (basecaller is None or read_type is None):
-            print("\nPlease input basecaller and read_type to simulate base qualities from.\n")
-            parser_t.print_help(sys.stderr)
-            sys.exit(1)
-
         print("\nrunning the code with following parameters:\n")
         print("ref_g", ref_g)
         print("ref_t", ref_t)
@@ -2271,9 +2281,9 @@ def main():
         print("out", out)
         print("number", number)
         print("perfect", perfect)
-        print("kmer_bias", kmer_bias)
-        print("basecaller", basecaller)
-        print("read_type", read_type)
+        print("homopolymer", homopolymer)
+        if homopolymer:
+            print("kmer_bias", kmer_bias)
         print("model_ir", model_ir)
         print("dna_type", dna_type)
         print("strandness", strandness)
@@ -2281,6 +2291,8 @@ def main():
         print("min_len", min_len)
         print("uracil", uracil)
         print("polya", polya)
+        if polya:
+            print("basecaller", basecaller)
         print("fastq", fastq)
         print("num_threads", num_threads)
 
@@ -2292,12 +2304,12 @@ def main():
             call("mkdir -p " + dir_name, shell=True)
 
         read_profile(ref_g, number, model_prefix, perfect, args.mode, strandness, ref_t=ref_t, dna_type="linear",
-                     model_ir=model_ir, polya=polya, exp=exp)
+                     model_ir=model_ir, polya=polya, exp=exp, homopolymer=homopolymer, fastq=fastq)
 
         number_aligned = number_aligned_l[0]
         number_unaligned = number_unaligned_l[0]
         max_len = min(max_len, max_chrom)
-        simulation(args.mode, out, dna_type, perfect, kmer_bias, basecaller, read_type, max_len, min_len, num_threads,
+        simulation(args.mode, out, dna_type, perfect, kmer_bias, basecaller, max_len, min_len, num_threads,
                    fastq, None, None, model_ir, uracil, polya)
 
     elif args.mode == "metagenome":
@@ -2314,21 +2326,17 @@ def main():
             random.seed(int(args.seed))
             np.random.seed(int(args.seed))
         perfect = args.perfect
+        homopolymer = args.homopolymer
         kmer_bias = args.KmerBias
-        basecaller = args.basecaller
         strandness = args.strandness
         abun_var = args.abun_var
         fastq = args.fastq
         chimeric = args.chimeric
         num_threads = max(args.num_threads, 1)
 
-        if kmer_bias and kmer_bias < 0:
-            print("\nPlease input proper kmer bias value >= 0\n")
-            parser_mg.print_help(sys.stderr)
-            sys.exit(1)
-
-        if kmer_bias and basecaller is None:
-            print("\nPlease input basecaller to simulate homopolymer contraction and expansion events from\n")
+        if homopolymer and (kmer_bias is None or kmer_bias < 0):
+            print("\nPlease input proper kmer bias value >= 0 to simulate homopolymer contraction and expansion "
+                  "events from\n")
             parser_mg.print_help(sys.stderr)
             sys.exit(1)
 
@@ -2352,17 +2360,6 @@ def main():
             parser_mg.print_help(sys.stderr)
             sys.exit(1)
 
-        if fastq and basecaller is None:
-            print("\nPlease input basecaller to simulate base qualities from.\n")
-            parser_mg.print_help(sys.stderr)
-            sys.exit(1)
-
-        if fastq and basecaller == "guppy-flipflop":
-            print("\nBase quality simulation isn't supported for guppy-flipflop. Please choose either albacore "
-                  "or guppy as the basecaller.\n")
-            parser_mg.print_help(sys.stderr)
-            sys.exit(1)
-
         print("\nrunning the code with following parameters:\n")
         print("genome_list", genome_list)
         print("abun", abun)
@@ -2370,8 +2367,9 @@ def main():
         print("model_prefix", model_prefix)
         print("out", out)
         print("perfect", perfect)
-        print("kmer_bias", kmer_bias)
-        print("basecaller", basecaller)
+        print("homopolymer", homopolymer)
+        if homopolymer:
+            print("kmer_bias", kmer_bias)
         print("strandness", strandness)
         print("sd_len", sd_len)
         print("median_len", median_len)
@@ -2390,7 +2388,7 @@ def main():
             call("mkdir -p " + dir_name, shell=True)
 
         read_profile(genome_list, [], model_prefix, perfect, args.mode, strandness, dna_type=dna_type_list, abun=abun,
-                     chimeric=chimeric)
+                     chimeric=chimeric, homopolymer=homopolymer, fastq=fastq)
 
         # Add abundance variation
         global dict_abun, dict_abun_inflated
@@ -2422,7 +2420,7 @@ def main():
             number_aligned = number_aligned_l[s]
             number_unaligned = number_unaligned_l[s]
             max_len = min(max_len, max(max_chrom.values()))
-            simulation(args.mode, out + "_" + sample, "metagenome", perfect, kmer_bias, basecaller, "DNA", max_len,
+            simulation(args.mode, out + "_" + sample, "metagenome", perfect, kmer_bias, None, max_len,
                        min_len, num_threads, fastq, median_len, sd_len, chimeric=chimeric)
 
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")

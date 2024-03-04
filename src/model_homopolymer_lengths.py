@@ -247,7 +247,7 @@ def get_nd_par(ref_hp_length, pw_estimates, lr_estimates):
     :param prefix: Prefix of output files
     :return: Normal distribution parameters for each base
     """
-    parameters = {"A": {}, "T": {}, "C": {}, "G": {}}
+    parameters = {"AT": {}, "CG": {}}
     for base in pw_estimates.keys():
         parameters[base]["mu"] = predict_piecewise(ref_hp_length, pw_estimates[base])
         parameters[base]["sigma"] = predict_lr(ref_hp_length, lr_estimates[base])
