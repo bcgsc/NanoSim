@@ -1407,7 +1407,7 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
         if remaining_reads <= 0:
             break
 
-    print("Simulated", str(num_simulate - remaining_reads), "`aligned` reads...")
+    print("Simulated", str(passed), "`aligned` reads...")
     if remaining_reads > 0:
         print("Warning:", str(remaining_reads), "`aligned` reads cannot be simulated!")
     out_reads.close()
@@ -1483,7 +1483,7 @@ def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, base
         if remaining_reads <= 0:
             break
 
-    print("Simulated", str(num_simulate - remaining_reads), "`unaligned` reads...")
+    print("Simulated", str(passed), "`unaligned` reads...")
     if remaining_reads > 0:
         print("Warning:", str(remaining_reads), "`unaligned` reads cannot be simulated!")
     out_reads.close()
