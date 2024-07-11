@@ -1234,7 +1234,7 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
     remaining_segments = num_segment
     remaining_gaps = remaining_segments - 1
     passed = 0
-    while remaining_reads > 0:
+    for iteration in range(num_simulate):
         if per:
             ref_lengths = get_length_kde(kde_aligned, sum(remaining_segments)) if median_l is None else \
                 np.random.lognormal(np.log(median_l), sd_l, remaining_segments)
@@ -1404,7 +1404,12 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
         remaining_reads = num_simulate - passed
         remaining_segments = num_segment[passed:]
         remaining_gaps = remaining_segments - 1
+        if remaining_reads == 0:
+            break
 
+    print("Simulated", str(num_simulate), "aligned reads...")
+    if remaining_reads > 0:
+        print("Warning:", str(remaining_reads), "aligned reads cannot be simulated!")
     out_reads.close()
     out_error.close()
 
