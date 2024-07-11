@@ -1404,12 +1404,12 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
         remaining_reads = num_simulate - passed
         remaining_segments = num_segment[passed:]
         remaining_gaps = remaining_segments - 1
-        if remaining_reads == 0:
+        if remaining_reads <= 0:
             break
 
-    print("Simulated", str(num_simulate), "aligned reads...")
+    print("Simulated", str(num_simulate - remaining_reads), "`aligned` reads...")
     if remaining_reads > 0:
-        print("Warning:", str(remaining_reads), "aligned reads cannot be simulated!")
+        print("Warning:", str(remaining_reads), "`aligned` reads cannot be simulated!")
     out_reads.close()
     out_error.close()
 
@@ -1425,7 +1425,7 @@ def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, base
 
     remaining_reads = num_simulate
     passed = 0
-    while remaining_reads > 0:
+    for iteration in range(num_simulate):
         # if the median length and sd is set, use log normal distribution for simulation
         ref_l = get_length_kde(kde_unaligned, remaining_reads) if median_l is None else \
             np.random.lognormal(np.log(median_l), sd_l, remaining_reads)
@@ -1480,6 +1480,12 @@ def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, base
             passed += 1
 
         remaining_reads = num_simulate - passed
+        if remaining_reads <= 0:
+            break
+
+    print("Simulated", str(num_simulate - remaining_reads), "`unaligned` reads...")
+    if remaining_reads > 0:
+        print("Warning:", str(remaining_reads), "`unaligned` reads cannot be simulated!")
     out_reads.close()
 
 
