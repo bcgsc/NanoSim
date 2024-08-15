@@ -24,7 +24,11 @@ import get_primary_sam
 import besthit_to_histogram as error_model
 import model_fitting
 import model_intron_retention as model_ir
+import model_homopolymer_lengths as model_hp_len
+import model_base_qualities as model_base_qual
+import pairwise2maf
 from file_handler import gzopen as open
+from subprocess import DEVNULL
 
 
 PYTHON_VERSION = sys.version_info
@@ -69,8 +73,8 @@ def readfq(fp):  # this is a generator function
                 break
 
 
-def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm, ref_g, chimeric, quant=False,
-                        q_mode=False, normalize=True):
+def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm, ref_g, chimeric, homopolymer,
+                        fastq, quant=False, q_mode=False, normalize=True):
     if t_alnm == '':
         if aligner == "minimap2":
             t_alnm = prefix + "_transcriptome_alnm.bam"
@@ -104,14 +108,23 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g
                                                                              prefix + "_transcriptome")
     elif t_alnm_ext in ["sam", "bam"]:
         if chimeric:
-            unaligned_length, strandness = get_primary_sam.primary_and_unaligned_chimeric(t_alnm,
+            unaligned_length, strandness, unaligned_base_quals = get_primary_sam.primary_and_unaligned_chimeric(t_alnm,
                                                                                         prefix + "_transcriptome",
-                                                                                        quant, q_mode, normalize)
+                                                                                        quant, q_mode, normalize, fastq)
         else:
-            unaligned_length, strandness = get_primary_sam.primary_and_unaligned(t_alnm, prefix + "_transcriptome")
+            unaligned_length, strandness, unaligned_base_quals = get_primary_sam.primary_and_unaligned(t_alnm,
+                                                                                                       prefix + "_transcriptome",
+                                                                                                       fastq=fastq)
 
     if q_mode:
         return
+
+    if homopolymer and t_alnm_ext != "maf":
+        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Converting processed transcriptome alignment file to maf "
+                                                         "format for homopolymer length modelling\n")
+        sys.stdout.flush()
+        call("samtools view " + prefix + "_transcriptome_primary.bam | sam2pairwise > " + prefix + "_transcriptome_primary.out", shell=True, stderr=DEVNULL)
+        pairwise2maf.main(["-i" + prefix + "_transcriptome_primary.out", "-o" + prefix + "_transcriptome_alnm_processed.maf"])
 
     if g_alnm == '':
         if aligner == "minimap2":
@@ -143,10 +156,11 @@ def align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g
     elif g_alnm_ext in ["sam", "bam"]:
         get_primary_sam.primary_and_unaligned(g_alnm, prefix + "_genome")
 
-    return t_alnm_ext, unaligned_length, g_alnm, t_alnm, strandness
+    return t_alnm_ext, unaligned_length, g_alnm, t_alnm, strandness, unaligned_base_quals
 
 
-def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, chimeric, quantification=None, q_mode=False):
+def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, chimeric, homopolymer, fastq, quantification=None,
+                 q_mode=False):
     # if an alignment file is not provided
     if g_alnm == '':
         if aligner == "minimap2":  # Align with minimap2 by default
@@ -178,12 +192,17 @@ def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, chimeric
     elif file_extension in ["sam", "bam"]:
         # get the primary alignments and define unaligned reads.
         if chimeric:
-            unaligned_length, strandness = get_primary_sam.primary_and_unaligned_chimeric(g_alnm, prefix,
-                                                                                          quantification, q_mode)
+            unaligned_length, strandness, unaligned_base_quals = get_primary_sam.primary_and_unaligned_chimeric(g_alnm, prefix,
+                                                                                          quantification, q_mode, fastq)
         else:
-            unaligned_length, strandness = get_primary_sam.primary_and_unaligned(g_alnm, prefix, quantification)
+            unaligned_length, strandness, unaligned_base_quals = get_primary_sam.primary_and_unaligned(g_alnm, prefix, quantification, fastq)
 
-    return file_extension, unaligned_length, strandness
+    if homopolymer and file_extension != "maf":
+        sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Converting processed alignment file to maf format for homopolymer length modelling\n")
+        sys.stdout.flush()
+        call("samtools view " + prefix + "_primary.bam | sam2pairwise > " + prefix + "_primary.out", shell=True, stderr=DEVNULL)
+        pairwise2maf.main(["-i" + prefix + "_primary.out", "-o" + prefix + "_processed.maf"])
+    return file_extension, unaligned_length, strandness, unaligned_base_quals
 
 
 def add_intron(annot, prefix):
@@ -258,6 +277,11 @@ def main():
                           default='training')
     parser_g.add_argument('-c', '--chimeric', help='Detect chimeric and split reads (Default = False)',
                           action='store_true', default=False)
+    parser_g.add_argument('-hp', '--homopolymer', help='Analyze homopolymer lengths (Default = False)',
+                          action='store_true', default=False)
+    parser_g.add_argument('--min_homopolymer_len', help='Minimum length of homopolymers to analyze (Default = 5 bp)',
+                          default='5')
+    parser_g.add_argument('--fastq', help='Analyze base qualities (Default = False)', action='store_true', default=False)
     parser_g.add_argument('--no_model_fit', help='Disable model fitting step', action='store_false', default=True)
     parser_g.add_argument('-t', '--num_threads', help='Number of threads for alignment and model fitting (Default = 1)',
                           default='1')
@@ -286,6 +310,12 @@ def main():
                           action='store_true', default=False)
     parser_t.add_argument('-n', '--normalize', help='Normalize by transcript length', action='store_true',
                           default=False)
+    parser_t.add_argument('-hp', '--homopolymer', help='Analyze homopolymer lengths (Default = False',
+                          action='store_true', default=False)
+    parser_t.add_argument('--min_homopolymer_len', help='Minimum length of homopolymers to analyze (Default = 5 bp)',
+                          default='5')
+    parser_t.add_argument('--fastq', help='Analyze base qualities (Default = False)', action='store_true',
+                          default=False)
 
     parser_m = subparsers.add_parser('metagenome', help="Run the simulator on metagenome mode")
     parser_m.add_argument('-i', '--read', help='Input read for training', required=True)
@@ -305,6 +335,12 @@ def main():
                                                          'between calculated abundance and expected values '
                                                          '(Default = False)',
                           action='store_true', default=False)
+    parser_m.add_argument('-hp', '--homopolymer', help='Analyze homopolymer lengths (Default = False)',
+                          action='store_true', default=False)
+    parser_m.add_argument('--min_homopolymer_len', help='Minimum length of homopolymers to analyze (Default = 5 bp)',
+                          default='5')
+    parser_m.add_argument('--fastq', help='Analyze base qualities (Default = False)', action='store_true',
+                          default=False)
     parser_m.add_argument('--no_model_fit', help='Disable model fitting step', action='store_false', default=True)
     parser_m.add_argument('-t', '--num_threads', help='Number of threads for alignment and model fitting (Default = 1)',
                           default='1')
@@ -388,8 +424,8 @@ def main():
                     sys.exit(1)
 
             # Quantifying the transcript abundance from input read
-            align_transcriptome(infile, prefix, 'minimap2', num_threads, t_alnm, ref_t, '', '', True, True, True,
-                                normalize)
+            align_transcriptome(infile, prefix, 'minimap2', num_threads, t_alnm, ref_t, '', '', True, False, False,
+                                True, True, normalize)
 
         elif mode == "meta":
             # check validity of parameters
@@ -413,7 +449,7 @@ def main():
                         metagenome_list[species]['expected'] = float(info[2])
             ref_g = concatenate_genomes(metagenome_list)
 
-            align_genome(infile, prefix, 'minimap2', num_threads, g_alnm, ref_g, True, metagenome_list, True)
+            align_genome(infile, prefix, 'minimap2', num_threads, g_alnm, ref_g, True, metagenome_list, True, False)
 
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
         return
@@ -471,7 +507,7 @@ def main():
             call("mkdir -p " + dir_name, shell=True)
 
         # Alignment if maf/sam file not provided, and post process them to include only primary alignments
-        alnm_ext, unaligned_length, g_alnm, t_alnm, strandness \
+        alnm_ext, unaligned_length, g_alnm, t_alnm, strandness, _ \
             = align_transcriptome(infile, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm, ref_g)
 
         # Add introns to annotation file
@@ -493,6 +529,9 @@ def main():
         num_threads = args.num_threads
         model_fit = args.no_model_fit
         chimeric = args.chimeric
+        homopolymer = args.homopolymer
+        min_hp_len = args.min_homopolymer_len
+        fastq = args.fastq
 
         # check validity of parameters
         if g_alnm != '':
@@ -506,6 +545,17 @@ def main():
             print("Please supply a reference genome or genome alignment file\n")
             parser_g.print_help(sys.stderr)
             sys.exit(1)
+        if homopolymer and int(min_hp_len) < 0:
+            print("\nPlease input proper min homopolymer length value (>= 0) to analyze\n")
+            parser_g.print_help(sys.stderr)
+            sys.exit(1)
+        if fastq:
+            reads_pre, reads_file_ext = os.path.splitext(infile)
+            if reads_file_ext == ".gz":
+                reads_pre, reads_file_ext = os.path.splitext(reads_pre)
+            if reads_file_ext not in ['.fastq', '.fq']:
+                print("\nFASTA file detected. Please supply reads in FASTQ format (.fastq/.fq/.fastq.gz/.fq.gz).\n")
+                sys.exit(1)
 
         print("\nRunning the code with following parameters:\n")
         print("infile", infile)
@@ -516,6 +566,10 @@ def main():
         print("num_threads", num_threads)
         print("model_fit", model_fit)
         print("chimeric", chimeric)
+        print("homopolymer", homopolymer)
+        if homopolymer:
+            print("min_homopolymer_len", min_hp_len)
+        print("fastq", fastq)
 
         dir_name = os.path.dirname(prefix)
         if dir_name != '':
@@ -538,8 +592,9 @@ def main():
                 processed_fasta.write('>' + chr_name + '\n' + seqS + '\n')
         processed_fasta.close()
 
-        alnm_ext, unaligned_length, strandness = align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g,
-                                                              chimeric)
+        alnm_ext, unaligned_length, strandness, unaligned_base_qualities = align_genome(in_fasta, prefix, aligner,
+                                                                                        num_threads, g_alnm, ref_g,
+                                                                                        chimeric, homopolymer, fastq)
         # Aligned reads analysis
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
         sys.stdout.flush()
@@ -554,6 +609,9 @@ def main():
         num_threads = args.num_threads
         model_fit = args.no_model_fit
         chimeric = args.chimeric
+        homopolymer = args.homopolymer
+        min_hp_len = args.min_homopolymer_len
+        fastq = args.fastq
 
         # check validity of parameters
         if g_alnm != '':
@@ -562,6 +620,17 @@ def main():
             if file_extension not in ['sam', 'bam']:
                 print("Please specify an acceptable alignment format! (.sam/.bam)\n")
                 parser_g.print_help(sys.stderr)
+                sys.exit(1)
+        if homopolymer and int(min_hp_len) < 0:
+            print("\nPlease input proper min homopolymer length value (>= 0) to analyze\n")
+            parser_g.print_help(sys.stderr)
+            sys.exit(1)
+        if fastq:
+            reads_pre, reads_file_ext = os.path.splitext(infile)
+            if reads_file_ext == ".gz":
+                reads_pre, reads_file_ext = os.path.splitext(reads_pre)
+            if reads_file_ext not in ['.fastq', '.fq']:
+                print("\nFASTA file detected. Please supply reads in FASTQ format (.fastq/.fq/.fastq.gz/.fq.gz).\n")
                 sys.exit(1)
 
         print("\nRunning the code with following parameters:\n")
@@ -572,6 +641,10 @@ def main():
         print("num_threads", num_threads)
         print("model_fit", model_fit)
         print("chimeric", chimeric)
+        print("homopolymer", homopolymer)
+        if homopolymer:
+            print("min_homopolymer_len", min_hp_len)
+        print("fastq", fastq)
         print("quantification", quantification)
 
         dir_name = os.path.dirname(prefix)
@@ -605,8 +678,10 @@ def main():
         ref_g = concatenate_genomes(metagenome_list)
 
         metagenome_list = None if not quantification else metagenome_list
-        alnm_ext, unaligned_length, strandness = align_genome(in_fasta, prefix, 'minimap2', num_threads, g_alnm, ref_g,
-                                                              chimeric, metagenome_list)
+        alnm_ext, unaligned_length, strandness, unaligned_base_qualities = align_genome(in_fasta, prefix, 'minimap2',
+                                                                                      num_threads, g_alnm, ref_g,
+                                                                                      chimeric, homopolymer, fastq,
+                                                                                      metagenome_list)
         # Aligned reads analysis
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
         sys.stdout.flush()
@@ -625,6 +700,9 @@ def main():
         model_fit = args.no_model_fit
         ir = args.no_intron_retention
         chimeric = args.chimeric
+        homopolymer = args.homopolymer
+        min_hp_len = args.min_homopolymer_len
+        fastq = args.fastq
         quantification = args.quantification
         normalize = args.normalize
 
@@ -658,6 +736,20 @@ def main():
             parser_t.print_help(sys.stderr)
             sys.exit(1)
 
+        if homopolymer and int(min_hp_len) < 0:
+            print("\nPlease input proper min homopolymer length value (>= 0) to analyze\n")
+            parser_g.print_help(sys.stderr)
+            sys.exit(1)
+
+        if fastq:
+            reads_pre, reads_file_ext = os.path.splitext(infile)
+            print(reads_file_ext)
+            if reads_file_ext == ".gz":
+                reads_pre, reads_file_ext = os.path.splitext(reads_pre)
+            if reads_file_ext not in ['.fastq', '.fq']:
+                print("\nFASTA file detected. Please supply reads in FASTQ format (.fastq/.fq/.fastq.gz/.fq.gz).\n")
+                sys.exit(1)
+
         print("\nrunning the code with following parameters:\n")
         print("infile", infile)
         print("ref_g", ref_g)
@@ -671,6 +763,10 @@ def main():
         print("model_fit", model_fit)
         print("intron_retention", ir)
         print("chimeric", chimeric)
+        print("homopolymer", homopolymer)
+        if homopolymer:
+            print("min_homopolymer_len", min_hp_len)
+        print("fastq", fastq)
         print("quantification", quantification)
         print("normalize by transcript length", normalize)
 
@@ -681,21 +777,28 @@ def main():
         # READ PRE-PROCESS AND ALIGNMENT ANALYSIS
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process and unaligned reads analysis\n")
         sys.stdout.flush()
-        in_fasta = prefix + "_processed.fasta"
+        in_fasta = prefix + "_processed"
+        if fastq:
+            in_fasta += ".fastq"
+        else:
+            in_fasta += ".fasta"
         if aligner == 'minimap2':
             in_fasta += '.gz'
-        
+
         processed_fasta = open(in_fasta, 'wt')
         with open(infile, 'rt') as f:
             for seqN, seqS, seqQ in readfq(f):
                 info = re.split(r'[_\s]\s*', seqN)
                 chr_name = "-".join(info)
-                processed_fasta.write('>' + chr_name + '\n' + seqS + '\n')
+                if fastq:
+                    processed_fasta.write('@' + chr_name + '\n' + seqS + '\n' + '+' + "\n" + seqQ + '\n')
+                else:
+                    processed_fasta.write('>' + chr_name + '\n' + seqS + '\n')
         processed_fasta.close()
 
-        alnm_ext, unaligned_length, g_alnm, t_alnm, strandness = \
+        alnm_ext, unaligned_length, g_alnm, t_alnm, strandness, unaligned_base_qualities = \
             align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm, ref_g, chimeric,
-                                quantification, normalize)
+                                homopolymer, fastq, min_hp_len, quantification, normalize)
 
         if ir:
             # Add introns to annotation file
@@ -745,6 +848,31 @@ def main():
         sys.stdout.flush()
         model_fitting.model_fitting(prefix, int(num_threads))
     sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
+
+    # HOMOPOLYMER LENGTH MODEL
+    if homopolymer:
+        sys.stdout.write(
+            strftime("%Y-%m-%d %H:%M:%S") + ": Analyzing homopolymer lengths and estimating model parameters\n")
+        sys.stdout.flush()
+        if args.mode == "transcriptome":
+            model_hp_len.model_homopolymer_lengths(prefix + "_transcriptome_alnm_processed.maf", min_hp_len, prefix)
+        else:
+            model_hp_len.model_homopolymer_lengths(prefix + "_processed.maf", min_hp_len, prefix)
+
+    # BASE QUALITIES MODEL
+    if fastq:
+        if alnm_ext == "maf":  # TODO: implement base quality model parameter estimation from alignments in MAF format
+            sys.stderr.write("Currently, base quality model parameter estimation cannot be performed on alignments in "
+                             "MAF format.\n")
+            sys.exit(1)
+        else:
+            sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Analyzing base qualities and estimating model parameters\n")
+            sys.stdout.flush()
+            if args.mode == "transcriptome":
+                model_base_qual.model_base_qualities(prefix + "_transcriptome_primary." + alnm_ext, prefix,
+                                                     unaligned_base_qualities)
+            else:
+                model_base_qual.model_base_qualities(prefix + "_primary." + alnm_ext, prefix, unaligned_base_qualities)
 
 
 if __name__ == "__main__":
