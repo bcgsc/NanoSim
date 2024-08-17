@@ -41,7 +41,7 @@ import model_base_qualities as model_base_quals
 import math
 
 PYTHON_VERSION = sys.version_info
-VERSION = "3.1.0"
+VERSION = "3.2.0"
 PROGRAM = "NanoSim"
 AUTHOR = "Chen Yang, Saber Hafezqorani, Ka Ming Nip, and Theodora Lo (UBC & BCGSC)"
 CONTACT = "cheny@bcgsc.ca; shafezqorani@bcgsc.ca; kmnip@bcgsc.ca"
