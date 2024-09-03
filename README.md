@@ -648,16 +648,18 @@ __Example runs:__
 
 #### read files
 
-Two FASTA files of simulated reads, or FASTQ files if the `--fastq` option is set:
+Two FASTA files of simulated reads are usually produced, or FASTQ files if the `--fastq` option is set:
 
 1. `simulated_aligned_reads.fast(a|q)`
 2. `simulated_unaligned_reads.fast(a|q)` (this file does not get generated, if you request `--perfect` reads without errors)
-  
+
+For `metagenome` mode simulations, these two files are produced for each simulated sample, with samples systematically named: `simulated_sample0_aligned_reads.fast(a|q), simulated_sample1_aligned_reads.fast(a|q), ...`
+
 In these files, each read has `unaligned`, `aligned`, or `perfect` in the header recording their error rate:
 * `unaligned` means that the reads have an error rate over 90% and cannot be aligned.
 * `aligned` reads have the same error rate as training reads.
-* `perfect` reads have no errors.  
-  
+* `perfect` reads have no errors.
+
 To explain the information in the header, we have two examples:  
 * `>ref|NC-001137|-[chromosome=V]_468529_unaligned_0_F_0_3236_0`  
   All information before the first `_` are chromosome information. `468529` is the start position and `unaligned` suggesting it should be unaligned to the reference. The first `0` is the sequence index. `F` represents a forward strand. `0_3236_0` means that sequence length extracted from the reference is 3236 bases.  
@@ -675,6 +677,8 @@ __Specific to chimeric reads simulation__: for chimeric reads, different source 
 This file contains all the information of errors introduced into each reads, including error type, position, original bases and current bases:
 
 3. `simulated_aligned_error_profile`
+
+For `metagenome` mode simulations, this file is produced for each simulated sample, with samples systematically named: `simulated_sample0_error_profile, simulated_sample1_error_profile, ...`
 
 
 ## Acknowledgements
