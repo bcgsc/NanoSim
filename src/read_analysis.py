@@ -578,10 +578,14 @@ def main():
         # READ PRE-PROCESS AND ALIGNMENT ANALYSIS
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process\n")
         sys.stdout.flush()
-        in_fasta = prefix + "_processed.fasta"
+        in_fasta = prefix + "_processed"
+        if fastq:
+            in_fasta += ".fastq"
+        else:
+            in_fasta += ".fasta"
         if aligner == 'minimap2':
             in_fasta += '.gz'
-        
+
         processed_fasta = open(in_fasta, 'wt')
 
         # Replace spaces in sequence headers with dashes to create unique header for each read
@@ -589,7 +593,10 @@ def main():
             for seqN, seqS, seqQ in readfq(f):
                 info = re.split(r'[_\s]\s*', seqN)
                 chr_name = "-".join(info)
-                processed_fasta.write('>' + chr_name + '\n' + seqS + '\n')
+                if fastq:
+                    processed_fasta.write('@' + chr_name + '\n' + seqS + '\n' + '+' + "\n" + seqQ + '\n')
+                else:
+                    processed_fasta.write('>' + chr_name + '\n' + seqS + '\n')
         processed_fasta.close()
 
         alnm_ext, unaligned_length, strandness, unaligned_base_qualities = align_genome(in_fasta, prefix, aligner,
@@ -654,7 +661,13 @@ def main():
         # READ PRE-PROCESS AND ALIGNMENT ANALYSIS
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Read pre-process\n")
         sys.stdout.flush()
-        in_fasta = prefix + "_processed.fasta.gz"
+        in_fasta = prefix + "_processed"
+        if fastq:
+            in_fasta += ".fastq"
+        else:
+            in_fasta += ".fasta"
+        if aligner == 'minimap2':
+            in_fasta += '.gz'
 
         processed_fasta = open(in_fasta, 'wt')
         # Replace spaces in sequence headers with dashes to create unique header for each read
@@ -662,7 +675,10 @@ def main():
             for seqN, seqS, seqQ in readfq(f):
                 info = re.split(r'[_\s]\s*', seqN)
                 chr_name = "-".join(info)
-                processed_fasta.write('>' + chr_name + '\n' + seqS + '\n')
+                if fastq:
+                    processed_fasta.write('@' + chr_name + '\n' + seqS + '\n' + '+' + "\n" + seqQ + '\n')
+                else:
+                    processed_fasta.write('>' + chr_name + '\n' + seqS + '\n')
         processed_fasta.close()
 
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Processing reference genome\n")
@@ -847,7 +863,6 @@ def main():
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Model fitting\n")
         sys.stdout.flush()
         model_fitting.model_fitting(prefix, int(num_threads))
-    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
 
     # HOMOPOLYMER LENGTH MODEL
     if homopolymer:
@@ -874,6 +889,7 @@ def main():
             else:
                 model_base_qual.model_base_qualities(prefix + "_primary." + alnm_ext, prefix, unaligned_base_qualities)
 
+    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
 
 if __name__ == "__main__":
     main()

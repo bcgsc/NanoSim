@@ -102,8 +102,8 @@ def model_base_qualities(alnm_file, prefix, unmapped_base_quals):
     :param unmapped_base_quals: List of base qualities from unmapped bases
     """
     # Analyze base qualities
-    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Parsing alignment file for base qualities relative to matches \
-    and each error type\n")
+    sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Parsing alignment file for base qualities "
+                     "relative to matches and each error type\n")
     sys.stdout.flush()
     quals_per_type = analyze_aligned_base_qualities(alnm_file)
     quals_per_type["unmapped"] = unmapped_base_quals
