@@ -2019,7 +2019,7 @@ def main():
                                                   ' Note: this simulation is not compatible with chimeric reads '
                                                   'simulation', type=float, default=None)
     parser_g.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
-    parser_g.add_argument('-hp', '--homopolymer', help='Simulate homopolymer lengths (Default = False',
+    parser_g.add_argument('-hp', '--homopolymer', help='Simulate homopolymer lengths (Default = False)',
                           action='store_true', default=False)
     parser_g.add_argument('-k', '--KmerBias', help='Minimum homopolymer length to simulate homopolymer contraction and '
                                                    'expansion events in, a typical k is 5',
@@ -2055,7 +2055,7 @@ def main():
     parser_t.add_argument('-min', '--min_len', help='The minimum length for simulated reads (Default = 50)',
                           type=int, default=50)
     parser_t.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
-    parser_t.add_argument('-hp', '--homopolymer', help='Simulate homopolymer lengths (Default = False',
+    parser_t.add_argument('-hp', '--homopolymer', help='Simulate homopolymer lengths (Default = False)',
                           action='store_true', default=False)
     parser_t.add_argument('-k', '--KmerBias', help='Minimum homopolymer length to simulate homopolymer contraction and '
                                                    'expansion events in, a typical k is 6',
@@ -2107,7 +2107,7 @@ def main():
                                 'simulation is not compatible with chimeric reads simulation',
                            type=float, default=None)
     parser_mg.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
-    parser_mg.add_argument('-hp', '--homopolymer', help='Simulate homopolymer lengths (Default = False',
+    parser_mg.add_argument('-hp', '--homopolymer', help='Simulate homopolymer lengths (Default = False)',
                           action='store_true', default=False)
     parser_mg.add_argument('-k', '--KmerBias', help='Minimum homopolymer length to simulate homopolymer contraction and'
                                                     'expansion events in, a typical k is 6',

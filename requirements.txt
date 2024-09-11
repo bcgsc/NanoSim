@@ -13,3 +13,5 @@ samtools
 scikit-learn=0.22.1
 scipy=1.7.3
 six=1.16.0
+piecewise-regression
+sam2pairwise

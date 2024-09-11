@@ -50,13 +50,14 @@ Python packages:
 * scikit-learn (Tested with version 0.21.3)
 * scipy (Tested with verson 1.4.1)  
 * six (Tested with version 1.16.0)
-
+* piecewise-regression (Tested with version 1.1.2)
 
 External programs:
 * [minimap2](https://github.com/lh3/minimap2) (Tested with versions 2.10, 2.17, 2.18)  
 * [LAST](https://gitlab.com/mcfrith/last) (Tested with versions 581 and 916)  
 * [samtools](https://github.com/samtools/samtools) (Tested with version 1.12)  
 * [GenomeTools](http://genometools.org/) (Tested with version 1.6.1)
+* [sam2pairwise](https://github.com/mlafave/sam2pairwise) (Tested with version 1.0.0)
 
 ## Installation  
 
@@ -135,24 +136,35 @@ If you are interested in simulating ONT genomic reads, you need to run the chara
 
 __genome mode usage:__
 ```
-usage: read_analysis.py genome [-h] -i READ [-rg REF_G] [-a {minimap2,LAST}] [-ga G_ALNM]
-                               [-o OUTPUT] [-c] [--no_model_fit] [-t NUM_THREADS]
+usage: read_analysis.py genome [-h] -i READ [-rg REF_G] [-a {minimap2,LAST}]
+                               [-ga G_ALNM] [-o OUTPUT] [-c] [-hp]
+                               [--min_homopolymer_len MIN_HOMOPOLYMER_LEN]
+                               [--fastq] [--no_model_fit] [-t NUM_THREADS]
 
 optional arguments:
   -h, --help            show this help message and exit
   -i READ, --read READ  Input read for training
   -rg REF_G, --ref_g REF_G
-                        Reference genome, not required if genome alignment file is provided
+                        Reference genome, not required if genome alignment
+                        file is provided
   -a {minimap2,LAST}, --aligner {minimap2,LAST}
-                        The aligner to be used, minimap2 or LAST (Default = minimap2)
+                        The aligner to be used, minimap2 or LAST (Default =
+                        minimap2)
   -ga G_ALNM, --g_alnm G_ALNM
                         Genome alignment file in SAM/BAM format (optional)
   -o OUTPUT, --output OUTPUT
-                        The location and prefix of outputting profiles (Default = training)
+                        The location and prefix of outputting profiles
+                        (Default = training)
   -c, --chimeric        Detect chimeric and split reads (Default = False)
+  -hp, --homopolymer    Analyze homopolymer lengths (Default = False)
+  --min_homopolymer_len MIN_HOMOPOLYMER_LEN
+                        Minimum length of homopolymers to analyze (Default = 5
+                        bp)
+  --fastq               Analyze base qualities (Default = False)
   --no_model_fit        Disable model fitting step
   -t NUM_THREADS, --num_threads NUM_THREADS
-                        Number of threads for alignment and model fitting (Default = 1)
+                        Number of threads for alignment and model fitting
+                        (Default = 1)
 ```
 
 **transcriptome mode**  
@@ -160,10 +172,13 @@ If you are interested in simulating ONT transcriptome reads (cDNA / directRNA), 
 
 __transcriptome mode usage:__
 ```
-usage: read_analysis.py transcriptome [-h] -i READ -rg REF_G -rt REF_T [-annot ANNOTATION]
-                                      [-a {minimap2,LAST}] [-ga G_ALNM] [-ta T_ALNM] [-o OUTPUT]
-                                      [--no_model_fit] [--no_intron_retention] [-t NUM_THREADS]
-                                      [-c] [-q] [-n]
+usage: read_analysis.py transcriptome [-h] -i READ -rg REF_G -rt REF_T
+                                      [-annot ANNOTATION] [-a {minimap2,LAST}]
+                                      [-ga G_ALNM] [-ta T_ALNM] [-o OUTPUT]
+                                      [--no_model_fit] [--no_intron_retention]
+                                      [-t NUM_THREADS] [-c] [-q] [-n] [-hp]
+                                      [--min_homopolymer_len MIN_HOMOPOLYMER_LEN]
+                                      [--fastq]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -173,24 +188,33 @@ optional arguments:
   -rt REF_T, --ref_t REF_T
                         Reference Transcriptome
   -annot ANNOTATION, --annotation ANNOTATION
-                        Annotation file in ensemble GTF/GFF formats, required for intron
-                        retention detection
+                        Annotation file in ensemble GTF/GFF formats, required
+                        for intron retention detection
   -a {minimap2,LAST}, --aligner {minimap2,LAST}
-                        The aligner to be used: minimap2 or LAST (Default = minimap2)
+                        The aligner to be used: minimap2 or LAST (Default =
+                        minimap2)
   -ga G_ALNM, --g_alnm G_ALNM
                         Genome alignment file in SAM/BAM format (optional)
   -ta T_ALNM, --t_alnm T_ALNM
-                        Transcriptome alignment file in SAM/BAM format (optional)
+                        Transcriptome alignment file in SAM/BAM format
+                        (optional)
   -o OUTPUT, --output OUTPUT
-                        The location and prefix of outputting profiles (Default = training)
+                        The location and prefix of outputting profiles
+                        (Default = training)
   --no_model_fit        Disable model fitting step
   --no_intron_retention
                         Disable Intron Retention analysis
   -t NUM_THREADS, --num_threads NUM_THREADS
-                        Number of threads for alignment and model fitting (Default = 1)
+                        Number of threads for alignment and model fitting
+                        (Default = 1)
   -c, --chimeric        Detect chimeric and split reads (Default = False)
   -q, --quantification  Perform abundance quantification (Default = False)
   -n, --normalize       Normalize by transcript length
+  -hp, --homopolymer    Analyze homopolymer lengths (Default = False
+  --min_homopolymer_len MIN_HOMOPOLYMER_LEN
+                        Minimum length of homopolymers to analyze (Default = 5
+                        bp)
+  --fastq               Analyze base qualities (Default = False)
 ```
 
 **metagenome mode**
@@ -198,28 +222,40 @@ If you are interested in simulating ONT metagenome reads, you need to run the ch
 
 __metagenome mode usage:__
 ```
-usage: read_analysis.py metagenome [-h] -i READ -gl GENOME_LIST [-ga G_ALNM] [-o OUTPUT] [-c]
-                                   [-q] [--no_model_fit] [-t NUM_THREADS]
+usage: read_analysis.py metagenome [-h] -i READ -gl GENOME_LIST [-ga G_ALNM]
+                                   [-o OUTPUT] [-c] [-q] [-hp]
+                                   [--min_homopolymer_len MIN_HOMOPOLYMER_LEN]
+                                   [--fastq] [--no_model_fit] [-t NUM_THREADS]
 
 optional arguments:
   -h, --help            show this help message and exit
   -i READ, --read READ  Input read for training
   -gl GENOME_LIST, --genome_list GENOME_LIST
-                        Reference metagenome list, tsv file, the first column is species/strain
-                        name, the second column is the reference genome fasta/fastq file
-                        directory, the third column is optional, if provided, it contains the
+                        Reference metagenome list, tsv file, the first column
+                        is species/strain name, the second column is the
+                        reference genome fasta/fastq file directory, the third
+                        column is optional, if provided, it contains the
                         expected abundance (sum up to 100)
   -ga G_ALNM, --g_alnm G_ALNM
-                        Genome alignment file in sam format, the header of each species should
-                        match the metagenome list provided above (optional)
+                        Genome alignment file in sam format, the header of
+                        each species should match the metagenome list provided
+                        above (optional)
   -o OUTPUT, --output OUTPUT
-                        The location and prefix of outputting profiles (Default = training)
+                        The location and prefix of outputting profiles
+                        (Default = training)
   -c, --chimeric        Detect chimeric and split reads (Default = False)
-  -q, --quantification  Perform abundance quantification and compute the deviation between
-                        calculated abundance and expected values (Default = False)
+  -q, --quantification  Perform abundance quantification and compute the
+                        deviation between calculated abundance and expected
+                        values (Default = False)
+  -hp, --homopolymer    Analyze homopolymer lengths (Default = False)
+  --min_homopolymer_len MIN_HOMOPOLYMER_LEN
+                        Minimum length of homopolymers to analyze (Default = 5
+                        bp)
+  --fastq               Analyze base qualities (Default = False)
   --no_model_fit        Disable model fitting step
   -t NUM_THREADS, --num_threads NUM_THREADS
-                        Number of threads for alignment and model fitting (Default = 1)
+                        Number of threads for alignment and model fitting
+                        (Default = 1)
 ```
 
 
@@ -328,10 +364,10 @@ __genome mode usage:__
 ```
 usage: simulator.py genome [-h] -rg REF_G [-c MODEL_PREFIX] [-o OUTPUT]
                            [-n NUMBER] [-max MAX_LEN] [-min MIN_LEN]
-                           [-med MEDIAN_LEN] [-sd SD_LEN] [--seed SEED]
-                           [-k KMERBIAS] [-b {albacore,guppy,guppy-flipflop}]
-                           [-s STRANDNESS] [-dna_type {linear,circular}]
-                           [--perfect] [--fastq] [--chimeric] [-t NUM_THREADS]
+                           [-med MEDIAN_LEN] [-sd SD_LEN] [--seed SEED] [-hp]
+                           [-k KMERBIAS] [-s STRANDNESS]
+                           [-dna_type {linear,circular}] [--perfect] [--fastq]
+                           [--chimeric] [-t NUM_THREADS]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -359,12 +395,10 @@ optional arguments:
                         (Default = None), Note: this simulation is not
                         compatible with chimeric reads simulation
   --seed SEED           Manually seeds the pseudo-random number generator
+  -hp, --homopolymer    Simulate homopolymer lengths (Default = False)
   -k KMERBIAS, --KmerBias KMERBIAS
                         Minimum homopolymer length to simulate homopolymer
-                        contraction and expansion events in, a typical k is 6
-  -b {albacore,guppy,guppy-flipflop}, --basecaller {albacore,guppy,guppy-flipflop}
-                        Simulate homopolymers with respect to chosen
-                        basecaller: albacore, guppy, or guppy-flipflop
+                        contraction and expansion events in, a typical k is 5
   -s STRANDNESS, --strandness STRANDNESS
                         Proportion of sense sequences. Overrides the value
                         profiled in characterization stage. Should be between
@@ -377,7 +411,6 @@ optional arguments:
   --chimeric            Simulate chimeric reads
   -t NUM_THREADS, --num_threads NUM_THREADS
                         Number of threads for simulation (Default = 1)
-
 ```
 
 **transcriptome mode**  
@@ -388,10 +421,10 @@ __transcriptome mode usage:__
 usage: simulator.py transcriptome [-h] -rt REF_T [-rg REF_G] -e EXP
                                   [-c MODEL_PREFIX] [-o OUTPUT] [-n NUMBER]
                                   [-max MAX_LEN] [-min MIN_LEN] [--seed SEED]
-                                  [-k KMERBIAS] [-b {albacore,guppy}]
-                                  [-r {dRNA,cDNA_1D,cDNA_1D2}] [-s STRANDNESS]
-                                  [--no_model_ir] [--perfect] [--polya POLYA]
-                                  [--fastq] [-t NUM_THREADS] [--uracil]
+                                  [-hp] [-k KMERBIAS] [-b {albacore,guppy}]
+                                  [-s STRANDNESS] [--no_model_ir] [--perfect]
+                                  [--polya POLYA] [--fastq] [-t NUM_THREADS]
+                                  [--uracil]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -416,15 +449,13 @@ optional arguments:
   -min MIN_LEN, --min_len MIN_LEN
                         The minimum length for simulated reads (Default = 50)
   --seed SEED           Manually seeds the pseudo-random number generator
+  -hp, --homopolymer    Simulate homopolymer lengths (Default = False)
   -k KMERBIAS, --KmerBias KMERBIAS
-                        Minimum homopolymer length to simulate homopolymer contraction and
-                        expansion events in, a typical k is 6
+                        Minimum homopolymer length to simulate homopolymer
+                        contraction and expansion events in, a typical k is 6
   -b {albacore,guppy}, --basecaller {albacore,guppy}
-                        Simulate homopolymers with respect to chosen  
+                        Simulate polyA tails with respect to chosen
                         basecaller: albacore or guppy
-  -r {dRNA,cDNA_1D,cDNA_1D2}, --read_type {dRNA,cDNA_1D,cDNA_1D2}
-                        Simulate homopolymers with respect to chosen read
-                        type: dRNA, cDNA_1D or cDNA_1D2
   -s STRANDNESS, --strandness STRANDNESS
                         Proportion of sense sequences. Overrides the value
                         profiled in characterization stage. Should be between
@@ -460,12 +491,11 @@ If you are interested in simulating ONT metagenome reads, you need to run the si
 
 __metagenome mode usage:__
 ```
-usage: simulator.py metagenome [-h] -gl GENOME_LIST -a ABUN -dl DNA_TYPE_LIST
-                               [-c MODEL_PREFIX] [-o OUTPUT] [-max MAX_LEN]
-                               [-min MIN_LEN] [-med MEDIAN_LEN] [-sd SD_LEN]
-                               [--seed SEED] [-k KMERBIAS]
-                               [-b {albacore,guppy,guppy-flipflop}]
-                               [-s STRANDNESS] [--perfect]
+usage: simulator.py metagenome [-h] -gl GENOME_LIST -a ABUN
+                               [-dl DNA_TYPE_LIST] [-c MODEL_PREFIX]
+                               [-o OUTPUT] [-max MAX_LEN] [-min MIN_LEN]
+                               [-med MEDIAN_LEN] [-sd SD_LEN] [--seed SEED]
+                               [-hp] [-k KMERBIAS] [-s STRANDNESS] [--perfect]
                                [--abun_var ABUN_VAR [ABUN_VAR ...]] [--fastq]
                                [--chimeric] [-t NUM_THREADS]
 
@@ -475,9 +505,9 @@ optional arguments:
                         Reference metagenome list, tsv file, the first column
                         is species/strain name, the second column is the
                         reference genome fasta/fastq file directory
-  -a ABUN, --abun ABUN  Abundance list, tsv file with header, the abundance of all species in
-                        each sample need to sum up to 100. See example in README and provided
-                        config files
+  -a ABUN, --abun ABUN  Abundance list, tsv file with header, the abundance of
+                        all species in each sample need to sum up to 100. See
+                        example in README and provided config files
   -dl DNA_TYPE_LIST, --dna_type_list DNA_TYPE_LIST
                         DNA type list, tsv file, the first column is
                         species/strain, the second column is the chromosome
@@ -503,13 +533,10 @@ optional arguments:
                         (Default = None), Note: this simulation is not
                         compatible with chimeric reads simulation
   --seed SEED           Manually seeds the pseudo-random number generator
+  -hp, --homopolymer    Simulate homopolymer lengths (Default = False)
   -k KMERBIAS, --KmerBias KMERBIAS
                         Minimum homopolymer length to simulate homopolymer
                         contraction andexpansion events in, a typical k is 6
-  -b {albacore,guppy,guppy-flipflop}, --basecaller {albacore,guppy,guppy-flipflop}
-                        Simulate homopolymers and/or base qualities with
-                        respect to chosen basecaller: albacore, guppy, or
-                        guppy-flipflop
   -s STRANDNESS, --strandness STRANDNESS
                         Percentage of antisense sequences. Overrides the value
                         profiled in characterization stage. Should be between
