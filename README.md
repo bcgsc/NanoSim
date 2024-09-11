@@ -50,13 +50,14 @@ Python packages:
 * scikit-learn (Tested with version 0.21.3)
 * scipy (Tested with verson 1.4.1)  
 * six (Tested with version 1.16.0)
-
+* piecewise-regression (Tested with version 1.1.2)
 
 External programs:
 * [minimap2](https://github.com/lh3/minimap2) (Tested with versions 2.10, 2.17, 2.18)  
 * [LAST](https://gitlab.com/mcfrith/last) (Tested with versions 581 and 916)  
 * [samtools](https://github.com/samtools/samtools) (Tested with version 1.12)  
 * [GenomeTools](http://genometools.org/) (Tested with version 1.6.1)
+* [sam2pairwise](https://github.com/mlafave/sam2pairwise) (Tested with version 1.0.0)
 
 ## Installation  
 
