@@ -193,9 +193,9 @@ def align_genome(in_fasta, prefix, aligner, num_threads, g_alnm, ref_g, chimeric
         # get the primary alignments and define unaligned reads.
         if chimeric:
             unaligned_length, strandness, unaligned_base_quals = get_primary_sam.primary_and_unaligned_chimeric(g_alnm, prefix,
-                                                                                          quantification, q_mode, fastq)
+                                                                                          quantification, q_mode=q_mode, fastq=fastq)
         else:
-            unaligned_length, strandness, unaligned_base_quals = get_primary_sam.primary_and_unaligned(g_alnm, prefix, quantification, fastq)
+            unaligned_length, strandness, unaligned_base_quals = get_primary_sam.primary_and_unaligned(g_alnm, prefix, quantification, fastq=fastq)
 
     if homopolymer and file_extension != "maf":
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Converting processed alignment file to maf format for homopolymer length modelling\n")
