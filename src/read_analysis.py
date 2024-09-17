@@ -32,7 +32,7 @@ from subprocess import DEVNULL
 
 
 PYTHON_VERSION = sys.version_info
-VERSION = "3.2.0"
+VERSION = "3.2.1"
 PROGRAM = "NanoSim"
 AUTHOR = "Chen Yang, Saber Hafezqorani, Ka Ming Nip, and Theodora Lo (UBC & BCGSC)"
 CONTACT = "cheny@bcgsc.ca; shafezqorani@bcgsc.ca; kmnip@bcgsc.ca"

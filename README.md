@@ -94,6 +94,8 @@ For **release v2.5.0 and onwards**, we provide profiles trained for _H. sapiens_
 
 For **release v3.1.1**, we provide a trained model for _H. sapiens_ NA24385 - AshkenazimTrio - Son (hg002) which is sequenced using Kit **v14** (R10 chemistry) and basecalled by dorado. You may find the trained model on 1 Million subsampled reads on the GitHub page (available along with the other models at **[pre-trained_models folder](https://github.com/bcgsc/NanoSim/tree/master/pre-trained_models)**). If you are interested in the trained model based on the whole dataset, you can get it through **[Zenodo - DOI: 10.5281/zenodo.10064740](https://zenodo.org/records/10064741)**. The model is trained using `NanoSim v3.0.2` with `scikit-learn v0.23.2` and `python v3.7.10`.
 
+For **release v3.2.1**, we provide a [trained model](https://github.com/bcgsc/NanoSim/tree/master/pre-trained_models) for _H. sapiens_ NA24385  - AshkenazimTrio - Son (hg002) which is sequenced using Kit **v14** (R10 chemistry) and basecalled by dorado (human_giab_hg002_sub1M_kitv14_dorado_v3.2.1.tar.gz). The model is trained using `NanoSim v3.2.1` with `python 3.7` and `scikit-learn v0.23.2`.
+
 **If you have any issues using the pre-trained models, check the [dependencies](https://github.com/bcgsc/NanoSim#dependencies) section for some information and tips.**
 
 ## Usage
