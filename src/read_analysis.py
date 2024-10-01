@@ -619,6 +619,7 @@ def main():
         homopolymer = args.homopolymer
         min_hp_len = args.min_homopolymer_len
         fastq = args.fastq
+        aligner = "minimap2"
 
         # check validity of parameters
         if g_alnm != '':
