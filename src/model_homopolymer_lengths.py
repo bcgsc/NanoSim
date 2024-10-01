@@ -147,6 +147,10 @@ def fit_piecewise(hp_lengths_per_base):
         yy = list(np.mean(hp_read_lengths, dtype=np.float64) for hp_read_lengths in hp_lengths_per_base[base].values())
         pw_fit = piecewise_regression.Fit(xx, yy, n_breakpoints=1)  # n_breakpoints set based on previous analysis; may want to optimize this later
         pw_estimates = pw_fit.get_results()["estimates"]
+        if pw_estimates is None:
+            raise ValueError("Piecewise regression for homopolymer characterization did not converge. "
+                             "Consider using more reads, a subsample, turning off homopolymer compression, "
+                             "or using a pre-trained model.")
 
         if header == "":
             header = "\t".join(list(pw_estimates.keys()))
