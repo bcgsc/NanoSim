@@ -63,6 +63,9 @@ def analyze_aligned_base_qualities(primary_alnm_file):
 
     cs_dict = {":": "match", "+": "ins", "*": "mis"}
     for alnm in alignments:
+        if alnm.is_secondary:
+            print(f"Skipping secondary alignment: {alnm.query_name}", file=sys.stderr)
+            continue
         quals = alnm.query_alignment_qualities.tolist()
 
         read = alnm.query_alignment_sequence
