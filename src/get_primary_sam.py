@@ -456,7 +456,7 @@ def primary_and_unaligned_chimeric(sam_alnm_file, prefix, metagenome_list=None, 
 
     strandness = float(pos_strand) / num_aligned
     if q_mode:
-        return [], strandness
+        return [], strandness, unaligned_bq
 
     out_sam_file.close()
     unaligned_len = numpy.array(unaligned_len)
