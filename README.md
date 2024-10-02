@@ -178,7 +178,7 @@ usage: read_analysis.py transcriptome [-h] -i READ -rg REF_G -rt REF_T
                                       [-annot ANNOTATION] [-a {minimap2,LAST}]
                                       [-ga G_ALNM] [-ta T_ALNM] [-o OUTPUT]
                                       [--no_model_fit] [--no_intron_retention]
-                                      [-t NUM_THREADS] [-c] [-q] [-n] [-hp]
+                                      [-t NUM_THREADS] [-q] [-n] [-hp]
                                       [--min_homopolymer_len MIN_HOMOPOLYMER_LEN]
                                       [--fastq]
 
@@ -209,7 +209,6 @@ optional arguments:
   -t NUM_THREADS, --num_threads NUM_THREADS
                         Number of threads for alignment and model fitting
                         (Default = 1)
-  -c, --chimeric        Detect chimeric and split reads (Default = False)
   -q, --quantification  Perform abundance quantification (Default = False)
   -n, --normalize       Normalize by transcript length
   -hp, --homopolymer    Analyze homopolymer lengths (Default = False

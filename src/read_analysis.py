@@ -304,7 +304,7 @@ def main():
                           default=True)
     parser_t.add_argument('-t', '--num_threads', help='Number of threads for alignment and model fitting (Default = 1)',
                           default='1')
-    parser_t.add_argument('-c', '--chimeric', help='Detect chimeric and split reads (Default = False)',
+    parser_t.add_argument('-c', '--chimeric', help=argparse.SUPPRESS,
                           action='store_true', default=False)
     parser_t.add_argument('-q', '--quantification', help='Perform abundance quantification (Default = False)',
                           action='store_true', default=False)
@@ -776,7 +776,6 @@ def main():
         print("num_threads", num_threads)
         print("model_fit", model_fit)
         print("intron_retention", ir)
-        print("chimeric", chimeric)
         print("homopolymer", homopolymer)
         if homopolymer:
             print("min_homopolymer_len", min_hp_len)
