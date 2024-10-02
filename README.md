@@ -178,7 +178,7 @@ usage: read_analysis.py transcriptome [-h] -i READ -rg REF_G -rt REF_T
                                       [-annot ANNOTATION] [-a {minimap2,LAST}]
                                       [-ga G_ALNM] [-ta T_ALNM] [-o OUTPUT]
                                       [--no_model_fit] [--no_intron_retention]
-                                      [-t NUM_THREADS] [-c] [-q] [-n] [-hp]
+                                      [-t NUM_THREADS] [-q] [-n] [-hp]
                                       [--min_homopolymer_len MIN_HOMOPOLYMER_LEN]
                                       [--fastq]
 
@@ -209,7 +209,6 @@ optional arguments:
   -t NUM_THREADS, --num_threads NUM_THREADS
                         Number of threads for alignment and model fitting
                         (Default = 1)
-  -c, --chimeric        Detect chimeric and split reads (Default = False)
   -q, --quantification  Perform abundance quantification (Default = False)
   -n, --normalize       Normalize by transcript length
   -hp, --homopolymer    Analyze homopolymer lengths (Default = False
@@ -225,9 +224,8 @@ If you are interested in simulating ONT metagenome reads, you need to run the ch
 __metagenome mode usage:__
 ```
 usage: read_analysis.py metagenome [-h] -i READ -gl GENOME_LIST [-ga G_ALNM]
-                                   [-o OUTPUT] [-c] [-q] [-hp]
-                                   [--min_homopolymer_len MIN_HOMOPOLYMER_LEN]
-                                   [--fastq] [--no_model_fit] [-t NUM_THREADS]
+                                   [-o OUTPUT] [-c] [-q] [--fastq]
+                                   [--no_model_fit] [-t NUM_THREADS]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -249,10 +247,6 @@ optional arguments:
   -q, --quantification  Perform abundance quantification and compute the
                         deviation between calculated abundance and expected
                         values (Default = False)
-  -hp, --homopolymer    Analyze homopolymer lengths (Default = False)
-  --min_homopolymer_len MIN_HOMOPOLYMER_LEN
-                        Minimum length of homopolymers to analyze (Default = 5
-                        bp)
   --fastq               Analyze base qualities (Default = False)
   --no_model_fit        Disable model fitting step
   -t NUM_THREADS, --num_threads NUM_THREADS
@@ -497,7 +491,7 @@ usage: simulator.py metagenome [-h] -gl GENOME_LIST -a ABUN
                                [-dl DNA_TYPE_LIST] [-c MODEL_PREFIX]
                                [-o OUTPUT] [-max MAX_LEN] [-min MIN_LEN]
                                [-med MEDIAN_LEN] [-sd SD_LEN] [--seed SEED]
-                               [-hp] [-k KMERBIAS] [-s STRANDNESS] [--perfect]
+                               [-s STRANDNESS] [--perfect]
                                [--abun_var ABUN_VAR [ABUN_VAR ...]] [--fastq]
                                [--chimeric] [-t NUM_THREADS]
 
@@ -528,17 +522,13 @@ optional arguments:
                         The minimum length for simulated reads (Default = 50)
   -med MEDIAN_LEN, --median_len MEDIAN_LEN
                         The median read length (Default = None), Note: this
-                        simulationis not compatible with chimeric reads
+                        simulation is not compatible with chimeric reads
                         simulation
   -sd SD_LEN, --sd_len SD_LEN
                         The standard deviation of read length in log scale
                         (Default = None), Note: this simulation is not
                         compatible with chimeric reads simulation
   --seed SEED           Manually seeds the pseudo-random number generator
-  -hp, --homopolymer    Simulate homopolymer lengths (Default = False)
-  -k KMERBIAS, --KmerBias KMERBIAS
-                        Minimum homopolymer length to simulate homopolymer
-                        contraction andexpansion events in, a typical k is 6
   -s STRANDNESS, --strandness STRANDNESS
                         Percentage of antisense sequences. Overrides the value
                         profiled in characterization stage. Should be between

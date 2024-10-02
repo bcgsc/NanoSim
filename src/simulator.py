@@ -2100,17 +2100,16 @@ def main():
     parser_mg.add_argument('-min', '--min_len', help='The minimum length for simulated reads (Default = 50)',
                            type=int, default=50)
     parser_mg.add_argument('-med', '--median_len', help='The median read length (Default = None), Note: this simulation'
-                                                        'is not compatible with chimeric reads simulation',
+                                                        ' is not compatible with chimeric reads simulation',
                            type=int, default=None)
     parser_mg.add_argument('-sd', '--sd_len',
                            help='The standard deviation of read length in log scale (Default = None), Note: this '
                                 'simulation is not compatible with chimeric reads simulation',
                            type=float, default=None)
     parser_mg.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
-    parser_mg.add_argument('-hp', '--homopolymer', help='Simulate homopolymer lengths (Default = False)',
+    parser_mg.add_argument('-hp', '--homopolymer', help=argparse.SUPPRESS,
                           action='store_true', default=False)
-    parser_mg.add_argument('-k', '--KmerBias', help='Minimum homopolymer length to simulate homopolymer contraction and'
-                                                    'expansion events in, a typical k is 6',
+    parser_mg.add_argument('-k', '--KmerBias', help=argparse.SUPPRESS,
                           type=int, default=None)
     parser_mg.add_argument('-s', '--strandness', help='Percentage of antisense sequences. Overrides the value profiled '
                                                       'in characterization stage. Should be between 0 and 1',
@@ -2367,9 +2366,6 @@ def main():
         print("model_prefix", model_prefix)
         print("out", out)
         print("perfect", perfect)
-        print("homopolymer", homopolymer)
-        if homopolymer:
-            print("kmer_bias", kmer_bias)
         print("strandness", strandness)
         print("sd_len", sd_len)
         print("median_len", median_len)

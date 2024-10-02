@@ -304,7 +304,7 @@ def main():
                           default=True)
     parser_t.add_argument('-t', '--num_threads', help='Number of threads for alignment and model fitting (Default = 1)',
                           default='1')
-    parser_t.add_argument('-c', '--chimeric', help='Detect chimeric and split reads (Default = False)',
+    parser_t.add_argument('-c', '--chimeric', help=argparse.SUPPRESS,
                           action='store_true', default=False)
     parser_t.add_argument('-q', '--quantification', help='Perform abundance quantification (Default = False)',
                           action='store_true', default=False)
@@ -335,9 +335,9 @@ def main():
                                                          'between calculated abundance and expected values '
                                                          '(Default = False)',
                           action='store_true', default=False)
-    parser_m.add_argument('-hp', '--homopolymer', help='Analyze homopolymer lengths (Default = False)',
+    parser_m.add_argument('-hp', '--homopolymer', help=argparse.SUPPRESS,
                           action='store_true', default=False)
-    parser_m.add_argument('--min_homopolymer_len', help='Minimum length of homopolymers to analyze (Default = 5 bp)',
+    parser_m.add_argument('--min_homopolymer_len', help=argparse.SUPPRESS,
                           default='5')
     parser_m.add_argument('--fastq', help='Analyze base qualities (Default = False)', action='store_true',
                           default=False)
@@ -619,6 +619,7 @@ def main():
         homopolymer = args.homopolymer
         min_hp_len = args.min_homopolymer_len
         fastq = args.fastq
+        aligner = "minimap2"
 
         # check validity of parameters
         if g_alnm != '':
@@ -648,9 +649,6 @@ def main():
         print("num_threads", num_threads)
         print("model_fit", model_fit)
         print("chimeric", chimeric)
-        print("homopolymer", homopolymer)
-        if homopolymer:
-            print("min_homopolymer_len", min_hp_len)
         print("fastq", fastq)
         print("quantification", quantification)
 
@@ -778,7 +776,6 @@ def main():
         print("num_threads", num_threads)
         print("model_fit", model_fit)
         print("intron_retention", ir)
-        print("chimeric", chimeric)
         print("homopolymer", homopolymer)
         if homopolymer:
             print("min_homopolymer_len", min_hp_len)
