@@ -424,8 +424,8 @@ def main():
                     sys.exit(1)
 
             # Quantifying the transcript abundance from input read
-            align_transcriptome(infile, prefix, 'minimap2', num_threads, t_alnm, ref_t, '', '', True, False, False,
-                                True, True, normalize)
+            align_transcriptome(infile, prefix, 'minimap2', num_threads, t_alnm, ref_t, g_alnm='', ref_g='', chimeric=True, homopolymer=False, fastq=False,
+                                quant=True, q_mode=True, normalize=normalize)
 
         elif mode == "meta":
             # check validity of parameters
@@ -449,7 +449,9 @@ def main():
                         metagenome_list[species]['expected'] = float(info[2])
             ref_g = concatenate_genomes(metagenome_list)
 
-            align_genome(infile, prefix, 'minimap2', num_threads, g_alnm, ref_g, True, metagenome_list, True, False)
+            align_genome(infile, prefix, 'minimap2', num_threads, g_alnm, ref_g,
+                         chimeric=False, homopolymer=False, fastq=False,
+                         quantification=metagenome_list, q_mode=True)
 
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Finished!\n")
         return
@@ -508,7 +510,8 @@ def main():
 
         # Alignment if maf/sam file not provided, and post process them to include only primary alignments
         alnm_ext, unaligned_length, g_alnm, t_alnm, strandness, _ \
-            = align_transcriptome(infile, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm, ref_g)
+            = align_transcriptome(infile, prefix, aligner, num_threads, t_alnm=t_alnm, ref_t=ref_t, g_alnm=g_alnm, ref_g=ref_g,
+                                  chimeric=False, homopolymer=False, fastq=False)
 
         # Add introns to annotation file
         add_intron(annot, prefix)
@@ -600,8 +603,8 @@ def main():
         processed_fasta.close()
 
         alnm_ext, unaligned_length, strandness, unaligned_base_qualities = align_genome(in_fasta, prefix, aligner,
-                                                                                        num_threads, g_alnm, ref_g,
-                                                                                        chimeric, homopolymer, fastq)
+                                                                                        num_threads=num_threads, g_alnm=g_alnm, ref_g=ref_g,
+                                                                                        chimeric=chimeric, homopolymer=homopolymer, fastq=fastq)
         # Aligned reads analysis
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
         sys.stdout.flush()
@@ -692,10 +695,10 @@ def main():
         ref_g = concatenate_genomes(metagenome_list)
 
         metagenome_list = None if not quantification else metagenome_list
-        alnm_ext, unaligned_length, strandness, unaligned_base_qualities = align_genome(in_fasta, prefix, 'minimap2',
-                                                                                      num_threads, g_alnm, ref_g,
-                                                                                      chimeric, homopolymer, fastq,
-                                                                                      metagenome_list)
+        alnm_ext, unaligned_length, strandness, unaligned_base_qualities = align_genome(in_fasta, prefix, aligner,
+                                                                                      num_threads=num_threads, g_alnm=g_alnm, ref_g=ref_g,
+                                                                                      chimeric=chimeric, homopolymer=homopolymer, fastq=fastq,
+                                                                                      quantification=metagenome_list)
         # Aligned reads analysis
         sys.stdout.write(strftime("%Y-%m-%d %H:%M:%S") + ": Aligned reads analysis\n")
         sys.stdout.flush()
@@ -810,8 +813,8 @@ def main():
         processed_fasta.close()
 
         alnm_ext, unaligned_length, g_alnm, t_alnm, strandness, unaligned_base_qualities = \
-            align_transcriptome(in_fasta, prefix, aligner, num_threads, t_alnm, ref_t, g_alnm, ref_g, chimeric,
-                                homopolymer, fastq, min_hp_len, quantification, normalize)
+            align_transcriptome(in_fasta, prefix, aligner, num_threads=num_threads, t_alnm=t_alnm, ref_t=ref_t, g_alnm=g_alnm, ref_g=ref_g, chimeric=chimeric,
+                                homopolymer=homopolymer, fastq=fastq, quant=quantification, normalize=normalize)
 
         if ir:
             # Add introns to annotation file
