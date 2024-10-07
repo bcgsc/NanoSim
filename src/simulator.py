@@ -1679,16 +1679,25 @@ def extract_read(dna_type, length, s=None):
             
             # find all chromosomes that are longer
             longer_chroms = list()
+            longer_chroms_target = list()
             for tmp_s in seq_len:
                 tmp_dict = seq_len[tmp_s]
                 for tmp_key in tmp_dict:
                     if length < tmp_dict[tmp_key]:
-                        longer_chroms.append((tmp_s, tmp_key))
+                        if tmp_s == s:
+                            longer_chroms_target.append((tmp_s, tmp_key))
+                        else:
+                            longer_chroms.append((tmp_s, tmp_key))
             
-            assert len(longer_chroms) > 0 # otherwise there is a problem
-            
+            assert len(longer_chroms) > 0 or len(longer_chroms_target) > 0 # otherwise there is a problem
             # select a random chromosome from this list
-            s, key = random.choice(longer_chroms)
+            if longer_chroms_target:
+                s, key = random.choice(longer_chroms_target)
+            else:
+                s, key = random.choice(longer_chroms)
+                print("Warning: chosen species/strain is shorter than the simulated read length, randomly selected another species/strain. "
+                      "It is recommended to run read_analysis.py quantify after simulation to check abundances in simulated reads.",
+                      file = sys.stderr)
             key_seq_len = seq_len[s][key]
         
         if dict_dna_type[s][key] == "circular":
