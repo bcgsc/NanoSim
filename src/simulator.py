@@ -1420,6 +1420,9 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
             read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated + \
                            ''.join(np.random.choice(BASES, tail))
 
+            if len(read_mutated) < min_l or len(read_mutated) > max_l:
+                continue
+
             # Reverse complement half of the reads
             if is_reversed:
                 read_mutated = reverse_complement(read_mutated)
