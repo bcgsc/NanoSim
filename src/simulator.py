@@ -2401,6 +2401,11 @@ def main():
             sys.stderr.write("\nMaximum read length must be longer than Minimum read length!\n")
             parser_mg.print_help(sys.stderr)
             sys.exit(1)
+            
+        if perfect and chimeric:
+            print("\nPerfect reads cannot be chimeric\n")
+            parser_mg.print_help(sys.stderr)
+            sys.exit(1)
 
         print("\nrunning the code with following parameters:\n")
         print("genome_list", genome_list)
