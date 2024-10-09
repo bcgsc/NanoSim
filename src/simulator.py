@@ -893,6 +893,9 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
 
                 new_read_name = new_read_name + "_perfect_" + str(sequence_index)
                 read_mutated = case_convert(new_read)  # not mutated actually, just to be consistent with per == False
+                
+                if len(read_mutated) < min_l or len(read_mutated) > max_l:
+                    continue
 
                 head = 0
                 tail = 0
@@ -1007,6 +1010,9 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
             # Add head and tail region
             read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated + \
                            ''.join(np.random.choice(BASES, tail))
+
+            if len(read_mutated) < min_l or len(read_mutated) > max_l:
+                continue
 
             # Reverse complement half of the reads
             if is_reversed:
