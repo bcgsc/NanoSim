@@ -440,10 +440,13 @@ optional arguments:
   -n NUMBER, --number NUMBER
                         Number of reads to be simulated (Default = 20000)
   -max MAX_LEN, --max_len MAX_LEN
-                        The maximum length for simulated reads (Default =
-                        Infinity)
+                        The maximum length for simulated unaligned reads. Note
+                        that this is not used for simulating aligned reads.
+                        (Default = Infinity)
   -min MIN_LEN, --min_len MIN_LEN
-                        The minimum length for simulated reads (Default = 50)
+                        The minimum length for simulated unaligned reads. Note
+                        that this is not used for simulating aligned reads.
+                        (Default = 50)
   --seed SEED           Manually seeds the pseudo-random number generator
   -hp, --homopolymer    Simulate homopolymer lengths (Default = False)
   -k KMERBIAS, --KmerBias KMERBIAS

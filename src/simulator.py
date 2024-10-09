@@ -893,6 +893,9 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
 
                 new_read_name = new_read_name + "_perfect_" + str(sequence_index)
                 read_mutated = case_convert(new_read)  # not mutated actually, just to be consistent with per == False
+                
+                if len(read_mutated) < min_l or len(read_mutated) > max_l:
+                    continue
 
                 head = 0
                 tail = 0
@@ -1007,6 +1010,9 @@ def simulation_aligned_metagenome(min_l, max_l, median_l, sd_l, out_reads, out_e
             # Add head and tail region
             read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated + \
                            ''.join(np.random.choice(BASES, tail))
+
+            if len(read_mutated) < min_l or len(read_mutated) > max_l:
+                continue
 
             # Reverse complement half of the reads
             if is_reversed:
@@ -1420,6 +1426,9 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
             read_mutated = ''.join(np.random.choice(BASES, head)) + read_mutated + \
                            ''.join(np.random.choice(BASES, tail))
 
+            if len(read_mutated) < min_l or len(read_mutated) > max_l:
+                continue
+
             # Reverse complement half of the reads
             if is_reversed:
                 read_mutated = reverse_complement(read_mutated)
@@ -1504,6 +1513,9 @@ def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, fast
             new_read = case_convert(new_read)
             # no quals returned here since unaligned quals are not based on mis/ins/match qual distributions
             read_mutated, _ = mutate_read(new_read, new_read_name, None, error_dict, error_count, False, False)
+            
+            if len(read_mutated) < min_l or len(read_mutated) > max_l:
+                continue
 
             if fastq:
                 base_quals = model_base_quals.predict_base_qualities(lognorm_base_qual["unmapped"]["sd"], lognorm_base_qual["unmapped"]["loc"], np.exp(lognorm_base_qual["unmapped"]["mu"]), len(read_mutated))
@@ -2081,9 +2093,9 @@ def main():
                           default="simulated")
     parser_t.add_argument('-n', '--number', help='Number of reads to be simulated (Default = 20000)', type=int,
                           default=20000)
-    parser_t.add_argument('-max', '--max_len', help='The maximum length for simulated reads (Default = Infinity)',
+    parser_t.add_argument('-max', '--max_len', help='The maximum length for simulated unaligned reads. Note that this is not used for simulating aligned reads. (Default = Infinity)',
                           type=int, default=float("inf"))
-    parser_t.add_argument('-min', '--min_len', help='The minimum length for simulated reads (Default = 50)',
+    parser_t.add_argument('-min', '--min_len', help='The minimum length for simulated unaligned reads. Note that this is not used for simulating aligned reads.  (Default = 50)',
                           type=int, default=50)
     parser_t.add_argument('--seed', help='Manually seeds the pseudo-random number generator', type=int, default=None)
     parser_t.add_argument('-hp', '--homopolymer', help='Simulate homopolymer lengths (Default = False)',
@@ -2387,6 +2399,11 @@ def main():
 
         if max_len < min_len:
             sys.stderr.write("\nMaximum read length must be longer than Minimum read length!\n")
+            parser_mg.print_help(sys.stderr)
+            sys.exit(1)
+            
+        if perfect and chimeric:
+            print("\nPerfect reads cannot be chimeric\n")
             parser_mg.print_help(sys.stderr)
             sys.exit(1)
 
