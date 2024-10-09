@@ -1280,10 +1280,7 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
                 np.random.lognormal(np.log(median_l), sd_l, remaining_segments)
             ref_lengths = [x for x in ref_lengths if min_l <= x <= max_l]
         else:
-            remainder_lengths = get_length_kde(kde_ht, int(remaining_reads * 1.3), True)
-            remainder_lengths = [x for x in remainder_lengths if x >= 0]
-            head_vs_ht_ratio_list = get_length_kde(kde_ht_ratio, int(remaining_reads * 1.5))
-            head_vs_ht_ratio_list = [x for x in head_vs_ht_ratio_list if 0 <= x <= 1]
+            remainder_lengths, head_vs_ht_ratio_list = get_lengths_and_ht_ratios(remaining_reads)
             if median_l is None:
                 ref_lengths = get_length_kde(kde_aligned, sum(remaining_segments))
             else:
@@ -1446,6 +1443,31 @@ def simulation_aligned_genome(dna_type, min_l, max_l, median_l, sd_l, out_reads,
 
     out_reads.close()
     out_error.close()
+
+def get_lengths_and_ht_ratios(remaining_reads):
+    "Return the remainer_lengths and head_vs_ht_ratio_list lists, ensuring that the lengths are at least remaining_reads long to avoid IndexErrors"
+    remainder_multiplier = 1.3 # Settings previously set by Chen
+    ht_ratio_multiplier = 1.5
+    
+    remainder_lengths, head_vs_ht_ratio_list = [],[]
+    
+    iteration_count = 0
+    
+    while len(remainder_lengths) < remaining_reads or len(head_vs_ht_ratio_list) < remaining_reads:
+        if iteration_count > 50:
+            print("Warning - After 50 iterations, insufficient remainder_lengths and/or head_vs_ht_ratio_list. "
+                  "Exiting to avoid infinite loop. Please check the KDE training and/or the min/max length for simulated reads "
+                  "(Making these length specifications more permissive may avoid this issue.). ", file=sys.stderr)
+            break
+        remainder_lengths = get_length_kde(kde_ht, int(remaining_reads * remainder_multiplier), True)
+        remainder_lengths = [x for x in remainder_lengths if x >= 0]
+        head_vs_ht_ratio_list = get_length_kde(kde_ht_ratio, int(remaining_reads * ht_ratio_multiplier))
+        head_vs_ht_ratio_list = [x for x in head_vs_ht_ratio_list if 0 <= x <= 1]
+        remainder_multiplier *= 1.5 # Increase the ratios to get longer lists, ensure they are longer than the remaining_reads int
+        ht_ratio_multiplier *= 1.5
+        iteration_count += 1
+
+    return remainder_lengths,head_vs_ht_ratio_list
 
 
 def simulation_unaligned(dna_type, min_l, max_l, median_l, sd_l, out_reads, fastq, num_simulate, uracil):
