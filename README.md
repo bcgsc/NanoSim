@@ -96,7 +96,7 @@ For **release v3.1.1**, we provide a trained model for _H. sapiens_ NA24385 - As
 
 For **release v3.2.1**, we provide a [trained model](https://github.com/bcgsc/NanoSim/tree/master/pre-trained_models) for _H. sapiens_ NA24385  - AshkenazimTrio - Son (hg002) which is sequenced using Kit **v14** (R10 chemistry) and basecalled by dorado (human_giab_hg002_sub1M_kitv14_dorado_v3.2.1.tar.gz). The model is trained using `NanoSim v3.2.1` with `python 3.7` and `scikit-learn v0.23.2`.
 
-For **release v3.2.2**, we provide a [trained model](https://github.com/bcgsc/NanoSim/tree/master/pre-trained_models) for the ZymoBIOMICS mock community datasets with 10 species and two abundance levels. We also provide a trained model for _H. sapiens_ NA12878 cDNA (rel2 release, base-called using guppy v4.2.2) ONT data on [Zenodo](). The model is trained using `NanoSim v3.2.2` with `python 3.7` and `scikit-learn v0.23.2`.
+For **release v3.2.2**, we provide a [trained model](https://github.com/bcgsc/NanoSim/tree/master/pre-trained_models) for the ZymoBIOMICS mock community datasets with 10 species and two abundance levels. We also provide a trained model for _H. sapiens_ NA12878 cDNA (rel2 release, base-called using guppy v4.2.2) ONT data on [Zenodo](https://doi.org/10.5281/zenodo.14042982). The model is trained using `NanoSim v3.2.2` with `python 3.7` and `scikit-learn v0.23.2`.
 
 **If you have any issues using the pre-trained models, check the [dependencies](https://github.com/bcgsc/NanoSim#dependencies) section for some information and tips.**
 
