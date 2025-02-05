@@ -2021,6 +2021,51 @@ def inflate_abun(original_dict, inflated_species):
 
     return inflated_prob
 
+def calculate_read_number_from_coverage(reference_path, model_prefix, coverage, n_estimation = 10000000):
+    """
+    Calculate the number of reads to be simulated based on the coverage, uses Monte Carlo Estimation 
+    with number of samples (n_estimation) from the kernel density estimation function of the aligned 
+    and unaligned reads. We use the proportion of unaligned and aligned reads to sample from their 
+    kernel density function respectively. We use Lander/Waterman equation to calculate the 
+    coverage/reads simulated.
+    :param reference_path: The path to the reference genome or transcriptome
+    :param model_prefix: Location and prefix of error profiles generated from characterization step 
+    :param coverage: The coverage of the simulated reads
+    :return: The number of reads to be simulated
+    """
+    # get the paths
+    aligned_kde_path = model_prefix + "_aligned_reads.pkl"
+    unaligned_kde_path = model_prefix + "_unaligned_length.pkl"
+    alignment_rate_path = model_prefix + "_reads_alignment_rate"
+    
+    # calculate the reference genome size
+    reference_size = 0
+    with open(reference_path, "r") as f_in:
+        for line in f_in:
+            line = line.strip()
+            if line.startswith(">"):
+                continue 
+            else:
+                reference_size += len(line)
+    
+    # get the aligned read / unaligned read rate
+    alignment_rate = 0
+    with open(alignment_rate_path, "r") as f_in:
+        new = f_in.readline().strip()
+        alignment_rate = float(new.split('\t')[1])
+
+    # use Monte Carlo estimation to calculate the mean length of the reads
+    aligned_n_estimation = int(n_estimation * alignment_rate / (alignment_rate+1))
+    kde = joblib.load(aligned_kde_path) # load the kd function of aligned reads
+    samples = kde.sample(aligned_n_estimation) # sample n_estimation number of times
+    kde = joblib.load(unaligned_kde_path) # load the kd function of unaligned reads
+    samples = np.append(samples, kde.sample(n_estimation - aligned_n_estimation)) # sample n_estimation number of times
+    mean = samples.mean()
+
+    # calculate number of reads based on genome size
+    read_cnt = reference_size / mean # read count for 1x coverage
+    read_cnt = int(read_cnt*coverage) # read count for the specified coverage
+    return read_cnt
 
 def main():
     global number_aligned, number_unaligned
@@ -2051,6 +2096,8 @@ def main():
                           default="simulated")
     parser_g.add_argument('-n', '--number', help='Number of reads to be simulated (Default = 20000)', type=int,
                           default=20000)
+    parser_g.add_argument('-x', '--coverage', help='Coverage of the simulated reads, Note: Coverage will override the number of reads', type=float,
+                          default=None)
     parser_g.add_argument('-max', '--max_len', help='The maximum length for simulated reads (Default = Infinity)',
                           type=int, default=float("inf"))
     parser_g.add_argument('-min', '--min_len', help='The minimum length for simulated reads (Default = 50)',
@@ -2093,6 +2140,8 @@ def main():
                           default="simulated")
     parser_t.add_argument('-n', '--number', help='Number of reads to be simulated (Default = 20000)', type=int,
                           default=20000)
+    parser_t.add_argument('-x', '--coverage', help='Coverage of the simulated reads, Note: Coverage will override the number of reads', type=float,
+                          default=None)
     parser_t.add_argument('-max', '--max_len', help='The maximum length for simulated unaligned reads. Note that this is not used for simulating aligned reads. (Default = Infinity)',
                           type=int, default=float("inf"))
     parser_t.add_argument('-min', '--min_len', help='The minimum length for simulated unaligned reads. Note that this is not used for simulating aligned reads.  (Default = 50)',
@@ -2194,7 +2243,11 @@ def main():
         dna_type = args.dna_type
         num_threads = max(args.num_threads, 1)
         fastq = args.fastq
-
+        coverage = args.coverage
+        if coverage is not None:
+            print("\nCalculating the number of reads to be simulated based on the coverage, if you specified the number of reads concurrently with the coverage, coverage will override number of reads.\n")
+            number[0] = calculate_read_number_from_coverage(ref_g, model_prefix, coverage)
+            
         if homopolymer and (kmer_bias is None or kmer_bias < 0):
             print("\nPlease input proper kmer bias value >= 0 to simulate homopolymer contraction and expansion "
                   "events from\n")
@@ -2231,6 +2284,7 @@ def main():
         print("model_prefix", model_prefix)
         print("out", out)
         print("number", number)
+        print("coverage", coverage)
         print("perfect", perfect)
         print("homopolymer", homopolymer)
         if homopolymer:
@@ -2288,6 +2342,10 @@ def main():
         uracil = args.uracil
         num_threads = max(args.num_threads, 1)
         fastq = args.fastq
+        coverage = args.coverage
+        if coverage is not None:
+            print("\nCalculating the number of reads to be simulated based on the coverage, if you specified the number of reads concurrently with the coverage, coverage will override number of reads.\n")
+            number[0] = calculate_read_number_from_coverage(ref_t, model_prefix, coverage)
 
         if homopolymer and (kmer_bias is None or kmer_bias < 0):
             print("\nPlease input proper kmer bias value >= 0 to simulate homopolymer contraction and expansion "
@@ -2322,6 +2380,7 @@ def main():
         print("model_prefix", model_prefix)
         print("out", out)
         print("number", number)
+        print("coverage", coverage)
         print("perfect", perfect)
         print("homopolymer", homopolymer)
         if homopolymer:
