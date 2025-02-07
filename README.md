@@ -380,8 +380,9 @@ optional arguments:
   -n NUMBER, --number NUMBER
                         Number of reads to be simulated (Default = 20000)
   -x COVERAGE, --coverage COVERAGE
-                        Coverage of the simulated reads, Note: Coverage will 
-                        override the number of reads
+                        Coverage of the simulated reads calculated based on
+                        the emprical kernel desity estimation functions,
+                        Note: Coverage will override the number of reads
   -max MAX_LEN, --max_len MAX_LEN
                         The maximum length for simulated reads (Default =
                         Infinity)
@@ -445,8 +446,9 @@ optional arguments:
   -n NUMBER, --number NUMBER
                         Number of reads to be simulated (Default = 20000)
   -x COVERAGE, --coverage COVERAGE
-                        Coverage of the simulated reads, Note: Coverage will 
-                        override the number of reads
+                        Coverage of the simulated reads calculated based on
+                        the emprical kernel desity estimation functions,
+                        Note: Coverage will override the number of reads
   -max MAX_LEN, --max_len MAX_LEN
                         The maximum length for simulated unaligned reads. Note
                         that this is not used for simulating aligned reads.
