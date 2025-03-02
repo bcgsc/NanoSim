@@ -415,6 +415,8 @@ optional arguments:
                         Number of threads for simulation (Default = 1)
 ```
 
+**Warning:** We assume that users provide haploid references for coverage calculation. If a user inputs a diploid or polyploid genome, the output coverage will be a multiple of the requested value (e.g., twice the desired coverage for a diploid reference, three times for a triploid reference, etc.).
+
 **transcriptome mode**  
 If you are interested in simulating ONT transcriptome reads, you need to run the simulation stage in "transcriptome" mode with following options.
 
@@ -478,6 +480,8 @@ optional arguments:
   --uracil              Converts the thymine (T) bases to uracil (U) in the
                         output fasta format
 ```
+
+**Warning:** We assume that users provide haploid references for coverage calculation. If a user inputs a diploid or polyploid genome, the output coverage will be a multiple of the requested value (e.g., twice the desired coverage for a diploid reference, three times for a triploid reference, etc.).
 
 __sample expression file for transcriptome simulation__  
 The expression profile is a tsv file containing expression levels of each isoform to be simulated. Users can use the output of `quantify` mode as template for modify or use the following format for constructing a new expression profile. 
