@@ -682,23 +682,39 @@ __Example runs:__
 
 ### 2. Simulation stage  
 
-1. `simulated_reads.fasta`
-  FASTA file of simulated reads. Each reads has "unaligned", "aligned", or "perfect" in the header determining their error rate. "unaligned" means that the reads have an error rate over 90% and cannot be aligned. "aligned" reads have the same error rate as training reads. "perfect" reads have no errors.  
+#### read files
+
+Two FASTA files of simulated reads are usually produced, or FASTQ files if the `--fastq` option is set:
+
+1. `simulated_aligned_reads.fast(a|q)`
+2. `simulated_unaligned_reads.fast(a|q)` (this file does not get generated, if you request `--perfect` reads without errors)
+
+For `metagenome` mode simulations, these two files are produced for each simulated sample, with samples systematically named: `simulated_sample0_aligned_reads.fast(a|q), simulated_sample1_aligned_reads.fast(a|q), ...`
+
+In these files, each read has `unaligned`, `aligned`, or `perfect` in the header recording their error rate:
+* `unaligned` means that the reads have an error rate over 90% and cannot be aligned.
+* `aligned` reads have the same error rate as training reads.
+* `perfect` reads have no errors.
+
+To explain the information in the header, we have two examples:  
+* `>ref|NC-001137|-[chromosome=V]_468529_unaligned_0_F_0_3236_0`  
+  All information before the first `_` are chromosome information. `468529` is the start position and `unaligned` suggesting it should be unaligned to the reference. The first `0` is the sequence index. `F` represents a forward strand. `0_3236_0` means that sequence length extracted from the reference is 3236 bases.  
+* `>ref|NC-001143|-[chromosome=XI]_115406_aligned_16565_R_92_12710_2`  
+  This is an aligned read coming from chromosome XI at position 115406. `16565` is the sequence index. `R` represents a reverse complement strand. `92_12710_2` means that this read has 92-base head region (cannot be aligned), followed by 12710 bases of middle region, and then 2-base tail region.  
   
-  To explain the information in the header, we have two examples:  
-  * `>ref|NC-001137|-[chromosome=V]_468529_unaligned_0_F_0_3236_0`  
-    All information before the first `_` are chromosome information. `468529` is the start position and `unaligned` suggesting it should be unaligned to the reference. The first `0` is the sequence index. `F` represents a forward strand. `0_3236_0` means that sequence length extracted from the reference is 3236 bases.  
-  * `>ref|NC-001143|-[chromosome=XI]_115406_aligned_16565_R_92_12710_2`  
-    This is an aligned read coming from chromosome XI at position 115406. `16565` is the sequence index. `R` represents a reverse complement strand. `92_12710_2` means that this read has 92-base head region (cannot be aligned), followed by 12710 bases of middle region, and then 2-base tail region.  
-  
-  The information in the header can help users to locate the read easily.  
+The information in the header can help users to locate the read easily.  
   
 __Specific to transcriptome simulation__: for reads that include retained introns, the header contains the information starting from `Retained_intron`, each genomic interval is separated by `;`.
 
 __Specific to chimeric reads simulation__: for chimeric reads, different source chromosome and locations are separated by `;`, and there's a `chimeric` in the header to indicate.
+
+#### error profile file
   
-2. `simulated_error_profile`
-  Contains all the information of errors introduced into each reads, including error type, position, original bases and current bases.  
+This file contains all the information of errors introduced into each reads, including error type, position, original bases and current bases:
+
+3. `simulated_aligned_error_profile`
+
+For `metagenome` mode simulations, this file is produced for each simulated sample, with samples systematically named: `simulated_sample0_error_profile, simulated_sample1_error_profile, ...`
 
 
 ## Acknowledgements
